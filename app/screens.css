@@ -838,7 +838,7 @@
 
 /*  玻璃主题补充（作者 2026-10）
    这个文件里写死的方角/实心色在这里收回来；磨砂只补 style.css 没盖到的面。 */
-:root[data-theme="glass"] .home-logo { text-shadow: 0 2px 20px rgba(122, 210, 255, .55); }
+:root[data-theme="glass"] .home-logo { text-shadow: 0 2px 20px rgba(122, 210, 255, .72); }
 
 :root[data-theme="glass"] .coin {
   background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .95), rgba(255, 212, 121, .75) 44%, rgba(255, 168, 60, .55));
@@ -862,9 +862,9 @@
 :root[data-theme="glass"] .unit-info .ui-kws li,
 :root[data-theme="glass"] .unit-info .ui-effect,
 :root[data-theme="glass"] .ui-label {
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  backdrop-filter: blur(16px) saturate(1.5);
-  border-color: rgba(255, 255, 255, .28);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
+  backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
+  border-color: rgba(255, 255, 255, .38);
 }
 
 :root[data-theme="glass"] .seg,

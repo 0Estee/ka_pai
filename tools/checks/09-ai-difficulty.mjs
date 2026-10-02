@@ -35,27 +35,33 @@ softCheck('「简单」明显更弱（不会用锦囊）—— 用「普通 vs �
 // 只保留「简单明显更弱」那条 —— 简单是真的不会用锦囊，与资源优势无关。
 
 
-check('AI 一点费用都不多给（作者 2026-09 明确要求；手牌/国王血量可以给）', () => {
-  api.__go('home');
-  api.__newGame();
-  const st = api.__game();
-  const before = {
-    manaCap: st.players[1].manaCap,
-    mana: st.players[1].mana,
-    flat: st.players[1].flatManaBonus || 0,
+// 作者 2026-10 重新定了两档的资源优势，这一条按新口径逐档对账：
+//   困难 = 起手多 1 张 + 国王生命上限 +6（**不加费**）
+//   噩梦 = 起手多 1 张 + 每回合多 1 费 + 国王生命上限 +8
+// 这些优势会由 screens.js 从 bonus 逐条渲染到选难度界面上，所以必须是明码、可对账的。
+check('难度增益与界面口径一致：困难只加手牌/国王血，噩梦才多 1 费', () => {
+  const want = {
+    easy: { hand: 0, hp: 0, mana: 0 },
+    normal: { hand: 0, hp: 0, mana: 0 },
+    hard: { hand: 1, hp: 6, mana: 0 },
+    nightmare: { hand: 1, hp: 8, mana: 1 },
   };
-  // 四个难度逐个试：**费用上限与当前费用都必须原样不变**。
-  // 多手牌 / 多国王血量是允许的（作者说「其他条件还可以加」），唯独费用不能加。
   for (const key of ['easy', 'normal', 'hard', 'nightmare']) {
-    const after = api.__applyBonus(st, 1, key);
-    if (after.manaCap !== before.manaCap) {
-      throw new Error(key + ' 难度给了费用上限加成：' + before.manaCap + ' → ' + after.manaCap);
+    api.__go('home');
+    api.__newGame();
+    const st = api.__game();
+    const p = () => st.players[1];
+    const before = { hand: p().hand.length, hp: p().kingHp, manaCap: p().manaCap, mana: p().mana, flat: p().flatManaBonus || 0 };
+    const a = api.__applyBonus(st, 1, key);
+    const got = { hand: a.hand - before.hand, hp: a.hp - before.hp, mana: a.flatManaBonus - before.flat };
+    if (got.hand !== want[key].hand) throw new Error(key + ' 起手多 ' + got.hand + ' 张，应为 ' + want[key].hand);
+    if (got.hp !== want[key].hp) throw new Error(key + ' 国王生命上限 +' + got.hp + '，应为 +' + want[key].hp);
+    if (got.mana !== want[key].mana) throw new Error(key + ' 每回合多 ' + got.mana + ' 费，应为 ' + want[key].mana);
+    if (a.manaCap - before.manaCap !== want[key].mana) {
+      throw new Error(key + ' 的固定费用加成没有同步到当回合费用上限（' + before.manaCap + ' -> ' + a.manaCap + '）');
     }
-    if (after.mana !== before.mana) {
-      throw new Error(key + ' 难度给了即时费用：' + before.mana + ' → ' + after.mana);
-    }
-    if ((after.flatManaBonus || 0) !== before.flat) {
-      throw new Error(key + ' 难度设了固定费用加成：' + before.flat + ' → ' + after.flatManaBonus);
+    if (a.mana - before.mana !== want[key].mana) {
+      throw new Error(key + ' 的固定费用加成没有同步到当回合可用费用（' + before.mana + ' -> ' + a.mana + '）');
     }
   }
 });
