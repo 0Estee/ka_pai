@@ -682,19 +682,19 @@ html, body {
   22% { opacity: 1; transform: translate(-50%, -6px) scale(1.18); }
   100% { opacity: 0; transform: translate(-50%, -22px) scale(1); }
 }
-.slot.fx-hit { animation: fx-shake .34s ease-out; }
-.slot.fx-hit .unit { animation: fx-flash .34s ease-out; }
-.slot.fx-lunge.mine .unit { animation: fx-lunge-mine .3s ease-out; }
-.slot.fx-lunge.foe .unit { animation: fx-lunge-foe .3s ease-out; }
+.slot.fx-hit { animation: fx-shake .40s ease-out; }
+.slot.fx-hit .unit { animation: fx-flash .40s ease-out; }
+.slot.fx-lunge.mine .unit { animation: fx-lunge-mine .38s ease-out; }
+.slot.fx-lunge.foe .unit { animation: fx-lunge-foe .38s ease-out; }
 .slot.fx-lane { animation: fx-lane .55s ease-out; }
-.sb-king.fx-hit { animation: fx-shake .34s ease-out; color: #ff5f5f; }
+.sb-king.fx-hit { animation: fx-shake .40s ease-out; color: #ff5f5f; }
 .fx-float {
   position: absolute; left: 50%; top: 4px; z-index: 6;
   transform: translate(-50%, 0);
-  font-weight: 800; font-size: 15px; line-height: 1;
+  font-weight: 800; font-size: 17px; line-height: 1;
   color: #ff6b6b; text-shadow: 0 1px 3px rgba(0, 0, 0, .85), 0 0 8px rgba(255, 60, 60, .5);
   pointer-events: none; white-space: nowrap;
-  animation: fx-float .9s ease-out forwards;
+  animation: fx-float .58s ease-out forwards;
 }
 .statusbar { position: relative; }
 .fx-float-king { top: 50%; font-size: 13px; color: #ff8a5c; }

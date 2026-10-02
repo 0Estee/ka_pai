@@ -460,6 +460,17 @@ function pumpCombatFx() {
 }
 
 /** 播一条；播完延时再播下一条，最后收尾清空 */
+/**
+ * 每条特效停留多久（毫秒）**调手感就改这一处**。
+ *
+ *  作者 2026-10 反馈「太快了，还没看清楚就结束了」。根因不是动画做得短，
+ *   而是 refresh() 会**整块替换 #stage 的 innerHTML**  下一步一渲染，
+ *   上一条的 CSS 动画就被打断（旧的 150ms 对上 0.9s 的飘字，等于只播了 1/6）。
+ *   所以这个值必须 ** style.css 里最长的那条动画**（现在最长是 0.58s），
+ *   再留一点喘气的时间。
+ */
+const FX_STEP_MS = 620;
+
 function stepCombatFx() {
   view.fx = view.fxQueue.shift() || null;
   refresh();
@@ -467,7 +478,7 @@ function stepCombatFx() {
     view.fxTimer = null;
     if (view.fxQueue.length) stepCombatFx();
     else { view.fx = null; refresh(); }
-  }, 150);
+  }, FX_STEP_MS);
 }
 
 /** 换局/换屏时把特效与游标清干净 */
