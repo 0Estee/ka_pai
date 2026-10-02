@@ -15,6 +15,12 @@ import * as RP from './replay.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 import { aiTakeTurn, difficultyByKey, applyDifficultyBonus, installAiTargetPicker } from './ai.js';
 
+// 回合循环排出去的定时器句柄。新对局必须把它们全部取消（见 newGame()），
+// 否则上一局的回调会在新局里醒来、往新局上多推一次。
+let autoPhaseTimer = null;
+let aiTurnTimer = null;
+let aiAdvanceTimer = null;
+
 /** 开始一局新对局（首页「开始游戏」与「再来一局」都走这里） */
 function startNewGame() {
   // ⚠ 顺序要紧：newGame() 内部会调 tick()，而 tick() 开头有
@@ -37,6 +43,13 @@ function startNewGame() {
 function newGame() {
   clearTimeout(bannerTimer);
   clearTimeout(autoAdvanceTimer);
+  // 旧对局排出去的回合循环定时器也要取消：它们捕获的是旧 state，
+  // 醒来后会往新对局上推一次；autoAdvancing 同理必须复位，
+  // 否则自动阶段会永久停在防重入那一步。
+  clearTimeout(autoPhaseTimer);
+  clearTimeout(aiTurnTimer);
+  clearTimeout(aiAdvanceTimer);
+  autoAdvancing = false;
 
   const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   // 共享牌库 80 张（作者裁决：卡池已超过 80 张，改为「从全部卡里随机抽 80 张」）。
@@ -238,7 +251,7 @@ function tick() {
     const logFrom = state.log.length;
     const delay = leaving === 'COMBAT' ? 750 : 260;
 
-    setTimeout(() => {
+    autoPhaseTimer = setTimeout(() => {
       Promise.resolve(advanceGame())
         .then(() => {
           if (leaving === 'COMBAT') {
@@ -263,7 +276,7 @@ function tick() {
     view.busyText = 'AI 思考中…';
     refresh();
 
-    setTimeout(() => {
+    aiTurnTimer = setTimeout(() => {
       try {
         const r = aiTakeTurn(state, foe(), { difficulty });
         // AI 已经把牌打出去了，这里只补记账（回放），不能再 apply 一次
@@ -274,8 +287,8 @@ function tick() {
         console.error('AI 出错', err);
       }
       refresh();
-      setTimeout(() => {
-        if (state.winner === null) advanceGame();
+      aiAdvanceTimer = setTimeout(() => {
+        if (state.winner === null && !state.pending) advanceGame();
         tick();
       }, 260);
     }, 420);
@@ -299,7 +312,7 @@ function tick() {
     view.hint = hasCard ? '没有可用的牌（费用不足或无合法位置）' : '手牌已空';
     refresh();
     autoAdvanceTimer = setTimeout(() => {
-      if (state.winner === null && G.getActor(state) === me()) {
+      if (state.winner === null && !state.pending && G.getActor(state) === me()) {
         advanceGame();
         tick();
       }
@@ -410,20 +423,20 @@ function flashPlayPresentation(playedDef, action) {
     const e = logs[i];
     if (e && e.type === 'trap-triggered') {
       const def = state.cardLib[e.cardId];
-      showBanner(`陷阱触发<small>${def ? def.name : e.cardId}</small>`, 2000);
+      showBanner('陷阱触发', 2000, def ? def.name : e.cardId);
       return;
     }
   }
   // 陷阱：它的「使用」是**埋伏**，按作者口径**不能给对手看**  只给埋的人自己一个提示
   if (action && action.k === 'p' && playedDef && isTrapCard(playedDef)) {
     if (typeof me === 'function' && action.s === me()) {
-      showBanner(`${playedDef.name}<small>已埋伏</small>`, 2000);
+      showBanner(playedDef.name, 2000, '已埋伏');
     }
     return;
   }
   // 锦囊：放大展示给双方，持续 2 秒
   if (action && action.k === 'p' && playedDef && playedDef.type === 'spell') {
-    showBanner(`${playedDef.name}<small>${playedDef.text || ''}</small>`, 2000);
+    showBanner(playedDef.name, 2000, playedDef.text || '');
   }
 }
 // 

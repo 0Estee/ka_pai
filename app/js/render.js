@@ -90,12 +90,21 @@ function goReplays() {
   refresh();
 }
 
-function showBanner(text, ms) {
+/**
+ * 横幅提示：text 是主标题，sub 是可选的小字第二行。
+ *
+ * 为什么要拆成两段：横幅渲染时对整串做了 esc()（见 app/js/ui.js 里的 banner 那一行），
+ * 以前调用方往 text 里直接写 <small>...</small>，玩家看到的就是标签字样本身
+ * （作者 2026-10 报的「锦囊的使用提示不正确」）。分开传、分开转义就不会有这个问题。
+ */
+function showBanner(text, ms, sub) {
   clearTimeout(bannerTimer);
   view.banner = text;
+  view.bannerSub = sub || "";
   refresh();
   bannerTimer = setTimeout(() => {
-    view.banner = '';
+    view.banner = "";
+    view.bannerSub = "";
     refresh();
   }, ms);
 }

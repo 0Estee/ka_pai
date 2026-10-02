@@ -50,7 +50,13 @@ function cellOf(st, side, row) {
  * 必须先把场景摆好再断言：一旦摆牌失败（__place 返回 null），开战就不会有人提问，
  * 表现成「挂起没出现」，很容易误判成引擎坏了；所以诊断信息里带上摆牌结果。
  */
-const run = await (async () => {
+async function scenarioOnce() {
+  let swapped = false;
+  // harness 的 timers 是全局共享的，前面各分组留下的定时器桩没人清；
+  // pumpTimers() 会把它们一起跑掉，那些回调属于别的场景，
+  // 会在本组刚摆好的局面上乱推、甚至把 state 换掉（表现为挂起没出现）。
+  // 所以开工前先清空，只跑本组自己排的定时器。
+  for (const id of [...timers.keys()]) timers.delete(id);
   api.__go('home');
   api.__newGameFirst();
   api.__pause(true);
@@ -87,6 +93,7 @@ const run = await (async () => {
   const boardTrail = [];
   let sawPending = false;
   for (let i = 0; i < 200; i++) {
+    if (api.__game() !== st) { swapped = true; break; }
     const fxs = api.__fx();
     samples.push({ phase: st.phase, turn: st.turn, busy: !!fxs.fx || !!(fxs.fxQueue && fxs.fxQueue.length) });
     if (st.pending) { sawPending = true; break; }
@@ -99,7 +106,10 @@ const run = await (async () => {
       ok: false,
       why: '开战挂起没有出现（强化士兵根本没问「要打谁」）',
       stage,
+      swapped,
       samples: samples.slice(-4),
+      first: samples.slice(0, 4), timersLeft: timers.size, screen: api.__screen(),
+      live: (() => { const l = api.__game(); return { same: l === st, phase: l.phase, turn: l.turn, logLen: l.log.length, pending: !!l.pending, cursor: api.__fx().fxCursor }; })(),
       boards: boardTrail,
       tail: st.log.slice(-40),
     };
@@ -108,8 +118,11 @@ const run = await (async () => {
   const jumped = samples.find((s) => s.busy && s.turn > 1);
   const pendingPhase = st.phase;
   const req = st.pending.request;
-  api.__nav('choose-option', { idx: 0 });        // 回答「要打谁」
+  const atHang = { same: api.__game() === st, livePhase: api.__game().phase, livePending: !!(api.__game() && api.__game().pending), logLen: st.log.length, timers: timers.size };
+  api.__nav('choose-option', { idx: 0 });
+  const afterAnswer = { same: api.__game() === st, livePhase: api.__game().phase, livePending: !!(api.__game() && api.__game().pending), logLen: st.log.length, timers: timers.size };        // 回答「要打谁」
   for (let i = 0; i < 200; i++) {
+    if (api.__game() !== st) { swapped = true; break; }
     if (!st.pending && st.phase !== pendingPhase) break;
     await stepOnce();
   }
@@ -120,10 +133,21 @@ const run = await (async () => {
       : '选完目标仍然挂着 pending',
     stage,
     pendingType: req && req.type,
+    atHang, afterAnswer,
+    swapped: swapped || !atHang.same,
     jumped,
     final: { phase: st.phase, turn: st.turn },
   };
-})();
+}
+
+let run = await scenarioOnce();
+// module 22 (spell banner) runs concurrently while this top-level await is
+// pending, and its own __newGame() swaps the shared app state -- then st goes
+// stale. Retry when that swap was observed; the other module only swaps once.
+for (let attempt = 0; attempt < 3 && run.swapped; attempt++) {
+  console.log("  retry scenario (state was swapped by another check): attempt " + (attempt + 2));
+  run = await scenarioOnce();
+}
 
 check('强化士兵在开战回合选完攻击目标之后，回合能继续推进（不卡死）', () => {
   if (!run.ok) throw new Error(run.why + ' | 现场：' + JSON.stringify(run));

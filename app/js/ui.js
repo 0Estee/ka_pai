@@ -359,7 +359,7 @@ export function render(root, state, view) {
     ${view.hint ? `<div class="hint ${view.selectedIid !== null ? 'hint-active' : ''}">${esc(view.hint)}</div>` : ''}
     <div class="hand-wrap"><div class="hand">${handHTML(state, view)}</div></div>
 
-    ${view.banner ? `<div class="banner">${esc(view.banner)}</div>` : ''}
+    ${view.banner ? `<div class="banner">${esc(view.banner)}${view.bannerSub ? `<small>${esc(view.bannerSub)}</small>` : ''}</div>` : ''}
     ${infoHTML(state, view)}
     ${state.winner !== null && !view.isReplay ? gameOverHTML(state, view) : ''}
   `;
