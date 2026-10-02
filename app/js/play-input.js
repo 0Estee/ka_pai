@@ -252,7 +252,10 @@ function resolvePlayerChoice(idx) {
    *   兜底**立刻结束回合**（作者 2026-10 报的「错误自动结束这个回合」）。
    *   玩家想结束阶段时按「结束回合」，走 handleAction('end') 那条路。
    */
-  if (!session && !state.pending && state.winner === null && G.getActor(state) === null) tick();
+    // 注意这里**不能**判 state.winner === null：答完最后一道提问就打死对面国王是很
+    // 常见的一条路，那也要走 tick() 里统一的终局分支去结算（否则这一局的金币/回放
+    // 要靠别的定时器顺手触发，运气不好就丢了）。
+    if (!session && !state.pending && G.getActor(state) === null) tick();
 }
 
 function commitPlay(iid, opts) {

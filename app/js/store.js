@@ -170,18 +170,76 @@ export function clearProfile() {
 // 回放档案
 // ══════════════════════════════════════════════════════════
 
+/**
+ * 回放档案的存取通道。
+ *
+ * 注意：回放**必须**和玩家档案走同一条原生存档通道（见上面的 nativeStore），
+ * 理由与档案完全一样，而且这里更严重：
+ *  1. WebView 的 localStorage 按来源隔离。首页是 file://，联机页是
+ *     http://主机:8765，两个来源就是两份存档：在联机页打完的那一局回放
+ *     存进了 http 那份，回首页的「回放对局」里就是空的（单人局的回放
+ *     反过来在联机页也看不到）。
+ *  2. file:// 来源在部分设备上根本拿不到 localStorage，只能退化到内存，
+ *     关掉页面或者重启 App 就没了。
+ * SharedPreferences 是进程级的、与来源无关，两边读到的都是同一份。
+ * 桌面（浏览器 / 门禁）没有这个桥，自动退回 localStorage / 内存。
+ */
+function replayStore() {
+  try {
+    const b = globalThis.KapaiNative;
+    if (!b || typeof b.readReplays !== 'function' || typeof b.writeReplays !== 'function') return null;
+    return b;
+  } catch {
+    return null;
+  }
+}
+
 const REPLAY_KEY = 'kapai.replays.v1';
 
 export function loadReplays() {
+  const ns = replayStore();
+  if (ns) {
+    try {
+      const raw = String(ns.readReplays() || '');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      // 原生这边还是空的：把旧版本存在 localStorage 里的那几局搬过来。
+      // （只有同一个来源内读得到，所以这是「尽量不丢」，不是万无一失。）
+      const legacy = readJSON(REPLAY_KEY, []);
+      const list = Array.isArray(legacy) ? legacy : [];
+      if (list.length) {
+        try { ns.writeReplays(JSON.stringify(list)); } catch { /* 搬不动就算了 */ }
+      }
+      return list;
+    } catch {
+      // 桥异常（数据坏了 / 读取被拒）：退回本地存储，别让存档挡住开局
+    }
+  }
   const list = readJSON(REPLAY_KEY, []);
   return Array.isArray(list) ? list : [];
 }
 
+/** 返回是否写入成功（原生拒绝 / 配额满都返回 false，调用方会丢旧的一半再试） */
 export function saveReplays(list) {
+  const ns = replayStore();
+  if (ns) {
+    try {
+      if (String(ns.writeReplays(JSON.stringify(list))) === 'true') return true;
+      // 有原生通道时不要再往 localStorage 里塞一份影子存档，
+      // 否则下次读的是原生那份，本地这份会变成永远更新不到的垃圾。
+      return false;
+    } catch { /* 桥异常，退回本地存储 */ }
+  }
   return writeJSON(REPLAY_KEY, list);
 }
 
 export function replaysBytes() {
+  const ns = replayStore();
+  if (ns) {
+    try { return String(ns.readReplays() || '').length * 2; } catch { /* 退回本地估算 */ }
+  }
   return bytesOf(REPLAY_KEY);
 }
 
@@ -205,6 +263,8 @@ export function saveSettings(settings) {
 
 /** 给测试用：清掉所有本地数据（内存后端也清） */
 export function __resetAll() {
+  const ns = replayStore();
+  if (ns) { try { ns.writeReplays('[]'); } catch { /* 忽略 */ } }
   for (const k of [PROFILE_KEY, REPLAY_KEY, SETTINGS_KEY]) removeKey(k);
   MEMORY.clear();
 }

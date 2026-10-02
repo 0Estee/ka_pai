@@ -77,6 +77,41 @@ check('回放可以删除', () => {
   if (after !== before - 1) throw new Error(`删除后应剩 ${before - 1} 条，实际 ${after}`);
 });
 
+check('回放会写进原生存档通道（首页 file:// 与联机页 http:// 共用同一份）', () => {
+  // 作者反馈「每局打完不会生成回放」的根因：
+  // localStorage 是**按来源隔离**的，首页来自 file:///android_asset/index.html，
+  // 联机页来自 http://主机:8765  在联机页打完的那局回放回首页就看不到；
+  // 而且 file:// 来源在部分设备上连 localStorage 都拿不到（只能退化到内存）。
+  // 所以回放必须和玩家档案一样走 SharedPreferences（KapaiNative）。
+  const before = api.__replays().length;
+  let written = null;
+  const had = api.KapaiNative;
+  api.KapaiNative = {
+    readProfile: () => '',
+    writeProfile: () => 'true',
+    readReplays: () => '',
+    writeReplays: (s) => { written = s; return 'true'; },
+  };
+  let run = null;
+  try {
+    api.__go('home');
+    run = api.__autoPlay();
+  } finally {
+    if (had === undefined) delete api.KapaiNative; else api.KapaiNative = had;
+  }
+  if (run && run.error) throw new Error('跑完整局失败：' + run.error);
+  if (written === null) throw new Error('有 KapaiNative 时回放没有走原生通道（还是塞进 localStorage 了）');
+  let arr = null;
+  try { arr = JSON.parse(written); } catch { throw new Error('原生通道收到的不是合法 JSON'); }
+  if (!Array.isArray(arr)) throw new Error('原生通道收到的不是数组');
+  if (arr.length !== before + 1) throw new Error('原生通道收到的条数不对：' + arr.length + '，应为 ' + (before + 1));
+  if (!arr[0] || !Array.isArray(arr[0].actions) || arr[0].actions.length === 0) throw new Error('写进去的那局没有记录到操作');
+  if (api.__replays().length !== before + 1) throw new Error('内存里的回放列表没跟着更新');
+  // 还原现场：后面的分组依赖内存里有一局
+  api.__go('home');
+  api.__newGame();
+});
+
 check('回放列表能渲染（含备注与删除按钮）', () => {
   api.__go('replays');
   const html = elements.get('stage').innerHTML;

@@ -181,6 +181,8 @@ public final class NativeBridge {
 
     private static final String PREFS = "kapai_store";
     private static final String KEY_PROFILE = "profile.v1";
+    /** 回放档案。和主存档共用 SharedPreferences，理由见上面 176-180 行 */
+    private static final String KEY_REPLAYS = "replays.v1";
 
     /** 读主存档（没有则返回空字符串，JS 侧按「还没有档案」处理） */
     @JavascriptInterface
@@ -203,6 +205,42 @@ public final class NativeBridge {
             // 而且它不会在主线程上卡 I/O。
             activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
                     .edit().putString(KEY_PROFILE, json).apply();
+            return "true";
+        } catch (RuntimeException e) {
+            return "false";
+        }
+    }
+
+    /**
+     * 读回放档案（没有则返回空字符串，JS 侧按「还没有档案」处理）。
+     *
+     * 为什么回放也要放这里（作者反馈：每局打完不会生成回放）：
+     * 回放原先存在 WebView 的 localStorage 里，而 localStorage 是**按来源隔离**的：
+     * 首页来自 file:///android_asset/index.html，联机页来自 http://主机:8765，
+     * 于是联机打完的那局回放回首页就看不到；file:// 来源在部分设备上还干脆
+     * 拿不到 localStorage，只能退化到内存，关掉页面就没了。
+     */
+    @JavascriptInterface
+    public String readReplays() {
+        try {
+            String v = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
+                    .getString(KEY_REPLAYS, "");
+            return v == null ? "" : v;
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** 写回放档案。返回是否成功；写不下(见下面的体积上限)返回 false，JS 侧会丢旧的一半再试 */
+    @JavascriptInterface
+    public String writeReplays(String json) {
+        if (json == null || json.isEmpty()) return "false";
+        // SharedPreferences 是把整份 XML 读进内存的，不能让回放无限长大：
+        // 超过这个量直接回 false，交给 JS 侧的「丢一半重试」处理。
+        if (json.length() > 1500000) return "false";
+        try {
+            activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
+                    .edit().putString(KEY_REPLAYS, json).apply();
             return "true";
         } catch (RuntimeException e) {
             return "false";
