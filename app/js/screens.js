@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.34.0';
+export const APP_VERSION = '0.35.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -231,7 +231,7 @@ export function homeHTML({ profile, level, storageMode }) {
     </div>
 
     <div class="home-hero">
-      <div class="home-logo">卡牌对战</div>
+      <div class="home-logo">王座交锋</div>
       <div class="home-sub">原型 v${APP_VERSION}</div>
     </div>
 

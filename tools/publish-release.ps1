@@ -53,7 +53,7 @@ Write-Host "写权限: OK"
 $tag = "v$Version"
 & git -C $root rev-parse -q --verify "refs/tags/$tag" | Out-Null
 if ($LASTEXITCODE -ne 0) {
-  & git -C $root tag -a $tag -m "卡牌对战原型 $Version"
+  & git -C $root tag -a $tag -m "王座交锋 $Version"
   Write-Host "已建 tag $tag"
 }
 & git -C $root push origin $tag

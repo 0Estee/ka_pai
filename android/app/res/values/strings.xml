@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 临时名。定好正式名字后改这一行即可（重新构建 APK 生效）。 -->
-    <string name="app_name">卡牌对战</string>
+    <!-- 正式名（作者 2026-10 定）：桌面图标与安装列表里显示这个。 -->
+    <string name="app_name">王座交锋</string>
 </resources>

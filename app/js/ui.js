@@ -193,8 +193,31 @@ function slotHTML(state, view, lane, side, row) {
   const fxClasses = [laneHot ? 'fx-lane' : '', lunge ? 'fx-lunge' : '', here ? 'fx-hit' : ''].filter(Boolean);
   const fxRest = (fx && fx.animateFloat === false) ? ' fx-float-rest' : '';
   const fxHTML = (here && fx.text) ? `<span class="fx-float${fxRest}">${fx.text}</span>` : '';
+  // 「单位被消灭」要等它所在线路的动画演完才结算（作者 2026-10 要求）。
+  // 引擎是瞬间把整场算完的，阵亡单位早就从 state 里删掉了，这里用一块「残影」
+  // 把它继续画在该格子里，直到这一路没有待播的特效为止（见 game-flow.js 的 pumpCombatFx）。
+  let ghost = null;
+  if (!unit) {
+    const lanePending = !!((fx && fx.lane === lane) || (view.fxQueue || []).some((f) => f.lane === lane));
+    if (lanePending) {
+      ghost = (view.deadUnits || []).find((d) => d.lane === lane && d.side === side && d.row === row) || null;
+    }
+  }
   const allClasses = classes + (fxClasses.length ? ' ' + fxClasses.join(' ') : '');
-  return `<div class="${allClasses}" data-lane="${lane}" data-side="${side}" data-row="${row}">${unitHTML(state, unit, view)}${fxHTML}</div>`;
+  return `<div class="${allClasses}" data-lane="${lane}" data-side="${side}" data-row="${row}">${unitHTML(state, unit, view)}${ghost ? ghostHTML(state, ghost) : ''}${fxHTML}</div>`;
+}
+
+/** 阵亡残影：单位死在本线路动画演完之前，先这么画着（见 slotHTML 里的说明） */
+function ghostHTML(state, g) {
+  const def = state.cardLib[g.cardId];
+  return `
+    <div class="unit ghost">
+      <div class="u-name">${esc(def ? def.name : g.cardId)}</div>
+      <div class="u-bottom">
+        <span class="u-atk" title="攻击力">⚔${def ? def.atk : 0}</span>
+        <span class="u-hp" title="生命">♥0</span>
+      </div>
+    </div>`;
 }
 
 function statusBarHTML(state, side, view) {
@@ -359,7 +382,7 @@ export function render(root, state, view) {
     ${view.hint ? `<div class="hint ${view.selectedIid !== null ? 'hint-active' : ''}">${esc(view.hint)}</div>` : ''}
     <div class="hand-wrap"><div class="hand">${handHTML(state, view)}</div></div>
 
-    ${view.banner ? `<div class="banner">${esc(view.banner)}${view.bannerSub ? `<small>${esc(view.bannerSub)}</small>` : ''}</div>` : ''}
+    ${view.banner ? `<div class="banner${view.bannerAnimate === false ? ' banner-rest' : ''}">${esc(view.banner)}${view.bannerSub ? `<small>${esc(view.bannerSub)}</small>` : ''}</div>` : ''}
     ${infoHTML(state, view)}
     ${state.winner !== null && !view.isReplay ? gameOverHTML(state, view) : ''}
   `;

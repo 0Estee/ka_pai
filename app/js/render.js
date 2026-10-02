@@ -97,14 +97,49 @@ function goReplays() {
  * 以前调用方往 text 里直接写 <small>...</small>，玩家看到的就是标签字样本身
  * （作者 2026-10 报的「锦囊的使用提示不正确」）。分开传、分开转义就不会有这个问题。
  */
+/**
+ * 排队展示横幅（作者 2026-10 口径：AI 用锦囊也要放大展示，持续 2 秒）。
+ * showBanner 是「后一条顶掉前一条」，而 AI 一回合可能连出好几张锦囊，
+ * 直接连着调只会看到最后一张，所以多的排进 view.bannerQueue 一张张播。
+ */
+let bannerAnimTimer = null;
+
+function queueBanner(text, ms, sub) {
+  if (!view) return;
+  if (view.banner) {
+    if (!view.bannerQueue) view.bannerQueue = [];
+    if (view.bannerQueue.length < 4) view.bannerQueue.push({ text, ms, sub });
+    return;
+  }
+  showBanner(text, ms, sub);
+}
+
 function showBanner(text, ms, sub) {
   clearTimeout(bannerTimer);
   view.banner = text;
   view.bannerSub = sub || "";
+  // 入场动画只播一次：refresh() 会整块重建 #stage，每重渲染一次动画就重启一次，
+  // 玩家看到的就是「横幅反复弹出来」（作者 2026-10 报的「提示多次出现」）。
+  // 首次渲染带 .banner（有动画），之后都带 .banner-rest（静止）。
+  view.bannerAnimate = true;
   refresh();
+  // 关键是这个标记什么时候关：showBanner 之后同一次任务里往往还有一次 refresh
+  //（commitPlay 收尾、AI 分支收尾），标记要留到那之后才关，
+  // 这样最后画到屏幕上的那一帧是带动画的；之后的重渲染（特效步进、tick）
+  // 才带 .banner-rest（animation: none），也就不会「反复弹出来」。
+  if (bannerAnimTimer) clearTimeout(bannerAnimTimer);
+  bannerAnimTimer = setTimeout(() => {
+    bannerAnimTimer = null;
+    view.bannerAnimate = false;
+  }, 220);
   bannerTimer = setTimeout(() => {
     view.banner = "";
     view.bannerSub = "";
+    if (view.bannerQueue && view.bannerQueue.length) {
+      const next = view.bannerQueue.shift();
+      showBanner(next.text, next.ms, next.sub);
+      return;
+    }
     refresh();
   }, ms);
 }

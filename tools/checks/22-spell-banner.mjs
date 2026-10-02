@@ -1,7 +1,7 @@
 /**  提示条：锦囊的放大展示 + 伤害掉字不被裁掉（作者 2026-10 报的两条界面问题） */
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, api, elements, check } from './harness.mjs';
+import { ROOT, api, elements, timers, check } from './harness.mjs';
 
 console.log('\n 提示条：锦囊放大展示与伤害掉字');
 
@@ -76,3 +76,129 @@ check('掉字不会被格子裁掉，也不会被相邻格子盖住', () => {
   if (Number(m[1]) < 2) throw new Error('.fx-float 的 z-index 太小：' + m[1]);
 });
 
+
+function pumpTimers(rounds) {
+  for (let i = 0; i < rounds; i++) {
+    const pending = [...timers.entries()];
+    if (!pending.length) break;
+    for (const [id, t] of pending) {
+      timers.delete(id);
+      try { t.fn(); } catch { /* 桩里其它定时器抛错不影响这条断言 */ }
+    }
+  }
+}
+
+/** 只把「横幅自己 2 秒后消失」这件事提前，别把特效那条长定时器也一起烧掉 */
+function fireBannerTimer() {
+  for (const [id, t] of [...timers.entries()]) {
+    if (t.ms === 2000) { timers.delete(id); try { t.fn(); } catch { /* 忽略 */ } }
+  }
+}
+
+/** HTML 里那条横幅的片段（避免把陷阱格上的字样也算进来） */
+function bannerBlock(html) {
+  const at = html.indexOf('class="banner');
+  if (at < 0) return '';
+  const end = html.indexOf('</div>', at);
+  return html.slice(at, end < 0 ? at + 240 : end);
+}
+
+/** 只烧掉指定时长的定时器（别把横幅那条 2 秒的也烧了，否则看不到横幅） */
+function fireMs(...durations) {
+  for (const [id, t] of [...timers.entries()]) {
+    if (durations.includes(t.ms)) { timers.delete(id); try { t.fn(); } catch { /* 忽略 */ } }
+  }
+}
+
+check('AI 打出锦囊也会放大展示（作者报的「敌方使用锦囊时没有提示」）', () => {
+  // AI 出牌走 tick 的 AI 分支（aiTakeTurn），和玩家的 commitPlay 是两条路，要单独守一条。
+  // 不同锦囊 AI 的评估分数不同（有的它根本不肯打），所以逐个候选试到有一张真打出来为止。
+  api.__go('home');
+  api.__newGame();
+  const lib = Object.values(api.__game().cardLib);
+  const cands = lib.filter((d) => d && d.type === 'spell' && d.text && !d.token && !(d.keywords || []).includes('trap'));
+  const tried = [];
+  for (const def of cands) {
+    if (typeof api.setDifficulty === 'function') api.setDifficulty('normal');
+    api.__go('home');
+    api.__pause(true);
+    api.__newGame();
+    api.__pause(true);
+    // startNewGame 里可能已经排了自动阶段定时器：清干净，否则它会在我们摆完场面之后乱推
+    for (const id of [...timers.keys()]) timers.delete(id);
+    const st = api.__game();
+    st.humanSide = 0;
+    st.players[0].hand.length = 0;
+    st.players[1].hand.length = 0;
+    st.players[1].hand.push({ iid: st.nextIid++, cardId: def.id });
+    st.players[1].mana = 9;
+    st.players[1].manaCap = 9;
+    // 摆到「真人的那个阶段」，结束它就轮到 AI（走的是真实路由，不是直接调 AI 函数）
+    st.phase = st.firstPlayer === 0 ? 'SPELL_FIRST' : 'DEPLOY_SECOND';
+    api.__pause(false);
+    api.__nav('end', {});
+    fireMs(420); // AI 思考 420ms：出牌 -> presentCasts()
+    const st2 = api.__game();
+    if (!st2.log.some((e) => e && e.type === 'cast' && e.side === 1)) { tried.push(def.name); continue; }
+    const banner = bannerBlock(elements.get('stage').innerHTML);
+    if (!banner) throw new Error('AI 打出了锦囊「' + def.name + '」但棋盘上没有横幅');
+    if (!banner.includes(def.name)) throw new Error('横幅里不是 AI 刚打出的那张锦囊：' + def.name + ' / ' + banner.slice(0, 90));
+    api.__pause(true);
+    return;
+  }
+  throw new Error('遍历 ' + cands.length + ' 张带文本的锦囊，AI 一张都不肯打（试过 ' + tried.length + ' 张）');
+});
+
+check('横幅的入场动画只播一次：重渲染之后不会又弹一遍', () => {
+  // 作者 2026-10：在自动结束回合的同时按下结束回合，锦囊提示会多次出现。
+  // 根因是 refresh() 整块重建 #stage，每重渲染一次入场动画就重启一次。
+  const { name } = playSpellOnKing();
+  const first = elements.get('stage').innerHTML;
+  if (!bannerBlock(first)) throw new Error('打出锦囊后没有横幅');
+  if (first.includes('banner-rest')) throw new Error('第一次渲染就带了 banner-rest，入场动画根本不会播');
+  if (typeof api.refresh !== 'function') throw new Error('打包作用域里拿不到 refresh');
+  // 动画播完之后标记才会关（220ms）；先把那个定时器烧掉，再重渲染一次
+  for (const [id, t] of [...timers.entries()]) {
+    if (t.ms <= 300) { timers.delete(id); try { t.fn(); } catch { /* 忽略 */ } }
+  }
+  api.refresh(); // 模拟战斗特效步进 / tick / 任何一次重渲染
+  const again = elements.get('stage').innerHTML;
+  if (!again.includes('banner-rest')) {
+    throw new Error('重渲染之后横幅又带上了入场动画，玩家看到的就是「提示反复出现」');
+  }
+  if (!bannerBlock(again).includes(name)) throw new Error('重渲染之后横幅内容丢了：' + name);
+});
+
+check('陷阱触发的横幅不会在之后的推进里重复弹出', () => {
+  // 以前 flashPlayPresentation 是「回看最后 4 条日志找 trap-triggered」，
+  // 那条还在窗口里的时候，之后每一次出牌/推进都会再弹一次同一个横幅。
+  api.__go('home');
+  api.__newGame();
+  api.__pause(true);
+  const st = api.__game();
+  st.humanSide = 0;
+  api.__demoHand(['U371']); // 反应装甲：目前唯一的陷阱卡
+  const iid = st.players[0].hand[st.players[0].hand.length - 1].iid;
+  st.players[0].mana = 9;
+  st.players[0].manaCap = 9;
+  st.phase = st.firstPlayer === 0 ? 'DEPLOY_FIRST' : 'DEPLOY_SECOND';
+  api.commitPlay(iid, {}); // 埋伏：陷阱不受阶段类型限制
+  api.__place(1, 'W04', 'mountain', 'front');
+  api.__place(0, 'W02', 'mountain', 'front');
+  let n = 0;
+  while (api.__game().phase !== 'COMBAT' && n++ < 14) api.__advance();
+  api.__advance(); // 对手打过来 -> 陷阱触发
+  const html1 = elements.get('stage').innerHTML;
+  if (!bannerBlock(html1).includes('陷阱触发')) {
+    throw new Error('陷阱触发了却没有横幅（场面可能不成立）');
+  }
+  fireBannerTimer(); // 让这条横幅自己消失（2 秒）
+  api.__pause(false);
+  api.__advance(); // 再推进一次：这一步以前会把同一条陷阱横幅再弹一遍
+  const html2 = elements.get('stage').innerHTML;
+  if (bannerBlock(html2).includes('陷阱触发')) {
+    throw new Error('同一个陷阱触发被重复展示了（作者报的「锦囊提示会多次出现」）');
+  }
+  api.__pause(true);
+  api.__newGame();
+});

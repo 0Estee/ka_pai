@@ -593,6 +593,16 @@ html, body {
 }
 @keyframes bannerIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+/* 横幅入场动画只播一次：重渲染时用这个类把动画关掉（见 render.js 的 showBanner） */
+.banner-rest { animation: none; }
+
+/* 阵亡残影：单位被消灭后先留在格子里，等所在线路的动画演完才消失（作者 2026-10） */
+.unit.ghost {
+  opacity: .45;
+  filter: grayscale(.85);
+  pointer-events: none;
+}
+
 /* ── 结算 / 菜单 ──────────────────────────────────────── */
 .overlay {
   position: fixed; inset: 0;

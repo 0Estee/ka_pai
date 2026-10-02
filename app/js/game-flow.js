@@ -283,6 +283,8 @@ function tick() {
         for (const a of (r && r.actions) || []) {
           RP.recAction(recording, { k: 'p', s: foe(), i: a.iid, o: a.opts });
         }
+        // AI 打出的锦囊也要放大展示（作者 2026-10 报的「敌方使用锦囊时没有提示」）
+        presentCasts();
       } catch (err) {
         console.error('AI 出错', err);
       }
@@ -418,15 +420,21 @@ export {
 function flashPlayPresentation(playedDef, action) {
   if (!state) return;
   // 陷阱触发优先：它才是「达成触发条件」的那一刻
+  // 用游标只认**新出现**的那条：以前是回看最后 4 条日志，只要那条 trap-triggered
+  // 还在窗口里，之后每一次出牌/推进都会再弹一次同一个横幅
+  //（作者 2026-10 报的「锦囊提示会多次出现」）。
   const logs = state.log || [];
-  for (let i = logs.length - 1; i >= 0 && i >= logs.length - 4; i--) {
+  if (view.trapCursor === undefined || view.trapCursor > logs.length) view.trapCursor = logs.length;
+  for (let i = view.trapCursor; i < logs.length; i++) {
     const e = logs[i];
     if (e && e.type === 'trap-triggered') {
       const def = state.cardLib[e.cardId];
+      view.trapCursor = i + 1;
       showBanner('陷阱触发', 2000, def ? def.name : e.cardId);
       return;
     }
   }
+  view.trapCursor = logs.length;
   // 陷阱：它的「使用」是**埋伏**，按作者口径**不能给对手看**  只给埋的人自己一个提示
   if (action && action.k === 'p' && playedDef && isTrapCard(playedDef)) {
     if (typeof me === 'function' && action.s === me()) {
@@ -447,6 +455,29 @@ function flashPlayPresentation(playedDef, action) {
 // thorns / poison-tick ），所以只要按「日志游标」把新事件翻成特效、按
 // 150ms 一条放出去，每一次攻击就能看得见。纯展示，不碰任何游戏状态。
 // 
+
+/**
+ * AI 打出的锦囊也要放大展示（作者 2026-10：敌方使用锦囊时没有任何提示）。
+ *
+ * 为什么不在 AI 出牌那一瞬间弹：aiTakeTurn 一次可能连出好几张（最多 8 张），
+ * 连着调 showBanner 只会看到最后一张。这里从日志里按游标取**新出现**的 cast
+ * 条目，交给 queueBanner 排队，一张一张各播满 2 秒。
+ */
+function presentCasts() {
+  if (!state || !view) return;
+  const logs = state.log || [];
+  if (view.castCursor === undefined || view.castCursor > logs.length) view.castCursor = 0;
+  for (let i = view.castCursor; i < logs.length; i++) {
+    const e = logs[i];
+    if (!e || e.type !== 'cast') continue;
+    // 自己的锦囊在 commitPlay / applyLocalAction 里已经展示过，别弹第二遍
+    if (typeof me === 'function' && e.side === me()) continue;
+    const def = state.cardLib[e.cardId];
+    if (!def || def.type !== 'spell' || isTrapCard(def)) continue;
+    queueBanner(def.name, 2000, def.text || '');
+  }
+  view.castCursor = logs.length;
+}
 
 /** 一条日志 -> 一个特效；返回 null 表示这条不值得演 */
 function fxOfLogEntry(e) {
@@ -483,12 +514,19 @@ function pumpCombatFx() {
   const logs = state.log || [];
   if (view.fxCursor === undefined || view.fxCursor > logs.length) view.fxCursor = 0;
   if (!view.fxQueue) view.fxQueue = [];
+  if (!view.deadUnits) view.deadUnits = [];
   for (const e of logs.slice(view.fxCursor)) {
+    // 阵亡残影：这一步只登记，什么时候不再画由 ui.js 的 slotHTML 判（这一路演完就撤）
+    if (e && e.type === 'destroy' && e.lane !== undefined && view.deadUnits.length < 20) {
+      view.deadUnits.push({ uid: e.uid, cardId: e.cardId, lane: e.lane, side: e.side, row: e.row });
+    }
     const fx = fxOfLogEntry(e);
     if (fx && view.fxQueue.length < 14) view.fxQueue.push(fx);   // 上限：别让大战役拖成幻灯片
   }
   view.fxCursor = logs.length;
   if (!view.fxTimer && view.fxQueue.length) stepCombatFx();
+  // 没有要播的特效就别留着残影（否则下一次别的线路开战时会把旧残影画出来）
+  else if (!view.fxTimer) view.deadUnits = [];
 }
 
 /** 播一条；播完延时再播下一条，最后收尾清空 */
@@ -516,6 +554,7 @@ function stepCombatFx() {
     if (view.fxQueue.length) stepCombatFx();
     else {
       view.fx = null;
+      view.deadUnits = [];
       refresh();
       // 演出播完了，把回合循环接回去（上面那道闸放行）
       tick();
@@ -529,5 +568,8 @@ function resetCombatFx() {
   view.fxTimer = null;
   view.fx = null;
   view.fxQueue = [];
+  view.deadUnits = [];
+  view.trapCursor = state && state.log ? state.log.length : 0;
+  view.castCursor = state && state.log ? state.log.length : 0;
   view.fxCursor = state && state.log ? state.log.length : 0;
 }

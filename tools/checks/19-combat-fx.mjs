@@ -84,3 +84,27 @@ check('特效队列不会无限堆（大战役也不会排成幻灯片）', () =
   pumpTimers(30);
   api.__pause(false);
 });
+
+check('阵亡单位在所在线路的动画播完之前还画在格子里（残影）', () => {
+  // 作者 2026-10：单位被消灭的结算时间应该是所在的线路动画演出结束后。
+  // 引擎是瞬间算完的，所以界面这一侧要先把阵亡单位留在原地演完这一路，
+  // 演完了才撤掉（view.deadUnits，见 ui.js 的 slotHTML / ghostHTML）。
+  api.__go('home');
+  api.__newGame();
+  api.__pause(true);
+  api.__place(0, 'W04', 'mountain', 'front');
+  api.__place(1, 'W02', 'mountain', 'front');
+  let n = 0;
+  while (api.__game().phase !== 'COMBAT' && n++ < 14) api.__advance();
+  api.__advance();
+  const st = api.__game();
+  const dead = st.log.find((e) => e && e.type === 'destroy' && e.lane === 'mountain');
+  if (!dead) throw new Error('场面不成立：这一路应当打死一个单位');
+  if (!elements.get('stage').innerHTML.includes('unit ghost')) {
+    throw new Error('单位已经阵亡，但所在线路的动画还没播完，格子里应当先留着残影');
+  }
+  pumpTimers(30); // 把这一路的特效播完
+  if (elements.get('stage').innerHTML.includes('unit ghost')) {
+    throw new Error('所在线路的动画已经播完，残影还留在棋盘上（那就不再是「演出结束才结算」了）');
+  }
+});
