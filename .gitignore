@@ -15,6 +15,7 @@ shots/
 .verify-apk/
 .tmp-nettest/
 .tmp-*/
+.tmp-*
 
 #  拆模块那轮留下的残骸（无任何引用，可删）
 .recover/
