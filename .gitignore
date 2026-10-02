@@ -3,11 +3,10 @@
 .toolchain/
 
 #  生成物：都能用一条命令重做 
-# dist/          APK 产物（build-apk.ps1 生成）
+# dist/          **不忽略**：APK 是交付物，每次构建完连它一起提交（作者 2026-10 要求）
 # app/dist/      打包产物（node tools/build-web.mjs 生成，harness 与 verify-apk 都要读它）
 # android/build/ aapt2/javac/d8 的中间产物
 # shots/         verify-apk.ps1 的截图输出
-dist/
 app/dist/
 android/build/
 shots/
