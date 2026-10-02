@@ -9,106 +9,107 @@
 
 :root {
   /* ── 基础层 ─────────────────────────────────────────── */
-  --bg: #0b0f14;              /* 页面底色 */
-  --bg-2: #0f151d;            /* 比 --bg 略浅一层的背景（顶栏 / 阶段条） */
-  --panel: #151c26;           /* 面板 */
-  --panel-2: #1b2431;         /* 面板上的次级控件 */
-  --panel-active: #1d2a3a;    /* 当前行动方状态条 */
-  --line: #2a3646;            /* 分割线 / 描边 */
-  --text: #e6edf6;            /* 正文 */
-  --dim: #8b9bb0;             /* 次要文字 */
-  --desc-text: #b8c6d8;       /* 卡面描述 / 图例正文 */
+  --bg: #151110;              /* 页面底色 */
+  --bg-2: #1c1715;            /* 比 --bg 略浅一层的背景（顶栏 / 阶段条） */
+  --panel: #241d1a;           /* 面板 */
+  --panel-2: #2d2521;         /* 面板上的次级控件 */
+  --panel-active: #352a24;    /* 当前行动方状态条 */
+  --line: #4a3d34;            /* 分割线 / 描边 */
+  --text: #f0e7d8;            /* 正文 */
+  --dim: #a3927f;             /* 次要文字 */
+  --desc-text: #cfc0a9;       /* 卡面描述 / 图例正文 */
 
   /* ── 主题强调色 ─────────────────────────────────────── */
-  --gold: #e8b84b;            /* 主强调（金） */
-  --accent: #58a6ff;          /* 主要交互蓝（费用点、聚焦态） */
-  --me: #4a9eff;              /* 我方 */
-  --foe: #ff6b6b;             /* 敌方 */
-  --legal: #3ddc84;           /* 可放置 */
-  --target: #ffab40;          /* 可指定目标 */
-  --hp: #7ee787;              /* 生命值绿 */
-  --atk: #ffb454;             /* 攻击力橙 */
-  --mana: #7cc7ff;            /* 费用蓝 */
-  --mark: #c48cff;            /* 状态标记紫（淬毒 / 疾病） */
+  --gold: #d5ac62;            /* 主强调（金） */
+  --accent: #7ea6cc;          /* 主要交互蓝（费用点、聚焦态） */
+  --me: #6fa9de;              /* 我方 */
+  --foe: #d9736a;             /* 敌方 */
+  --legal: #7fa96b;           /* 可放置 */
+  --target: #d9a35e;          /* 可指定目标 */
+  --hp: #9dc388;              /* 生命值绿 */
+  --atk: #e2a171;             /* 攻击力橙 */
+  --mana: #8fb8dc;            /* 费用蓝 */
+  --mark: #c1a3db;            /* 状态标记紫（淬毒 / 疾病） */
 
   /* ── 棋盘格 ─────────────────────────────────────────── */
-  --slot-line: #223044;       /* 空格虚线框 */
-  --slot-bg: #0e141c;         /* 空格底 */
-  --slot-front: #101822;      /* 前排空格底（略亮，拉开层次） */
-  --slot-mine: #243a52;       /* 我方半场框线 */
-  --slot-foe: #3a2430;        /* 敌方半场框线 */
-  --trap-line: #2a2f38;       /* 陷阱格框线 */
-  --trap-bg-1: #0c1117;       /* 陷阱格斜纹 A */
-  --trap-bg-2: #0e141b;       /* 陷阱格斜纹 B */
-  --trap-mark: #3b4655;       /* 「陷阱格」字样 */
-  --legal-bg: #10251a;        /* 可放置格底 */
-  --legal-glow-1: rgba(61, 220, 132, .35);  /* 可放置格内发光（静态） */
-  --legal-glow-2: rgba(61, 220, 132, .25);  /* 呼吸动画：弱 */
-  --legal-glow-3: rgba(61, 220, 132, .55);  /* 呼吸动画：强 */
+  --slot-line: #423628;       /* 空格虚线框 */
+  --slot-bg: #191412;         /* 空格底 */
+  --slot-front: #1e1815;      /* 前排空格底（略亮，拉开层次） */
+  --slot-mine: #4d5c68;       /* 我方半场框线 */
+  --slot-foe: #6b4a48;        /* 敌方半场框线 */
+  --trap-line: #4b3f31;       /* 陷阱格框线 */
+  --trap-bg-1: #17130f;       /* 陷阱格斜纹 A */
+  --trap-bg-2: #1c1713;       /* 陷阱格斜纹 B */
+  --trap-mark: #6d5c47;       /* 「陷阱格」字样 */
+  --legal-bg: #1e2517;        /* 可放置格底 */
+  --legal-glow-1: rgba(127, 169, 107, .45);  /* 可放置格内发光（静态） */
+  --legal-glow-2: rgba(127, 169, 107, .28);  /* 呼吸动画：弱 */
+  --legal-glow-3: rgba(127, 169, 107, .70);  /* 呼吸动画：强 */
 
   /* ── 单位卡 ─────────────────────────────────────────── */
-  --unit-bg-1: #1c2836;
-  --unit-bg-2: #131b26;
-  --unit-line: #2f4256;
-  --unit-front-line: #3c6b93;      /* 前排单位框线 */
-  --unit-back-line: #6b5a3c;       /* 后排单位框线（金） */
-  --unit-back-bg-1: #2a2519;
-  --unit-back-bg-2: #1a1710;
-  --hpbar-bg: #3a1f1f;             /* 血条底槽 */
+  --unit-bg-1: #2d251c;
+  --unit-bg-2: #251e18;
+  --unit-line: #4d3f2f;
+  --unit-front-line: #5d7f9c;      /* 前排单位框线 */
+  --unit-back-line: #a38b56;       /* 后排单位框线（金） */
+  --unit-back-bg-1: #34291b;
+  --unit-back-bg-2: #2b2217;
+  --hpbar-bg: #3d2a26;             /* 血条底槽 */
 
   /* ── 手牌 ───────────────────────────────────────────── */
-  --hand-bg: #0d131a;
-  --card-bg-1: #1e2836;
-  --card-bg-2: #141b25;
-  --card-line: #2f3d4f;
-  --card-spell-bg-1: #2a2138;      /* 法术卡 */
-  --card-spell-bg-2: #171226;
-  --card-spell-line: #4a3a66;
-  --card-item-bg-1: #1d2c33;       /* 道具卡 */
-  --card-item-bg-2: #12191f;
-  --card-item-line: #33565f;
-  --card-dim: .42;                 /* 不可用卡牌的褪色程度 */
+  --hand-bg: #17120f;
+  --card-bg-1: #2f261d;
+  --card-bg-2: #27201a;
+  --card-line: #4f4232;
+  --card-spell-bg-1: #2d2533;      /* 法术卡 */
+  --card-spell-bg-2: #26202b;
+  --card-spell-line: #5b4d69;
+  --card-item-bg-1: #24312c;       /* 道具卡 */
+  --card-item-bg-2: #1e2924;
+  --card-item-line: #47685e;
+  --card-dim: .46;                 /* 不可用卡牌的褪色程度 */
 
   /* ── 按钮 / 费用徽章 ────────────────────────────────── */
-  --btn-bg-1: #2f6fd0;
-  --btn-bg-2: #24559e;
+  --btn-bg-1: #3d6d99;
+  --btn-bg-2: #31577a;
   --btn-text: #fff;
-  --btn-disabled-bg: #223041;
-  --btn-disabled-text: #5b6b7d;
-  --cost-bg-1: #3f78d8;
-  --cost-bg-2: #2b549e;
+  --btn-disabled-bg: #2a2420;
+  --btn-disabled-text: #6d6355;
+  --cost-bg-1: #3d6d99;
+  --cost-bg-2: #31577a;
   --cost-text: #fff;
-  --btn-danger-bg: #3a2630;
-  --btn-danger-text: #ffb3b3;
+  --btn-danger-bg: #3a2822;
+  --btn-danger-text: #e8b3a8;
 
   /* ── 费用点 ─────────────────────────────────────────── */
-  --pip-off: #2b3a4d;
+  --pip-off: #3a3128;
 
   /* ── 提示 / 横幅 / 遮罩 ─────────────────────────────── */
-  --hint-bg: rgba(20, 28, 38, .96);
-  --hint-text: #cfe0f5;
-  --banner-bg: rgba(232, 184, 75, .96);
-  --banner-text: #1a1200;
-  --menu-bg: rgba(8, 12, 17, .97);
+  --hint-bg: rgba(36, 29, 26, .96);
+  --hint-text: #e8ddc9;
+  --banner-bg: rgba(213, 172, 98, .96);
+  --banner-text: #241a05;
+  --menu-bg: rgba(20, 16, 14, .97);
   /* 保留原值（规范表里写的是 rgba(0,0,0,.65)，但用它会明显改变现有弹窗遮罩） */
-  --overlay: rgba(5, 8, 12, .82);
-  --shadow: rgba(0, 0, 0, .5);
-  --shadow-2: rgba(0, 0, 0, .6);   /* 费用徽章 / 选中卡（沿用旧值，避免深色主题出现可见差异） */
-  --shadow-3: rgba(0, 0, 0, .7);   /* 横幅 */
+  --overlay: rgba(10, 8, 6, .82);
+  --shadow: rgba(0, 0, 0, .45);
+  --shadow-2: rgba(0, 0, 0, .50);   /* 费用徽章 / 选中卡（沿用旧值，避免深色主题出现可见差异） */
+  --shadow-3: rgba(0, 0, 0, .55);   /* 横幅 */
 
   /* ── 目标高亮 ───────────────────────────────────────── */
-  --target-bg: rgba(255, 171, 64, .16);
-  --target-ring: rgba(255, 171, 64, .6);
-  --target-halo: rgba(255, 171, 64, .7);
-  --target-pulse-1: rgba(255, 171, 64, .45);
-  --target-pulse-2: rgba(255, 171, 64, .9);
-  --target-pulse-3: rgba(255, 171, 64, .8);
+  --target-bg: rgba(217, 163, 94, .16);
+  --target-ring: rgba(217, 163, 94, .60);
+  --target-halo: rgba(217, 163, 94, 0);
+  --target-pulse-1: rgba(217, 163, 94, .45);
+  --target-pulse-2: rgba(217, 163, 94, .90);
+  --target-pulse-3: rgba(217, 163, 94, 0);
 
   /* ── 图例 ───────────────────────────────────────────── */
-  --legend-me: #8fc9ff;
-  --legend-foe: #ffabab;
+  --legend-me: #8fc0ef;
+  --legend-foe: #e8a1a1;
 
-  --radius: 8px;
+  --radius: 4px;
+  --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -120,105 +121,106 @@
   color-scheme: light;
 
   /* ── 基础层 ─────────────────────────────────────────── */
-  --bg: #e8ecf2;
-  --bg-2: #f4f7fb;            /* 顶栏 / 阶段条：比底色更浅 */
-  --panel: #ffffff;
-  --panel-2: #eef1f6;
-  --panel-active: #dce9fb;    /* 当前行动方：淡蓝 */
-  --line: #c6d0dd;
-  --text: #1e2732;            /* 深灰而非纯黑 */
-  --dim: #5a6779;
-  --desc-text: #46525f;
+  --bg: #e9e0cb;
+  --bg-2: #f3ecda;            /* 顶栏 / 阶段条：比底色更浅 */
+  --panel: #fcf8ec;
+  --panel-2: #f1e9d6;
+  --panel-active: #e7dcc0;    /* 当前行动方：淡蓝 */
+  --line: #c6b99c;
+  --text: #2b2620;            /* 深灰而非纯黑 */
+  --dim: #6d6350;
+  --desc-text: #4b4234;
 
   /* ── 主题强调色（浅底版本） ─────────────────────────── */
-  --gold: #96660f;            /* 保留金色作为主题强调，压深保证可读 */
-  --accent: #1a66c2;
-  --me: #1667c8;
-  --foe: #c62f38;
-  --legal: #10783f;
-  --target: #b45f04;
-  --hp: #12793c;
-  --atk: #a85408;
-  --mana: #1567b8;
-  --mark: #6d34b8;
+  --gold: #8a6a1f;            /* 保留金色作为主题强调，压深保证可读 */
+  --accent: #2f5d8a;
+  --me: #2a5f96;
+  --foe: #a63a2f;
+  --legal: #3f6b34;
+  --target: #94541a;
+  --hp: #33682f;
+  --atk: #8f4a12;
+  --mana: #245b8c;
+  --mark: #5b3f8a;
 
   /* ── 棋盘格 ─────────────────────────────────────────── */
-  --slot-line: #b3c0d1;
-  --slot-bg: #f2f5f9;         /* 后排空格：浅灰 */
-  --slot-front: #fafcfe;      /* 前排空格：更浅，形成前后排层次 */
-  --slot-mine: #8fafd2;
-  --slot-foe: #d3a8ad;
-  --trap-line: #c2c9d4;
-  --trap-bg-1: #edf0f5;
-  --trap-bg-2: #f8fafd;
-  --trap-mark: #8b96a3;
-  --legal-bg: #e2f6ea;
-  --legal-glow-1: rgba(16, 120, 63, .30);
-  --legal-glow-2: rgba(16, 120, 63, .20);
-  --legal-glow-3: rgba(16, 120, 63, .48);
+  --slot-line: #cbc0a6;
+  --slot-bg: #f5eedd;         /* 后排空格：浅灰 */
+  --slot-front: #fbf6e9;      /* 前排空格：更浅，形成前后排层次 */
+  --slot-mine: #9aabbb;
+  --slot-foe: #c0a3a3;
+  --trap-line: #d2c7ac;
+  --trap-bg-1: #f3ecda;
+  --trap-bg-2: #f9f4e7;
+  --trap-mark: #9a8f76;
+  --legal-bg: #e7f0da;
+  --legal-glow-1: rgba(63, 107, 52, .32);
+  --legal-glow-2: rgba(63, 107, 52, .20);
+  --legal-glow-3: rgba(63, 107, 52, .55);
 
   /* ── 单位卡 ─────────────────────────────────────────── */
-  --unit-bg-1: #ffffff;
-  --unit-bg-2: #e9eef6;
-  --unit-line: #aebed2;
-  --unit-front-line: #3f7cbd;
-  --unit-back-line: #a8873f;
-  --unit-back-bg-1: #fdf6e3;  /* 后排：淡金，和前排白色区分 */
-  --unit-back-bg-2: #f1e6cd;
-  --hpbar-bg: #e3c4c4;
+  --unit-bg-1: #fefaf1;
+  --unit-bg-2: #f4eddb;
+  --unit-line: #cbc0a6;
+  --unit-front-line: #4a7194;
+  --unit-back-line: #a38b56;
+  --unit-back-bg-1: #fcf5e3;  /* 后排：淡金，和前排白色区分 */
+  --unit-back-bg-2: #f1e7cd;
+  --hpbar-bg: #ddc8c3;
 
   /* ── 手牌 ───────────────────────────────────────────── */
-  --hand-bg: #dfe5ee;
-  --card-bg-1: #ffffff;
-  --card-bg-2: #edf1f7;
-  --card-line: #aebed2;
-  --card-spell-bg-1: #f7f1ff;  /* 法术卡：淡紫 */
-  --card-spell-bg-2: #ebe0fb;
-  --card-spell-line: #ab93d6;
-  --card-item-bg-1: #eef8fa;   /* 道具卡：淡青 */
-  --card-item-bg-2: #dbeef1;
-  --card-item-line: #7fb5bf;
-  --card-dim: .5;              /* 浅底上 .42 会糊成一片，略提一点 */
+  --hand-bg: #e3d9c2;
+  --card-bg-1: #fffcf4;
+  --card-bg-2: #f5eedd;
+  --card-line: #cbc0a6;
+  --card-spell-bg-1: #f8f2f8;  /* 法术卡：淡紫 */
+  --card-spell-bg-2: #ede4ef;
+  --card-spell-line: #b09ab8;
+  --card-item-bg-1: #f2f8f5;   /* 道具卡：淡青 */
+  --card-item-bg-2: #e3f0eb;
+  --card-item-line: #93b5ac;
+  --card-dim: .42;              /* 浅底上 .42 会糊成一片，略提一点 */
 
   /* ── 按钮 / 费用徽章 ────────────────────────────────── */
-  --btn-bg-1: #3d7fd6;
-  --btn-bg-2: #2a60ab;
+  --btn-bg-1: #3f6f9c;
+  --btn-bg-2: #34597c;
   --btn-text: #fff;
-  --btn-disabled-bg: #d5dbe4;
-  --btn-disabled-text: #6b7684;
-  --cost-bg-1: #3d7fd6;
-  --cost-bg-2: #2a60ab;
+  --btn-disabled-bg: #ded4bd;
+  --btn-disabled-text: #7d7361;
+  --cost-bg-1: #3f6f9c;
+  --cost-bg-2: #34597c;
   --cost-text: #fff;
-  --btn-danger-bg: #f6dee1;
-  --btn-danger-text: #a32b36;
+  --btn-danger-bg: #f3e3db;
+  --btn-danger-text: #96352a;
 
   /* ── 费用点 ─────────────────────────────────────────── */
-  --pip-off: #bfc8d6;
+  --pip-off: #c6bca4;
 
   /* ── 提示 / 横幅 / 遮罩 ─────────────────────────────── */
-  --hint-bg: rgba(255, 255, 255, .97);
-  --hint-text: #26313e;
-  --banner-bg: rgba(233, 189, 88, .97);   /* 横幅仍是金色，配深字 */
-  --banner-text: #2b1d00;
-  --menu-bg: rgba(250, 251, 253, .98);
-  --overlay: rgba(28, 36, 48, .45);
-  --shadow: rgba(23, 32, 46, .22);
-  --shadow-2: rgba(23, 32, 46, .24);
-  --shadow-3: rgba(23, 32, 46, .30);
+  --hint-bg: rgba(252, 248, 236, .97);
+  --hint-text: #2b2620;
+  --banner-bg: rgba(214, 189, 129, .97);   /* 横幅仍是金色，配深字 */
+  --banner-text: #2a2313;
+  --menu-bg: rgba(251, 247, 237, .98);
+  --overlay: rgba(43, 38, 32, .45);
+  --shadow: rgba(43, 38, 32, .20);
+  --shadow-2: rgba(43, 38, 32, .22);
+  --shadow-3: rgba(43, 38, 32, .28);
 
   /* ── 目标高亮 ───────────────────────────────────────── */
-  --target-bg: rgba(180, 95, 4, .14);
-  --target-ring: rgba(180, 95, 4, .60);
-  --target-halo: rgba(180, 95, 4, .45);
-  --target-pulse-1: rgba(180, 95, 4, .40);
-  --target-pulse-2: rgba(180, 95, 4, .85);
-  --target-pulse-3: rgba(180, 95, 4, .55);
+  --target-bg: rgba(148, 84, 26, .14);
+  --target-ring: rgba(148, 84, 26, .55);
+  --target-halo: rgba(148, 84, 26, 0);
+  --target-pulse-1: rgba(148, 84, 26, .40);
+  --target-pulse-2: rgba(148, 84, 26, .75);
+  --target-pulse-3: rgba(148, 84, 26, .55);
 
   /* ── 图例 ───────────────────────────────────────────── */
-  --legend-me: #1667c8;
-  --legend-foe: #c0392f;
+  --legend-me: #2a5f96;
+  --legend-foe: #a63a2f;
 
-  --radius: 8px;              /* 圆角不随主题变化，重复声明一次让浅色块自包含 */
+  --radius: 4px;              /* 圆角不随主题变化，重复声明一次让浅色块自包含 */
+  --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -274,7 +276,7 @@ html, body {
 .topbar .deck-left { margin-left: auto; }
 .btn-menu {
   background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--line); border-radius: 6px;
+  border: 1px solid var(--line); border-radius: 3px;
   padding: 3px 10px; font-size: 12px;
 }
 
@@ -292,7 +294,7 @@ html, body {
 }
 .statusbar.foe { border-left: 3px solid var(--foe); }
 .statusbar.me { border-left: 3px solid var(--me); border-top: 1px solid var(--line); }
-.statusbar.active { background: var(--panel-active); box-shadow: inset 0 0 0 1px var(--gold); }
+.statusbar.active { background: var(--panel-active); box-shadow: inset 0 0 0 2px var(--gold); }
 .sb-side b { color: var(--text); }
 .sb-role {
   font-style: normal;
@@ -322,7 +324,7 @@ html, body {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--pip-off); display: inline-block;
 }
-.pip.on { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.pip.on { background: var(--accent); }
 .sb-hand { margin-left: auto; color: var(--dim); }
 
 /* ── 战场 ─────────────────────────────────────────────── */
@@ -391,12 +393,12 @@ html, body {
   border-color: var(--legal);
   border-style: solid;
   background: var(--legal-bg);
-  box-shadow: inset 0 0 8px var(--legal-glow-1);
+  box-shadow: inset 0 0 0 2px var(--legal-glow-1);
   animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse {
-  0%, 100% { box-shadow: inset 0 0 6px var(--legal-glow-2); }
-  50% { box-shadow: inset 0 0 14px var(--legal-glow-3); }
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--legal-glow-2); }
+  50% { box-shadow: inset 0 0 0 3px var(--legal-glow-3); }
 }
 .slot.trap {
   border-style: dotted;
@@ -415,7 +417,7 @@ html, body {
   display: flex;
   flex-direction: column;
   padding: 3px 4px 16px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: linear-gradient(160deg, var(--unit-bg-1), var(--unit-bg-2));
   border: 1px solid var(--unit-line);
   cursor: pointer;
@@ -459,12 +461,12 @@ html, body {
 
 .unit.targetable {
   border-color: var(--target) !important;
-  box-shadow: 0 0 0 2px var(--target-ring), 0 0 12px var(--target-halo);
+  box-shadow: 0 0 0 2px var(--target-ring);
   animation: pulseT .9s ease-in-out infinite;
 }
 @keyframes pulseT {
   0%, 100% { box-shadow: 0 0 0 2px var(--target-pulse-1); }
-  50% { box-shadow: 0 0 0 3px var(--target-pulse-2), 0 0 14px var(--target-pulse-3); }
+  50% { box-shadow: 0 0 0 3px var(--target-pulse-2); }
 }
 
 /* ── 阶段条 ───────────────────────────────────────────── */
@@ -484,7 +486,7 @@ html, body {
   background: linear-gradient(180deg, var(--btn-bg-1), var(--btn-bg-2));
   color: var(--btn-text);
   border: none;
-  border-radius: 7px;
+  border-radius: 3px;
   padding: 7px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -514,7 +516,7 @@ html, body {
 
 .card {
   flex: 0 0 84px;
-  border-radius: 8px;
+  border-radius: 5px;
   border: 1px solid var(--card-line);
   background: linear-gradient(170deg, var(--card-bg-1), var(--card-bg-2));
   padding: 5px 6px;
@@ -529,7 +531,7 @@ html, body {
 .card.unplayable, .card.unafford { opacity: var(--card-dim); }
 .card.selected {
   transform: translateY(-8px);
-  box-shadow: 0 0 0 2px var(--gold), 0 6px 14px var(--shadow-2);
+  box-shadow: 0 0 0 2px var(--gold), 3px 3px 0 var(--shadow-2);
   border-color: var(--gold);
 }
 .c-cost {
@@ -541,7 +543,7 @@ html, body {
   font-weight: 700;
   font-size: 12px;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 3px var(--shadow-2);
+  box-shadow: 1px 1px 0 var(--shadow-2);
 }
 .c-name {
   font-size: 11px; font-weight: 600; margin-top: 8px;
@@ -559,7 +561,7 @@ html, body {
   bottom: 142px;
   background: var(--hint-bg);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 4px;
   padding: 5px 14px;
   font-size: 12px;
   color: var(--hint-text);
@@ -574,11 +576,11 @@ html, body {
   color: var(--banner-text);
   font-weight: 700;
   font-size: 13.5px;
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 10px 18px;
   max-width: 90vw;
   text-align: center;
-  box-shadow: 0 6px 24px var(--shadow-3);
+  box-shadow: 2px 2px 0 var(--shadow-3);
   pointer-events: none;
   z-index: 40;
   animation: bannerIn .18s ease-out;
@@ -613,7 +615,7 @@ html, body {
 .result {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 4px;
   padding: 24px 30px;
   text-align: center;
   min-width: 220px;
@@ -624,7 +626,7 @@ html, body {
 .result.draw h2 { color: var(--gold); }
 .result p { color: var(--dim); font-size: 12px; margin: 0 0 16px; }
 .btn-restart, .btn-surrender {
-  border: none; border-radius: 8px; padding: 9px 20px;
+  border: none; border-radius: 3px; padding: 9px 20px;
   font-size: 13px; font-weight: 600; color: var(--btn-text);
 }
 .btn-restart { background: linear-gradient(180deg, var(--btn-bg-1), var(--btn-bg-2)); }
@@ -644,7 +646,7 @@ html, body {
 .menu-head h3 { margin: 0; font-size: 14px; color: var(--gold); }
 .btn-close {
   margin-left: auto; background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--line); border-radius: 6px; padding: 5px 14px; font-size: 12px;
+  border: 1px solid var(--line); border-radius: 3px; padding: 5px 14px; font-size: 12px;
 }
 .menu-body { flex: 1; overflow-y: auto; padding: 8px 14px; font-size: 11.5px; line-height: 1.6; }
 .menu-foot {
@@ -695,8 +697,8 @@ html, body {
   45% { transform: translateY(7px) scale(1.04); }
 }
 @keyframes fx-lane {
-  0% { box-shadow: inset 0 0 0 2px rgba(255, 196, 78, .95); }
-  100% { box-shadow: inset 0 0 0 2px rgba(255, 196, 78, 0); }
+  0% { box-shadow: inset 0 0 0 2px rgba(196, 92, 70, .95); }
+  100% { box-shadow: inset 0 0 0 2px rgba(196, 92, 70, 0); }
 }
 @keyframes fx-float {
   0% { opacity: 0; transform: translate(-50%, 2px) scale(.75); }
@@ -713,7 +715,7 @@ html, body {
   position: absolute; left: 50%; top: 4px; z-index: 9;  /* 9 大于棋盘上所有 auto 盒子：飘字一定画在最上层 */
   transform: translate(-50%, 0);
   font-weight: 800; font-size: 17px; line-height: 1;
-  color: #ff6b6b; text-shadow: 0 1px 3px rgba(0, 0, 0, .85), 0 0 8px rgba(255, 60, 60, .5);
+  color: #ff6b6b; text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
   pointer-events: none; white-space: nowrap;
   animation: fx-float .80s ease-out forwards;
 }
@@ -721,3 +723,6 @@ html, body {
 .fx-float-king { top: 50%; font-size: 13px; color: #ff8a5c; }
 /* 已经播过一次动画的飘字：保持可见，但不重启动画（作者：飘字别反复触发） */
 .fx-float-rest { animation: none; opacity: 1; }
+
+/* 纸质卡牌风格补充（作者 2026-10 选定）：标题走衬线 */
+.result h2, .menu-head h3, .banner, .phase-name { font-family: var(--font-title); }
