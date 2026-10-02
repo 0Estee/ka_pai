@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_130236.jpg","name":"导弹","icon":"人形","cost":3,"atk":null,"hp":null,"keywordLines":["组合"],"effectText":"被消灭:对自己线上的所有单位造成5点伤害","uncertain":[],"rawNote":"攻击力位置没有剑形图标（只有右侧♥）；♥内部空白。作者补充：被消灭时也会对双方国王造成5点伤害（卡面未写，属追加）"},
+  {"file":"IMG_20260925_192458.jpg","name":"定点打击","icon":"剑","cost":1,"atk":null,"hp":null,"keywordLines":[],"effectText":"造成2点伤害","uncertain":[],"rawNote":"锦囊牌，无 ⚔/♥ 数值位"},
+  {"file":"IMG_20260925_192505.jpg","name":"虫族士兵","icon":"人形","cost":1,"atk":null,"hp":1,"keywordLines":["组合"],"effectText":"","uncertain":[],"rawNote":"剑形图标画了但是空的（内部无数字）；♥内为 1。无效果文本"},
+  {"file":"IMG_20260925_192513.jpg","name":"战棋","icon":"人形","cost":2,"atk":null,"hp":null,"keywordLines":["组合"],"effectText":"在场:自己和相邻线上的队友获得+1◈","uncertain":["最后一个符号画成方块状/十字形，看着像护甲符号 ◈（不是剑 ⚔），已按 ◈ 转录"],"rawNote":"剑形图标漏画（只有♥）；♥内部只有一道淡竖线，无可辨认数字"},
+  {"file":"IMG_20260925_192529.jpg","name":"卫兵","icon":"人形","cost":2,"atk":0,"hp":6,"keywordLines":["组合"],"effectText":"无法攻击,4个单位被消灭后,封印这张牌的异能","uncertain":[],"rawNote":"剑形图标里是 0；♥内为 6"},
+  {"file":"IMG_20260925_192535.jpg","name":"吹箭手","icon":"人形","cost":2,"atk":3,"hp":1,"keywordLines":["穿透1"],"effectText":"","uncertain":[],"rawNote":"无效果文本，只有词条行"},
+  {"file":"IMG_20260925_192545.jpg","name":"扫地僧","icon":"人形","cost":3,"atk":null,"hp":4,"keywordLines":[],"effectText":"受到伤害:弹射给队友,并获得+2◈+2♥","uncertain":["效果第一行第三个字看不清，读到的是「弹射给队友」，候选：弹射给队友/弹身给队友/反弹给队友","「+2」后面那个符号是十字形，判断为护甲 ◈，也可能是剑 ⚔"],"rawNote":"剑形图标画了但是空的；♥内为 4"},
+  {"file":"IMG_20260925_192552.jpg","name":"利奥波德","icon":"人形","cost":10,"atk":6,"hp":5,"keywordLines":["穿透2"],"effectText":"打出:将所有敌方锦囊返回牌堆顶","uncertain":["「锦」笔画糊在一起，按语义读作「敌方锦囊」；候选：敌方弹仓/敌方锦囊"],"rawNote":"cost 方框内是 10"},
+  {"file":"IMG_20260925_192559.jpg","name":"沧龙","icon":"人形","cost":5,"atk":null,"hp":4,"keywordLines":["水生"],"effectText":"回合开始:消灭自己和相邻线上的所有敌人","uncertain":[],"rawNote":"剑形图标画了但是空的；♥内为 4"},
+  {"file":"IMG_20260925_192605.jpg","name":"武术大师","icon":"人形","cost":6,"atk":0,"hp":7,"keywordLines":["双重打击"],"effectText":"此攻击使用♥而不是⚔","uncertain":[],"rawNote":"剑形内为 0；♥内为 7，且♥外面又套了一圈波浪形描边"}
+]

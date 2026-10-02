@@ -1,0 +1,10 @@
+{
+  "name": "ka-pai-engine",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "手机卡牌游戏规则引擎（纯 JS，零依赖，Node 与浏览器通用）",
+  "scripts": {
+    "test": "node engine/test/smoke.mjs"
+  }
+}

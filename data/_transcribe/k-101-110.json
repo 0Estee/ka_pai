@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_193110.jpg","name":"生长炸弹","icon":"剑","cost":5,"atk":null,"hp":null,"keywordLines":[],"effectText":"所有单位获得+1⚔；然后消灭所有⚔≥4的单位","uncertain":[],"rawNote":"锦囊牌，无攻击/生命。第二行末尾符号后有重笔蹭痕，放大确认为「⚔」"},
+  {"file":"IMG_20260925_193117.jpg","name":"炒鸡赛亚人","icon":"人形","cost":5,"atk":4,"hp":4,"keywordLines":["穿透999"],"effectText":"","uncertain":["费用「5」笔画很浅且框与卡片边缘重叠","攻击力/生命值均为浅铅笔，放大确认为4和4","卡名第2字潦草，读作「鸡」（炒／鸡／赛／亚／人）","「穿透999」数字清晰为三个9"],"rawNote":"只有词条行、没有效果行"},
+  {"file":"IMG_20260925_193125.jpg","name":"停战调剂","icon":"方块","cost":4,"atk":null,"hp":null,"keywordLines":[],"effectText":"所有单位获得-1◈；然后弹射所有◈<2的单位","uncertain":["第二行动词写作「弹射」（非「消灭」），放大后确认"],"rawNote":"锦囊牌（道具性）。本行给的是「◈」而非⚔。⚠ 关键证据：这里 ◈ 是**单位身上的一个数值**（可增减、可比较），高度疑似就是「装甲」的图标写法"},
+  {"file":"IMG_20260925_193138.jpg","name":"水蛭","icon":"人形","cost":3,"atk":null,"hp":null,"keywordLines":[],"effectText":"被消灭:消灭一名♥≤3的敌人","uncertain":["攻击力数字：剑形图标内只有一团浅铅笔涂抹痕，无法辨认","生命值：心形图标内只有一道竖铅笔痕，无数字"],"rawNote":"单位牌但攻击/生命两处数字均不可辨 —— 需作者补数"},
+  {"file":"IMG_20260925_193145.jpg","name":"大力丸","icon":"方块","cost":2,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友获+2⚔+2♥","uncertain":["「获」后疑似还有一个字（「获得」？），被连写带过"],"rawNote":"锦囊牌（道具性）"},
+  {"file":"IMG_20260925_193150.jpg","name":"赤红糖果","icon":"方块","cost":1,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友获得+1⚔+2♥","uncertain":["费用：圆圈内只有一道竖铅笔痕，读作1"],"rawNote":"锦囊牌（道具性）；效果文本被换行断开"},
+  {"file":"IMG_20260925_193155.jpg","name":"仙人掌","icon":"人形","cost":3,"atk":null,"hp":4,"keywordLines":["荆棘3","组合"],"effectText":"","uncertain":["攻击力：卡面完全没有画剑形图标（只画了心形＝生命4）"],"rawNote":"生命图标画在正常攻击图标的位置上，攻击位置空缺。无效果行"},
+  {"file":"IMG_20260925_193204.jpg","name":"苍耳","icon":"人形","cost":1,"atk":null,"hp":3,"keywordLines":[],"effectText":"对方打出锦囊牌时，对其造成1点伤害","uncertain":["攻击力：卡面只画了心形，没有剑形图标","伤害数值处只有一道竖向笔画，读作1"],"rawNote":"生命「3」为极淡铅笔"},
+  {"file":"IMG_20260925_193209.jpg","name":"群情激动","icon":"方块","cost":null,"atk":null,"hp":null,"keywordLines":[],"effectText":"所有队友获得+1⚔","uncertain":["费用框内是空圆圈，只有极淡涂抹痕，无数字","卡名第三字潦草，读作「激」；也可能是「愤」"],"rawNote":"锦囊牌（道具性）。费用缺失 —— 需作者补数"},
+  {"file":"IMG_20260925_193215.jpg","name":"麻雀","icon":"人形","cost":1,"atk":2,"hp":2,"keywordLines":["飞行"],"effectText":"","uncertain":["词条行原文写「飞行」，而词条表 K09 现行名称是「轻灵」，裁决备注写明「原名飞行 已改名」——因此「飞行」应即 K09「轻灵」"],"rawNote":"只有词条行「飞行」，没有效果行。✅ 这条确认了：卡面上的「飞行」= 已有词条 `nimble`(轻灵)，不要新建同名词条"}
+]

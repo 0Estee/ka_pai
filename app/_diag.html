@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>diag</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="stage"></div>
+    <div id="menu" class="hidden"></div>
+  </div>
+  <script src="dist/bundle.js"></script>
+  <script>
+    // 开发诊断页：把真实计算出来的布局尺寸打印到 DOM，供 --dump-dom 抓取
+    window.__pause();
+    const q = (s) => document.querySelector(s);
+    const w = (el) => (el ? Math.round(el.getBoundingClientRect().width * 10) / 10 : null);
+    const report = {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio,
+      docClientWidth: document.documentElement.clientWidth,
+      docScrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+      appWidth: w(document.getElementById('app')),
+      stageWidth: w(document.getElementById('stage')),
+      boardWrapWidth: w(q('.board-wrap')),
+      boardRowWidth: w(q('.board-row')),
+      rowCellsWidth: w(q('.row-cells')),
+      cellsComputedCols: q('.row-cells') ? getComputedStyle(q('.row-cells')).gridTemplateColumns : null,
+      rowComputedCols: q('.board-row') ? getComputedStyle(q('.board-row')).gridTemplateColumns : null,
+      slotWidths: [...document.querySelectorAll('.r-foe-back .slot')].map(w),
+      laneHeadCellsWidth: w(q('.lane-head .row-cells')),
+      topbarWidth: w(q('.topbar')),
+      statusbarWidth: w(q('.statusbar')),
+      handWidth: w(q('.hand')),
+      handWrapWidth: w(q('.hand-wrap')),
+    };
+    document.body.innerHTML = '<pre id="diag">' + JSON.stringify(report, null, 1) + '</pre>';
+  </script>
+</body>
+</html>

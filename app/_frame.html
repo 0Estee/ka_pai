@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>手机视口截图框（开发用）</title>
+  <style>
+    html, body {
+      margin: 0; height: 100%;
+      background: #16191d;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    /* 用 iframe 强制一个真实的手机宽度视口。
+       原因：Windows 上 Chrome headless=new 会创建真实窗口，
+       而系统把窗口宽度钳制到约 500px，--window-size=412 无效，
+       截图会从 500px 宽的页面里裁掉右侧。iframe 不受此限制。 */
+    iframe {
+      width: 390px; height: 844px;
+      border: 0; border-radius: 20px;
+      background: #000;
+      box-shadow: 0 0 0 1px #3a4048;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="f"></iframe>
+  <script>
+    const p = new URLSearchParams(location.search);
+    document.getElementById('f').src = p.get('src') || 'index.html';
+  </script>
+</body>
+</html>

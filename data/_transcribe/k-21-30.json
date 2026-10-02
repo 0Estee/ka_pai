@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_125151.jpg","name":"狂暴异虫","icon":"人形","cost":3,"atk":3,"hp":3,"keywordLines":["暴击2"],"effectText":"","uncertain":["攻击力3、生命3为铅笔淡写，笔画很淡（放大后辨认为3）"],"rawNote":"词条行「暴击2」带下划线，无其他效果文字"},
+  {"file":"IMG_20260925_125201.jpg","name":"登山员","icon":"人形","cost":2,"atk":2,"hp":2,"keywordLines":[],"effectText":"在高山上打出获得；+1⚔ +1♥","uncertain":["攻击力2、生命2为铅笔淡写，笔画很淡"],"rawNote":"效果原文分两行（「在高山上打出获得」/「+1⚔ +1♥」）"},
+  {"file":"IMG_20260925_125213.jpg","name":"战时盟国","icon":"方块","cost":8,"atk":null,"hp":null,"keywordLines":[],"effectText":"将一名敌人置入你的；手牌","uncertain":["费用为铅笔淡写，形似8，笔画很淡"],"rawNote":"锦囊牌，无攻击力/生命；效果原文分两行（「将一名敌人置入你的」/「手牌」），整句连读为「将一名敌人置入你的手牌」"},
+  {"file":"IMG_20260925_125220.jpg","name":"灭世","icon":"剑","cost":2,"atk":null,"hp":null,"keywordLines":[],"effectText":"消灭场上所有单位","uncertain":["费用为铅笔淡写，形似2，笔画很淡"],"rawNote":"锦囊牌，无攻击力/生命"},
+  {"file":"IMG_20260925_125225.jpg","name":"枪打出头鸟","icon":"剑","cost":3,"atk":null,"hp":null,"keywordLines":[],"effectText":"消灭一名⚔≥4的；敌人","uncertain":[],"rawNote":"锦囊牌，无攻击力/生命；效果原文分两行；⚔为卡面攻击力图标"},
+  {"file":"IMG_20260925_125231.jpg","name":"狂犬病","icon":"剑","cost":3,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友获得；疾病,并额外攻击一次","uncertain":[],"rawNote":"锦囊牌，无攻击力/生命；第二行中「疾病」带下划线（词条引用），但整行不是纯词条行"},
+  {"file":"IMG_20260925_125237.jpg","name":"神秘礼物","icon":"方块","cost":4,"atk":null,"hp":null,"keywordLines":[],"effectText":"抽两张牌,如果是锦囊,则-1花费,如果是单位,则+1⚔+1♥","uncertain":["费用为铅笔淡写，形似4，笔画很淡","第一行「两」字笔画明显偏淡（疑似铅笔补写/覆写），仍辨认为「两」"],"rawNote":"锦囊牌，无攻击力/生命；效果原文分三行"},
+  {"file":"IMG_20260925_125242.jpg","name":"强心针","icon":"方块","cost":0,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友获得+3♥","uncertain":[],"rawNote":"锦囊牌，无攻击力/生命；费用方框内画的是圆圈中一竖，即数字0"},
+  {"file":"IMG_20260925_125248.jpg","name":"伪装土堆","icon":"人形","cost":2,"atk":null,"hp":1,"keywordLines":["组合"],"effectText":"这张牌将为后方的；单位承受伤害","uncertain":["生命1为铅笔淡写，笔画很淡"],"rawNote":"数值区只画了♥没有画⚔，攻击力位置空白，故 atk=null；效果原文分两行"},
+  {"file":"IMG_20260925_125254.jpg","name":"力量光波","icon":"剑","cost":9,"atk":null,"hp":null,"keywordLines":[],"effectText":"造成己方场上队友数×2的伤害","uncertain":["费用为铅笔淡写，形似9，笔画很淡","「造成」后一字只有两条横画，形似「二」，语境上疑为「己」（己方场点），无法确定","「数」后手写符号辨认为乘号×，也可能是加号+"],"rawNote":"锦囊牌，无攻击力/生命；效果原文分两行（「造成二场点上队友数×2」/「的伤害」）"}
+]

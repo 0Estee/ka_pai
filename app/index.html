@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>卡牌对战原型</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="screens.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 首页 / 设置 / 回放列表 / 对局画面 都由 app/js/main.js 渲染到这里 -->
+    <div id="stage"></div>
+    <!-- 对局中的战报浮层（独立于 stage，不会被重绘冲掉） -->
+    <div id="menu" class="hidden"></div>
+  </div>
+  <script src="dist/bundle.js"></script>
+</body>
+</html>

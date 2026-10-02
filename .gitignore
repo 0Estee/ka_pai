@@ -1,0 +1,36 @@
+#  构建/下载的工具链（347 MB、1.1 万个文件）
+# 由 tools/setup-android-sdk.ps1 下载；丢了重下即可
+.toolchain/
+
+#  生成物：都能用一条命令重做 
+# dist/          APK 产物（build-apk.ps1 生成）
+# app/dist/      打包产物（node tools/build-web.mjs 生成，harness 与 verify-apk 都要读它）
+# android/build/ aapt2/javac/d8 的中间产物
+# shots/         verify-apk.ps1 的截图输出
+dist/
+app/dist/
+android/build/
+shots/
+
+#  工具的工作目录（脚本自己会用）
+.verify-apk/
+.tmp-nettest/
+.tmp-*/
+
+#  拆模块那轮留下的残骸（无任何引用，可删）
+.recover/
+.broken-split/
+.split-stage/
+.split-out/
+
+#  签名密钥 
+#  见 README「已知的坑」：它是「没有就自动生成」的。
+#   不进 git 不影响本机；但**换机器/重新克隆会生成新密钥**，
+#   那样就再也无法覆盖安装已有版本（Android 要求同一个签名）。
+#   要长期保留就单独备份一份。
+android/keystore.jks
+
+#  杂项 
+*.idsig
+Thumbs.db
+.DS_Store

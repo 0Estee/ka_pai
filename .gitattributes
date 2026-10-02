@@ -1,0 +1,10 @@
+#  这个仓库的换行符是**刻意的**：几乎所有源文件都是纯 LF
+#   （我核过：155 个纯 LF / 23 个含 CRLF），而且 build-web.mjs 等工具
+#   都是按字节写文件（连 .ps1 的 UTF-8 BOM 都是刻意补的）。
+# 但本机全局 core.autocrlf=true  不关掉的话，git 检出时会把 LF 全改写成 CRLF，
+# 换行符一乱，diff 全是噪声、还会盖掉这条约定。
+# 所以这里关掉一切自动转换，让 git 原样存字节。
+* -text
+*.apk binary
+*.idsig binary
+*.jks binary

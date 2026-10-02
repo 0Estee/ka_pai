@@ -1,0 +1,102 @@
+[
+  {
+    "file": "IMG_20260925_124015.jpg",
+    "name": "志愿军第50军",
+    "icon": "人形",
+    "cost": 8, "atk": 6, "hp": 6,
+    "keywordLines": [],
+    "effectText": "成为敌方锦囊牌的目标、时免疫效果并-1♥；受到伤害:免疫并-2♥",
+    "uncertain": ["左下⚔处数字为铅笔淡写，判读为 6"],
+    "rawNote": "照片横拍，内容旋转90度（逆时针旋正后阅读）；无词条行"
+  },
+  {
+    "file": "IMG_20260925_124027.jpg",
+    "name": "坚韧",
+    "icon": "方块",
+    "cost": 2, "atk": null, "hp": null,
+    "keywordLines": [],
+    "effectText": "一名队友获得装甲!,并+2♥",
+    "uncertain": [],
+    "rawNote": "照片横拍，内容旋转90度；「装甲」出现在效果句中间且带下划线，按规则整句并入 effectText；锦囊无 atk/hp"
+  },
+  {
+    "file": "IMG_20260925_124044.jpg",
+    "name": "山炮",
+    "icon": "人形",
+    "cost": 1, "atk": 2, "hp": 1,
+    "keywordLines": ["组合"],
+    "effectText": "",
+    "uncertain": ["右下♥处数字为铅笔淡写，判读为 1"],
+    "rawNote": "照片横拍，内容旋转90度；词条行「组合」独占一行且带下划线"
+  },
+  {
+    "file": "IMG_20260925_124059.jpg",
+    "name": "风神翼龙",
+    "icon": "人形",
+    "cost": 4, "atk": null, "hp": null,
+    "keywordLines": ["飞行", "组合"],
+    "effectText": "",
+    "uncertain": ["左下⚔与右下♥两处均未写数字（只有淡铅笔擦痕），atk/hp 记 null", "词条「飞行」为已知词条「轻灵」的旧名，按卡面原文记录"],
+    "rawNote": "照片横拍，内容旋转90度；两行词条「飞行」「组合」各自独占一行并带下划线"
+  },
+  {
+    "file": "IMG_20260925_124106.jpg",
+    "name": "坚固防线",
+    "icon": "方块",
+    "cost": 4, "atk": null, "hp": null,
+    "keywordLines": [],
+    "effectText": "为你的国王回复等同于在场单位数的♥",
+    "uncertain": ["「国王」第二字卡面笔画呈「于」形，按游戏术语判读为「国王」"],
+    "rawNote": "照片为竖幅，未旋转；原图 3072x4096；锦囊无 atk/hp"
+  },
+  {
+    "file": "IMG_20260925_124113.jpg",
+    "name": "解药",
+    "icon": "方块",
+    "cost": 0, "atk": null, "hp": null,
+    "keywordLines": [],
+    "effectText": "一名队友的♥与⚔和所有属性恢复至打出状态.",
+    "uncertain": [],
+    "rawNote": "照片为竖幅，未旋转；句中攻击力符号画成剑形/十字形（与⚔同义），照抄为⚔；末行末尾有一个短横状句点，照抄为「.」；锦囊无 atk/hp"
+  },
+  {
+    "file": "IMG_20260925_124122.jpg",
+    "name": "导弹支援",
+    "icon": "剑",
+    "cost": 3, "atk": null, "hp": null,
+    "keywordLines": [],
+    "effectText": "对一名敌人造成3点伤害,然后对其它所有单位造成1点伤害",
+    "uncertain": [],
+    "rawNote": "照片为竖幅，未旋转；攻击性锦囊，无 atk/hp"
+  },
+  {
+    "file": "IMG_20260925_124137.jpg",
+    "name": "永恒魔方",
+    "icon": "人形",
+    "cost": 2, "atk": 0, "hp": 2,
+    "keywordLines": [],
+    "effectText": "打出:抽一张牌,并查看牌堆顶上的四张",
+    "uncertain": [],
+    "rawNote": "照片为竖幅，未旋转；左下⚔处画的是数字 0"
+  },
+  {
+    "file": "IMG_20260925_124151.jpg",
+    "name": "剑龙",
+    "icon": "人形",
+    "cost": 3, "atk": 2, "hp": 4,
+    "keywordLines": ["荆棘2"],
+    "effectText": "",
+    "uncertain": ["左下⚔处数字为铅笔淡写，判读为 2", "右下♥处数字为铅笔淡写，判读为 4"],
+    "rawNote": "照片为竖幅，未旋转；词条行「荆棘2」独占一行且带下划线"
+  },
+  {
+    "file": "IMG_20260925_124158.jpg",
+    "name": "地震",
+    "icon": "剑",
+    "cost": 4, "atk": null, "hp": null,
+    "keywordLines": [],
+    "effectText": "对于地上的所有敌人造成3点伤害",
+    "uncertain": [],
+    "rawNote": "照片为竖幅，未旋转；攻击性锦囊，无 atk/hp"
+  }
+]

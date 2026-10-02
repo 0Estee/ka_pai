@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>预览（开发用）</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="screens.css">
+</head>
+<body>
+  <div id="app">
+    <div id="stage"></div>
+    <div id="menu" class="hidden"></div>
+  </div>
+  <script src="dist/bundle.js"></script>
+  <script>
+    // 开发预览页：暂停自动回合循环，双方 AI 代打推进到第 N 回合，
+    // 停在有单位的中局画面，便于截图检查布局。
+    // 这个文件不会被打进 APK。
+    //
+    //   ?turn=4                 推进到第 4 回合
+    //   ?turn=4&demo=kingtarget 额外选中一张【攻击】，检查国王目标高亮
+    //   ?demo=hand              把手牌换成第二批手绘卡，检查卡面文字排版
+    //   ?demo=hand&cards=U11,U12 指定要放进手牌的卡
+    //   ?theme=light            切到浅色主题（检查配色）
+    //   ?screen=home|settings|replays|play|difficulty  直接打开某个屏幕
+    //   ?demo=replays&n=5       先跑 5 局自动对战，再打开回放列表
+    //   ?demo=replay&step=30    跑一局后打开回放播放器并步进 30 步
+    //   ?demo=nav               用真实点击走完「开始游戏 → AI 对决 → 开始对战」
+    //   ?demo=unitinfo          推到场上有单位，然后点开一个单位的详情面板
+    const p = new URLSearchParams(location.search);
+    // 走 __setTheme 而不是直接改 dataset —— 否则设置页里的选中态会和实际配色对不上
+    if (p.get('theme')) window.__setTheme(p.get('theme'));
+    const demo = p.get('demo');
+    if (p.get('screen')) {
+      window.__go(p.get('screen'));
+    } else if (demo !== 'nav' && demo !== 'unitinfo') {
+      window.__playTurns(Number(p.get('turn') || 4));
+    }
+    if (demo === 'kingtarget') {
+      const info = window.__demoKingTarget();
+      document.title = 'demo: ' + JSON.stringify(info);
+    } else if (demo === 'hand') {
+      const cards = (p.get('cards') || '').split(',').map((s) => s.trim()).filter(Boolean);
+      document.title = 'demo: ' + JSON.stringify(window.__demoHand(cards));
+    } else if (demo === 'replays') {
+      const n = Number(p.get('n') || 5);
+      for (let i = 0; i < n; i++) { window.__newGame(); window.__autoPlay(); }
+      window.__replayNote(1, '关键的一局');
+      window.__go('replays');
+    } else if (demo === 'replay') {
+      window.__newGame();
+      window.__autoPlay();
+      document.title = 'demo: ' + JSON.stringify(window.__replayDemo(0, Number(p.get('step') || 30)));
+    } else if (demo === 'nav') {      // 真实点击（不是 __go 跳屏）：这条路上曾经永远开不了 AI 局
+      const hit = (act) => {
+        const el = document.querySelector('[data-act="' + act + '"]');
+        if (!el) { window.__probeFail = '找不到按钮 ' + act; return false; }
+        el.click();
+        return true;
+      };
+      hit('start-game'); hit('choose-ai'); hit('start-ai');
+      document.title = 'demo: screen=' + window.__screen() + ' 有对局=' + !!window.__game();
+      window.__probeOk = window.__screen() === 'game' && !!window.__game();
+    } else if (demo === 'unitinfo') {
+      window.__newGame();
+      // 推到场上有单位，再点开详情面板（棋盘格子放不下卡面文字）
+      outer:
+      for (let i = 0; i < 60; i++) {
+        const st = window.__game();
+        for (const lane of ['mountain', 'plainL', 'plainR', 'water']) {
+          for (const side of [0, 1]) {
+            for (const row of ['front', 'back']) {
+              const u = st.board[lane].units[side][row];
+              if (u) {
+                window.__tapUnit(u.uid);
+                if (document.getElementById('stage').innerHTML.includes('ui-effect')) break outer;
+              }
+            }
+          }
+        }
+        window.__playTurns(i + 1);
+      }
+      window.__probeOk = document.getElementById('stage').innerHTML.includes('unit-info');
+      document.title = 'demo: 详情面板=' + window.__probeOk;
+    } else if (demo === 'soldier') {
+      // 「拟定目标攻击」（强化士兵）：开战结算轮到它出手时弹出选目标面板。
+      // 这是唯一一个**在开战中途**挂起的交互，要肉眼确认面板真的出现、选项齐全。
+      window.__newGameFirst();
+      window.__pause(true);
+      const put = (side, id, lane, row) => window.__place(side, id, lane, row || 'front');
+      put(1, 'W04', 'mountain', 'front');   // 5/6 挡路者
+      put(1, 'E01', 'plainR', 'front');     // 别路 1/1
+      put(0, 'U396', 'mountain', 'front');  // 强化士兵
+      window.__setPhase('SPELL_FIRST');
+      window.__go('game');
+      for (let i = 0; i < 3 && !window.__game().pending; i++) window.__advance();
+      const st = window.__game();
+      window.__probeOk = !!st.pending && st.pending.request.type === 'combatTarget';
+      document.title = 'demo: 选目标面板=' + window.__probeOk
+        + ' 选项数=' + (st.pending ? st.pending.request.options.length : 0);
+    } else if (demo === 'coldreplay') {
+      // 「打开 App → 直接点回放对局 → 点回放」：内存里还没有对局。
+      // 这条路径曾经抛 TypeError，界面停在回放列表上（点了没反应）。
+      window.__newGame();
+      window.__autoPlay();
+      window.__dropLiveGame();
+      window.__go('replays');
+      const btn = document.querySelector('[data-act="replay-open"]');
+      if (btn) btn.click();
+      const h = document.getElementById('stage').innerHTML;
+      window.__probeOk = window.__screen() === 'replay' && h.includes('data-act="replay-toggle"');
+      document.title = 'demo: screen=' + window.__screen() + ' 控制条=' + h.includes('data-act="replay-toggle"');
+    }
+  </script>
+</body>
+</html>

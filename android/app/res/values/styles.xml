@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 注意：XML 注释里不能出现连续两个减号，所以下面不能写 CSS 变量名 -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <!-- 与网页端背景色保持一致，避免启动瞬间白屏闪一下 -->
+        <item name="android:windowBackground">#FF0B0F14</item>
+        <item name="android:colorBackground">#FF0B0F14</item>
+        <item name="android:statusBarColor">#00000000</item>
+        <item name="android:navigationBarColor">#00000000</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

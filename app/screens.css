@@ -1,0 +1,833 @@
+/**
+ * 新页面（首页 / 设置 / 回放列表 / 回放播放器）的样式。
+ *
+ * 单独一个文件，不和 style.css 混在一起：
+ *  · style.css 负责「棋盘对局」那套皮肤，正在被主题改造；
+ *  · 这里只依赖 style.css 定义的 CSS 变量，不重复定义颜色。
+ *
+ * 变量契约（style.css 必须提供，两个主题都要有）：
+ *   --bg --bg-2 --panel --panel-2 --line --text --dim
+ *   --gold --me --foe --legal --target --radius
+ *   --accent --hp --atk --mana --mark --shadow --overlay
+ * 用 var(x, fallback) 兜底，万一某个变量漏了也不会变成透明/黑色。
+ */
+
+/* ══════════════════════════════════════════════════════════
+   对局内的可读性修补
+   ══════════════════════════════════════════════════════════ */
+
+/* 棋盘上的单位：攻击 / 生命要能一眼分清。
+   原来只是两个光秃秃的数字并排（如 `3 4`），玩家根本不知道哪个是哪个。 */
+.unit .u-bottom {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.unit .u-atk,
+.unit .u-hp {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.unit .u-atk { color: var(--atk, #ffb454); }
+.unit .u-hp { color: var(--hp, #7ee787); }
+.unit .u-max { font-size: 9px; opacity: .6; font-style: normal; font-weight: 400; }
+
+/* 「这一击会打向谁」*/
+.unit .u-preview {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--dim, #8b9bb0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* 选了牌之后的提示要显眼 —— 原来它排在手牌**下面**，
+   390×844 的屏幕上直接被挤出可视区，玩家看到的就是「打锦囊没有提示」*/
+/* 提示已经移到手牌**上方**（DOM 里排在 hand-wrap 之前），
+   所以要取消 style.css 里的 fixed 定位 —— 否则它会浮在 `bottom:142px`，
+   既不跟随新位置，又会和「开战」横幅、手牌挤在一起。 */
+.hint {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  max-width: none;
+  white-space: normal;
+  text-align: center;
+  margin: 0 8px 4px;
+}
+
+.hint-active {
+  color: var(--gold, #e8b84b);
+  font-weight: 600;
+  border-color: var(--gold, #e8b84b);
+  background: rgba(232, 184, 75, .1);
+  padding: 6px 10px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--gold, #e8b84b);
+  margin: 0 8px 4px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   开始游戏二级菜单 / 难度选择
+   ══════════════════════════════════════════════════════════ */
+
+
+/* 按钮右侧的小字（当前难度 / 说明） */
+.hm-sub {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  font-weight: 400;
+  text-align: right;
+  max-width: 45%;
+  line-height: 1.3;
+}
+
+.diff-list { display: flex; flex-direction: column; gap: 8px; }
+.diff-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel, #151c26);
+  color: var(--text, #e6edf6);
+  font-family: inherit;
+  cursor: pointer;
+}
+.diff-row:active { transform: scale(.99); }
+.diff-row.on {
+  border-color: var(--gold, #e8b84b);
+  background: linear-gradient(160deg, rgba(232, 184, 75, .16), rgba(232, 184, 75, .04));
+}
+.diff-name {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.diff-check { color: var(--gold, #e8b84b); }
+.diff-tag { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; line-height: 1.4; }
+.diff-cheat {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--foe, #ff6b6b);
+}
+
+/* 「开始对战」必须一眼看到 —— 它曾经根本不存在，
+   于是「开始游戏 → AI 对决 → 选难度」绕回二级菜单，永远开不了局。 */
+.diff-go {
+  margin-top: 14px;
+  width: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════
+   场上单位详情（点棋盘上的卡牌弹出）
+   ══════════════════════════════════════════════════════════ */
+
+.unit-info {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+/* 只有点遮罩才关闭；点面板本身不做任何事（否则拖动看长文本就会关掉它） */
+.unit-info .ui-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay, rgba(0, 0, 0, .62));
+}
+.unit-info .ui-card {
+  position: relative;
+  width: 100%;
+  max-width: 330px;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel, #151c26);
+  color: var(--text, #e6edf6);
+  box-shadow: var(--shadow, 0 12px 40px rgba(0, 0, 0, .5));
+}
+.unit-info .ui-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.unit-info .ui-name { font-size: 17px; font-weight: 700; }
+.unit-info .ui-where { font-size: 11px; color: var(--dim, #8b9bb0); margin-left: auto; }
+.unit-info .ui-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 10px 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.unit-info .ui-atk { color: var(--atk, #ffb454); }
+.unit-info .ui-hp { color: var(--hp, #7ee787); }
+.unit-info .ui-base { font-size: 11px; font-style: normal; font-weight: 400; opacity: .65; }
+.unit-info .ui-marks { font-size: 12px; color: var(--mark, #d2a8ff); font-weight: 400; }
+.unit-info .ui-kws {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.unit-info .ui-kws li {
+  display: flex;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--panel-2, #1b2431);
+  border-left: 2px solid var(--gold, #e8b84b);
+}
+.unit-info .ui-kws li b { flex: none; color: var(--gold, #e8b84b); }
+.unit-info .ui-kws li span { color: var(--dim, #8b9bb0); }
+.unit-info .ui-effect {
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 9px 10px;
+  border-radius: 6px;
+  background: var(--panel-2, #1b2431);
+  border: 1px solid var(--line, #2a3646);
+}
+.unit-info .ui-label {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: var(--gold, #e8b84b);
+  color: #201603;
+  font-weight: 700;
+}
+.unit-info .ui-line { margin-top: 9px; font-size: 12.5px; color: var(--dim, #8b9bb0); }
+.unit-info .ui-line b { color: var(--text, #e6edf6); }
+.unit-info .ui-dim { opacity: .6; }
+.unit-info .ui-close {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel-2, #1b2431);
+  color: var(--text, #e6edf6);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════
+   局域网：房间列表 / 大厅
+   ══════════════════════════════════════════════════════════ */
+
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel, #151c26);
+  color: var(--text, #e6edf6);
+  font-family: inherit;
+  cursor: pointer;
+}
+.room-row:active { transform: scale(.99); }
+.room-row.room-full { opacity: .5; }
+.room-main { flex: 1; min-width: 0; }
+.room-name { font-size: 14px; font-weight: 700; }
+.room-sub { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.room-badge {
+  flex: none;
+  font-size: 11px;
+  color: var(--legal, #3ddc84);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.room-full .room-badge { color: var(--dim, #8b9bb0); }
+
+.lobby-card {
+  border: 1px solid var(--line, #2a3646);
+  border-radius: var(--radius, 8px);
+  background: var(--panel, #151c26);
+  padding: 16px;
+  text-align: center;
+}
+.lobby-role { font-size: 11px; color: var(--dim, #8b9bb0); letter-spacing: 1px; }
+.lobby-room {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--gold, #e8b84b);
+  margin: 6px 0 10px;
+  word-break: break-all;
+}
+.lobby-url {
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  line-height: 1.6;
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+.lobby-url b { color: var(--accent, #58a6ff); }
+.lobby-status {
+  font-size: 13px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg-2, #0f151d);
+}
+.lobby-connected { color: var(--legal, #3ddc84); }
+.lobby-reconnecting { color: var(--target, #ffab40); }
+.lobby-closed { color: var(--foe, #ff6b6b); }
+
+/* 联机等待重连时盖在棋盘上的提示 */
+.net-banner {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 60;
+  padding: 14px 20px;
+  border-radius: var(--radius, 8px);
+  background: var(--panel, #151c26);
+  border: 1px solid var(--target, #ffab40);
+  color: var(--target, #ffab40);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.6;
+  box-shadow: 0 8px 30px var(--shadow, rgba(0, 0, 0, .5));
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   对局结算里的金币奖励
+   （.overlay / .result 本身在 style.css 里）
+   ══════════════════════════════════════════════════════════ */
+
+.result-ops {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.reward {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--bg-2, #0f151d);
+  text-align: left;
+}
+.reward-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.reward-gold {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gold, #e8b84b);
+  font-variant-numeric: tabular-nums;
+}
+.reward-total { font-size: 11px; color: var(--dim, #8b9bb0); }
+.reward-lines {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--dim, #8b9bb0);
+}
+.reward-levelup {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold, #e8b84b);
+}
+.btn-home {
+  padding: 8px 14px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: transparent;
+  color: var(--text, #e6edf6);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════
+   首页
+   ══════════════════════════════════════════════════════════ */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  box-sizing: border-box;
+}
+
+.home-top { display: flex; justify-content: flex-end; }
+
+/* ── 右上角的金币 / 等级 HUD ─────────────────────────────── */
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hud-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--panel, #151c26);
+  border: 1px solid var(--line, #2a3646);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold, #e8b84b);
+  font-variant-numeric: tabular-nums;
+}
+/* 用 CSS 画一枚硬币，比 emoji 稳定（不依赖系统字体里有没有那个字形） */
+.coin {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold, #e8b84b) 60%, #8a6a1c);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25);
+  display: inline-block;
+}
+.hud-lv {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--panel, #151c26);
+  border: 1px solid var(--line, #2a3646);
+}
+.hud-lv-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text, #e6edf6);
+  line-height: 1;
+}
+.hud-lv-bar {
+  display: block;
+  width: 44px; height: 3px;
+  border-radius: 2px;
+  background: var(--panel-2, #1b2431);
+  overflow: hidden;
+}
+.hud-lv-bar > i {
+  display: block; height: 100%;
+  background: var(--accent, #58a6ff);
+  transition: width .25s ease;
+}
+
+/* ── 标题 ────────────────────────────────────────────────── */
+.home-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 160px;
+}
+.home-logo {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--text, #e6edf6);
+  text-shadow: 0 0 18px rgba(232, 184, 75, .25);
+}
+.home-sub {
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  letter-spacing: 1px;
+}
+
+/* ── 三个主按钮 ──────────────────────────────────────────── */
+.home-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.hm-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 18px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: linear-gradient(160deg, var(--panel-2, #1b2431), var(--panel, #151c26));
+  color: var(--text, #e6edf6);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform .08s ease, border-color .15s ease;
+}
+.hm-btn:active { transform: scale(.985); }
+.hm-ico {
+  width: 22px;
+  text-align: center;
+  color: var(--dim, #8b9bb0);
+  font-size: 16px;
+}
+.hm-primary {
+  border-color: var(--gold, #e8b84b);
+  background: linear-gradient(160deg, rgba(232, 184, 75, .18), rgba(232, 184, 75, .05));
+}
+.hm-primary .hm-ico,
+.hm-primary .hm-text { color: var(--gold, #e8b84b); }
+
+/* ── 首页底部战绩 ────────────────────────────────────────── */
+.home-foot {
+  border-top: 1px solid var(--line, #2a3646);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+}
+.hf-stats { display: flex; gap: 12px; }
+.hf-level b { color: var(--gold, #e8b84b); }
+.hf-dim { opacity: .7; }
+.hf-warn {
+  margin-top: 4px;
+  color: var(--foe, #ff6b6b);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ══════════════════════════════════════════════════════════
+   通用二级页面（设置 / 回放列表）
+   ══════════════════════════════════════════════════════════ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.screen-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line, #2a3646);
+  background: var(--panel, #151c26);
+}
+.screen-head h2 { margin: 0; font-size: 15px; color: var(--text, #e6edf6); }
+.btn-back {
+  padding: 6px 10px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--line, #2a3646);
+  background: transparent;
+  color: var(--dim, #8b9bb0);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-back:active { background: var(--panel-2, #1b2431); }
+
+.screen-body {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* ── 设置 ────────────────────────────────────────────────── */
+.set-group {
+  border: 1px solid var(--line, #2a3646);
+  border-radius: var(--radius, 8px);
+  background: var(--panel, #151c26);
+  overflow: hidden;
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.set-name { font-size: 14px; color: var(--text, #e6edf6); font-weight: 600; }
+.set-desc { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; line-height: 1.4; }
+.set-tip { font-size: 11px; color: var(--dim, #8b9bb0); text-align: center; padding: 6px; }
+
+/* 分段控件（深色 / 浅色） */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line, #2a3646);
+  border-radius: var(--radius, 8px);
+  overflow: hidden;
+  flex: none;
+}
+.seg-item {
+  padding: 7px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--dim, #8b9bb0);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.seg-item.on {
+  background: var(--accent, #58a6ff);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ══════════════════════════════════════════════════════════
+   回放列表
+   ══════════════════════════════════════════════════════════ */
+
+.rp-summary { font-size: 11px; color: var(--dim, #8b9bb0); }
+.rp-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--dim, #8b9bb0);
+  font-size: 13px;
+  line-height: 2;
+}
+.rp-empty span { font-size: 11px; opacity: .7; }
+
+.rp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #2a3646);
+  border-radius: var(--radius, 8px);
+  background: var(--panel, #151c26);
+  margin-bottom: 8px;
+}
+.rp-row-bad { opacity: .62; }
+.rp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rp-line1 { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim, #8b9bb0); }
+.rp-res { font-size: 12px; font-weight: 700; }
+.rp-res.p0 { color: var(--me, #4a9eff); }
+.rp-res.p1 { color: var(--foe, #ff6b6b); }
+.rp-res.draw { color: var(--gold, #e8b84b); }
+.rp-res.none { color: var(--dim, #8b9bb0); }
+.rp-date { font-variant-numeric: tabular-nums; }
+.rp-turn { opacity: .85; }
+
+.rp-note {
+  font-size: 12px;
+  color: var(--text, #e6edf6);
+  word-break: break-word;
+  line-height: 1.35;
+}
+.rp-note-empty { color: var(--dim, #8b9bb0); font-style: italic; opacity: .75; }
+.rp-note-edit { display: flex; gap: 6px; align-items: center; }
+.rp-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line, #2a3646);
+  background: var(--bg-2, #0f151d);
+  color: var(--text, #e6edf6);
+  font-size: 12px;
+  font-family: inherit;
+}
+.rp-bad { font-size: 11px; color: var(--foe, #ff6b6b); }
+
+/* 操作按钮排在备注下面一行 —— 竖排三个按钮会把整行撑得很高 */
+.rp-ops {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.rp-mini {
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel-2, #1b2431);
+  color: var(--text, #e6edf6);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rp-mini:active { transform: scale(.96); }
+.rp-mini.danger { color: var(--foe, #ff6b6b); border-color: rgba(255, 107, 107, .45); }
+.rp-mini:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════
+   回放播放器控制条（覆盖在棋盘下方）
+   ══════════════════════════════════════════════════════════ */
+
+.rp-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  background: var(--panel, #151c26);
+  border-top: 1px solid var(--line, #2a3646);
+  box-shadow: 0 -6px 20px var(--shadow, rgba(0, 0, 0, .5));
+}
+.rp-bar-top { display: flex; align-items: center; gap: 8px; }
+.rp-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  min-width: 0;
+  overflow: hidden;
+}
+.rp-bar-note {
+  color: var(--text, #e6edf6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 播放进度条 */
+.rp-seek {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2, #1b2431);
+  outline: none;
+  margin: 0;
+}
+.rp-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent, #58a6ff);
+  border: 2px solid var(--panel, #151c26);
+  cursor: pointer;
+}
+
+.rp-bar-ctl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rp-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel-2, #1b2431);
+  color: var(--text, #e6edf6);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rp-btn:active { transform: scale(.96); }
+.rp-btn-play {
+  flex: 1;
+  border-color: var(--accent, #58a6ff);
+  color: var(--accent, #58a6ff);
+  font-weight: 700;
+}
+.rp-count {
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: center;
+}
+.rp-err { font-size: 11px; color: var(--foe, #ff6b6b); }
+
+/* 播放中给棋盘底部留出控制条的高度，避免遮挡后排 */
+.stage-replay { padding-bottom: 108px; }
+
+/* ── 「抉择」面板（卡牌「歼-10」）─────────────────────────
+   引擎在效果打到一半挂起时弹出，盖住整屏：挂起期间别的操作都要点不到。 */
+.choice-mask {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(0, 0, 0, .62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.choice-box {
+  width: 100%; max-width: 380px;
+  background: var(--panel, #1b1f2a);
+  border: 1px solid var(--line, #39415a);
+  border-radius: 14px; padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+.choice-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; text-align: center; }
+.choice-list { display: flex; flex-direction: column; gap: 8px; }
+.choice-opt {
+  display: block; width: 100%; padding: 12px 14px;
+  font-size: 14px; line-height: 1.4; text-align: left;
+  color: inherit; background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--line, #39415a); border-radius: 10px;
+  cursor: pointer;
+}
+.choice-opt:active { background: rgba(255, 255, 255, .14); }
+
+/* ── 手动连接（搜不到房间时的兜底）─────────────────────────
+   UDP 广播在很多路由器上会被拦（AP 隔离/访客网络），扫描永远是空的。
+   这一段让玩家能照抄主机屏幕上那串地址直接连。 */
+.lan-manual {
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--line, #39415a);
+}
+.lan-manual-tip { font-size: 12px; line-height: 1.5; opacity: .75; margin-bottom: 8px; }
+.lan-input {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 11px 12px; margin-bottom: 8px;
+  font-size: 15px; letter-spacing: .5px;
+  color: inherit; background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--line, #39415a); border-radius: 10px;
+}
+.lan-input::placeholder { color: inherit; opacity: .35; }
+.lan-err { margin-top: 8px; font-size: 12px; line-height: 1.5; color: #ff8b8b; }
+
+/* 联机大厅：金币不足时的说明（联机没有保底，扣到 0 就只能打 AI） */
+.lobby-broke {
+  margin: 14px 0 10px; padding: 12px 14px;
+  font-size: 13px; line-height: 1.6;
+  color: #ffd08b; background: rgba(255, 176, 60, .12);
+  border: 1px solid rgba(255, 176, 60, .35); border-radius: 10px;
+}

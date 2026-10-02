@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_130107.jpg","name":"掩体","icon":"人形","cost":1,"atk":null,"hp":5,"keywordLines":["组合"],"effectText":"","uncertain":[],"rawNote":"卡面左下只画了♥5，未画⚔图标、也无攻击力数字，故atk为null；词条行只有「组合」，其下无其他文字"},
+  {"file":"IMG_20260925_130114.jpg","name":"希佩尔海军上将号","icon":"人形","cost":6,"atk":null,"hp":5,"keywordLines":["水生"],"effectText":"敌方抽牌时,将其弃置","uncertain":["左下⚔图标内有一处极淡的铅笔字迹（疑似数字），已放大到5倍仍无法辨认，故atk为null；候选可能是1或4"],"rawNote":""},
+  {"file":"IMG_20260925_130130.jpg","name":"格斗家","icon":"人形","cost":4,"atk":3,"hp":4,"keywordLines":[],"effectText":"♥>2时获穿透","uncertain":["效果行末「穿透」二字带下划线，但该行整体是效果句而非独立词条行；若按「下划线行=词条行」的机械规则，也可把「穿透」视作keywordLines"],"rawNote":"「时」后一字写作「获」（拿到）"},
+  {"file":"IMG_20260925_130136.jpg","name":"抹杀","icon":"剑","cost":5,"atk":null,"hp":null,"keywordLines":[],"effectText":"消灭一名敌人","uncertain":[],"rawNote":"攻击性锦囊，卡面无⚔/♥栏位，atk与hp均为null"},
+  {"file":"IMG_20260925_130143.jpg","name":"铁墙","icon":"人形","cost":2,"atk":null,"hp":null,"keywordLines":["组合","装甲1"],"effectText":"","uncertain":["左下角画了一个双层轮廓的♥图标，内部有一处极淡铅笔痕，疑似数字「6」但无法确认；且本卡未画⚔图标。故hp与atk均为null，候选hp=6"],"rawNote":"♥内的数字字迹过淡，无法确定；卡面左下无⚔图标；词条行为「组合」「装甲1」，其下无其他文字"},
+  {"file":"IMG_20260925_130150.jpg","name":"假人模特","icon":"人形","cost":1,"atk":0,"hp":4,"keywordLines":["组合","锦囊免疫"],"effectText":"","uncertain":[],"rawNote":"左下⚔图标内写的是「0」，非空白；无其他效果文字"},
+  {"file":"IMG_20260925_130158.jpg","name":"红火蚁","icon":"人形","cost":2,"atk":5,"hp":5,"keywordLines":[],"effectText":"每扣除1♥,便对指定单位造成1点伤害；打出;获得-2♥","uncertain":["第一行「每扣除1♥,便对指」与第二行「定单位造成1点伤害」在卡面上是同一句被换行断开，故按一行语义拼接，行间未加「；」"],"rawNote":"效果文字共三行：第1、2行为同一句换行（每扣除1♥,便对指定单位造成1点伤害），第3行为「打出;获得-2♥」；无下划线词条行"},
+  {"file":"IMG_20260925_130214.jpg","name":"虫族药师","icon":"人形","cost":3,"atk":3,"hp":2,"keywordLines":["淬毒1","组合"],"effectText":"打出:造成2点伤害","uncertain":[],"rawNote":"「打出」后的标点看起来是「:」（竖点/冒号），照抄为半角冒号"},
+  {"file":"IMG_20260925_130222.jpg","name":"派对客","icon":"人形","cost":3,"atk":2,"hp":3,"keywordLines":["双重打击"],"effectText":"有队友额外攻击时,抽一张牌","uncertain":[],"rawNote":""},
+  {"file":"IMG_20260925_130229.jpg","name":"老鼠","icon":"人形","cost":2,"atk":2,"hp":1,"keywordLines":[],"effectText":"自己线上的敌人获得-1⚔","uncertain":[],"rawNote":"效果文字分两行书写（自己线上的敌人获 / 得-1⚔），按一句拼接；无下划线词条行。末尾符号是⚔"}
+]

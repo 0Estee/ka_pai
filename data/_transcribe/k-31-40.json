@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_125317.jpg","name":"魔术师","icon":"人形","cost":4,"atk":2,"hp":3,"keywordLines":[],"effectText":"打出:让一名敌人变为⚔1♥2的兔子","uncertain":["攻击力是铅笔淡字，放大后判读为「2」","效果里兔子的攻击力只有剑形图标内的一道粗竖笔，判读为「1」；也可能本来空白"],"rawNote":"效果文本跨行构成「变为」，行间原用「；」连接（此处已还原）"},
+  {"file":"IMG_20260925_125324.jpg","name":"鲸鲨","icon":"人形","cost":4,"atk":null,"hp":4,"keywordLines":["水生"],"effectText":"打出:消灭一名♥最低的敌人","uncertain":[],"rawNote":"攻击力位置（剑形图标内）空白，只有剑的轮廓 —— 需作者补数"},
+  {"file":"IMG_20260925_125330.jpg","name":"鲸鱼","icon":"人形","cost":4,"atk":2,"hp":5,"keywordLines":["水生"],"effectText":"回合开始:对自己线上造成1点伤害","uncertain":[],"rawNote":"效果文本跨行构成「造成」"},
+  {"file":"IMG_20260925_125337.jpg","name":"紫电局地战","icon":"人形","cost":6,"atk":4,"hp":5,"keywordLines":["飞行","双重打击"],"effectText":"开战回合这张牌战无敌","uncertain":["「飞行」独占一行带下划线；引擎 keywords.js 里 nimble 注释写着「原『飞行』」→ 飞行 = 轻灵(nimble)","效果行第 8 个字读作「战」，但「这张牌战无敌」语义不通。候选：「就」或漏写「斗」"],"rawNote":"效果行里的「无敌」带下划线，是引用已有词条，整行按效果文本处理"},
+  {"file":"IMG_20260925_125345.jpg","name":"石中剑","icon":"人形","cost":3,"atk":1,"hp":5,"keywordLines":[],"effectText":"打出:场上每有一名单位这张牌便获+1⚔","uncertain":["攻击力只有一道很淡的细铅笔竖笔，判读为 1；也有可能是纸张划痕（即该处空白）"],"rawNote":"这张最值得请作者复核攻击力"},
+  {"file":"IMG_20260925_125351.jpg","name":"特战旅","icon":"人形","cost":2,"atk":2,"hp":2,"keywordLines":[],"effectText":"打出:若本回合有其他队友被打出，获+1⚔+2♥","uncertain":[],"rawNote":"效果文本跨行构成「队友」"},
+  {"file":"IMG_20260925_125357.jpg","name":"感染","icon":"方块","cost":4,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友获+3⚔+3♥；并获得组合与淬毒，；清空其本身的异能","uncertain":["「组合」与「淬毒」在句中带下划线，是引用已有词条（授予队友），不是本卡自身词条行"],"rawNote":"锦囊牌；效果第2行末尾本身有一个逗号，已照抄"},
+  {"file":"IMG_20260925_125404.jpg","name":"跳杆运动员","icon":"人形","cost":4,"atk":4,"hp":3,"keywordLines":[],"effectText":"有单位被弹射时获得+1⚔+1♥；融合进化:弹射一名敌人","uncertain":["第3行冒号前是词条名 fuse（融合进化），但整行还带「弹射一名敌人」，不构成纯词条行","第1行「弹射」带下划线，是行内引用"],"rawNote":""},
+  {"file":"IMG_20260925_125413.jpg","name":"咖啡豆","icon":"剑","cost":2,"atk":null,"hp":null,"keywordLines":[],"effectText":"一名队友额外攻击一次","uncertain":[],"rawNote":"锦囊牌（剑＝攻击性），无攻击/生命位；效果跨行构成「攻击」"},
+  {"file":"IMG_20260925_125427.jpg","name":"间谍皇子","icon":"人形","cost":6,"atk":4,"hp":3,"keywordLines":[],"effectText":"对方国王本回合拥有◎","uncertain":["效果最后是一个圆圈符号（外圈圆环+内圈小椭圆），形如「◎」；候选 ◎ / 〇 / 0 / ◈","同一符号在插画里也出现一次，像状态或资源标记"],"rawNote":"效果跨行构成「拥有」；「◎」含义待作者确认"}
+]

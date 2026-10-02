@@ -1,0 +1,12 @@
+[
+  {"file":"IMG_20260925_125436.jpg","name":"病原体","icon":"人形","cost":3,"atk":3,"hp":3,"keywordLines":["疾病"],"effectText":"","uncertain":[],"rawNote":"与 IMG_20260925_125436_1.jpg 为同一张卡（连拍两张），内容完全一致，未重复计数"},
+  {"file":"IMG_20260925_125436_1.jpg","name":"病原体","icon":"人形","cost":3,"atk":3,"hp":3,"keywordLines":["疾病"],"effectText":"","uncertain":[],"rawNote":"与 IMG_20260925_125436.jpg 重复（同一张卡连拍两张）→ 去重"},
+  {"file":"IMG_20260925_125442.jpg","name":"来一口","icon":"剑","cost":2,"atk":null,"hp":null,"keywordLines":[],"effectText":"名敌人获得-1⚔；-1♥,回复3♥","uncertain":["效果第二行「-1♥」后紧跟的字形写作「回」或「同」，按文意疑为「回复」，其后数字为 3","第一行「-1」后面那个图形是带十字/星形笔画的圆章，未能确定是 ⚔ 还是 ◈；按减益推测为 ⚔","第一行开头疑似漏字（可能是「一」）"],"rawNote":"锦囊牌，无 ⚔/♥ 图框。无关键词行"},
+  {"file":"IMG_20260925_125450.jpg","name":"无双剑豪","icon":"人形","cost":9,"atk":8,"hp":7,"keywordLines":["暴击3","溅射3"],"effectText":"消灭敌人:所有队友获+1⚔；+1♥","uncertain":[],"rawNote":"两行关键词各带下划线"},
+  {"file":"IMG_20260925_125456.jpg","name":"酸雨","icon":"剑","cost":2,"atk":null,"hp":null,"keywordLines":[],"effectText":"平地上的所有敌人获得-1⚔-1♥","uncertain":[],"rawNote":"锦囊牌，无攻击/生命图框；无关键词行"},
+  {"file":"IMG_20260925_125500.jpg","name":"恒河水炮","icon":"人形","cost":3,"atk":2,"hp":4,"keywordLines":["疾病"],"effectText":"","uncertain":[],"rawNote":"关键词行以下无任何效果文字（空白）"},
+  {"file":"IMG_20260925_125836.jpg","name":"苦痛","icon":"人形","cost":7,"atk":4,"hp":7,"keywordLines":["荆棘3"],"effectText":"受到伤害:获得+4⚔","uncertain":[],"rawNote":"无异常"},
+  {"file":"IMG_20260925_125848.jpg","name":"氢弹","icon":"剑","cost":7,"atk":null,"hp":null,"keywordLines":[],"effectText":"消灭平地上的所有单位,；令平地不可放置单位；一回合","uncertain":["费用方框内数字为手写体，主体为斜线+圆环，读作 7；同一笔画也可读成 0"],"rawNote":"锦囊牌，无攻击/生命图框；无关键词行。效果含「地形封锁一回合」新机制"},
+  {"file":"IMG_20260925_125855.jpg","name":"雷龙","icon":"人形","cost":7,"atk":null,"hp":7,"keywordLines":[],"effectText":"打出:弹射平地上的所有敌人","uncertain":["⚔ 图标内的攻击力数字为极淡铅笔笔迹，反复放大仍无法确认；形状像 8，也像 3 或 5。候选值 8/5/3。给出 atk=null，请作者确认"],"rawNote":"「弹射」二字带下划线，但不在已知 19 词条表内，按效果文本处理"},
+  {"file":"IMG_20260925_125904.jpg","name":"回旋龙卷风","icon":"方块","cost":3,"atk":null,"hp":null,"keywordLines":[],"effectText":"弹射一名敌人","uncertain":[],"rawNote":"锦囊牌，无攻击/生命图框；「弹射」二字带下划线（不在已知词条表内，按效果处理）"}
+]
