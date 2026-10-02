@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.32.0';
+export const APP_VERSION = '0.33.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -36,7 +36,7 @@ function fmtSize(bytes) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 开始游戏：二级菜单（PI 对决 / 局域网对决）
+// 开始游戏：二级菜单（AI 对决 / 局域网对决）
 // ══════════════════════════════════════════════════════════
 
 /** 通用：带返回按钮的二级页面外壳 */
@@ -56,7 +56,7 @@ export function playMenuHTML({ difficulty, lanSupported }) {
   return subScreen('开始游戏', `
     <button class="hm-btn hm-primary" data-act="choose-ai">
       <span class="hm-ico">⚔</span>
-      <span class="hm-text">PI 对决</span>
+      <span class="hm-text">AI 对决</span>
       <span class="hm-sub">${escHtml(d.name)}</span>
     </button>
     <button class="hm-btn" data-act="lan-menu">
@@ -89,9 +89,9 @@ export function difficultyHTML({ current, difficulties }) {
       </button>`;
   }).join('');
 
-  return subScreen('PI 难度', `
+  return subScreen('AI 难度', `
     <div class="diff-list">${rows}</div>
-    <div class="set-tip">难度主要影响 PI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>），已在上方逐条写明。</div>
+    <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>），已在上方逐条写明。</div>
     <button class="hm-btn hm-primary diff-go" data-act="start-ai">
       <span class="hm-ico">▶</span>
       <span class="hm-text">开始对战</span>
@@ -176,13 +176,13 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
 
   const joinUrl = isHost && localIp ? `http://${localIp}:${port}/` : '';
 
-  // 联机要金币 > 0。余额 ≤ 0 时按钮点不动，并明确告诉玩家去打 PI ——
+  // 联机要金币 > 0。余额 ≤ 0 时按钮点不动，并明确告诉玩家去打 AI ——
   // 联机**没有保底**（输了真扣），所以这里必须说清楚为什么进不去。
   const broke = canPvp === false;
   const canStart = peerName && !gameReady && !broke;
 
   const startBlock = isHost
-    ? `${broke ? `<div class="lobby-broke">金币为 <b>${escHtml(String(gold))}</b>，不能和真人对决。<br>先去打 PI 赚金币，再回来联机。</div>` : ''}
+    ? `${broke ? `<div class="lobby-broke">金币为 <b>${escHtml(String(gold))}</b>，不能和真人对决。<br>先去打 AI 赚金币，再回来联机。</div>` : ''}
        <button class="hm-btn hm-primary" data-act="lan-start" ${canStart ? '' : 'disabled'}>
          <span class="hm-ico">▶</span><span class="hm-text">开始对战</span>
          ${broke ? '<span class="hm-sub">金币不足</span>' : ''}
