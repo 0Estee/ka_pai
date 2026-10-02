@@ -290,6 +290,11 @@ powershell -ExecutionPolicy Bypass -File tools/verify-apk.ps1
 > 顺序固定：**跑门禁  `git add -A`  `git commit`  `git push`**，一条改动一个提交，别攒着。
 > `build-apk.ps1`、`check-bundle.mjs`、`smoke.mjs` 是三道门禁，**红了不许提交**。
 > 远端：`origin`（仓库地址见 `git remote -v`）。远端还没配时先问作者要地址。
+>
+>  远端是**公开仓库**（作者 2026-10 明确选择）：`origin = https://github.com/0Estee/ka_pai.git`。
+> **所以永远不要把密钥/私有资料提交上去**  `android/keystore.jks`、产物、任何凭据都不行；
+> 卡牌设计本来就是作者有意公开的，但**其它项目资料**（截图、本机路径清单、临时文件）别顺手带进去。
+> 署名身份：`0Estee <336826483+0Estee@users.noreply.github.com>`（GitHub noreply，不暴露真实邮箱）。
 > 提交信息写清「为什么改」作者靠它回溯；本仓库的 `docs/规则书-v0.2.md` 记规则口径、
 > 提交历史记实现过程，两边都要留痕。
 6. **平衡数据**（先手胜率、平均回合、牌库抽空比例），以及它的变化趋势
