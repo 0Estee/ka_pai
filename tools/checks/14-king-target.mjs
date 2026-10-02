@@ -21,10 +21,11 @@ check('__demoKingTarget 高亮敌方国王、不高亮自己国王，并渲染�
 
   const html = elements.get('stage').innerHTML;
   if (!html.includes(`data-king="${foe}"`)) throw new Error('渲染结果缺少敌方国王元素');
-  if (!html.includes(`class="sb-king targetable" data-king="${foe}"`)) {
+  // fx class (fx-hit ...) is APPENDED after targetable, so an exact string compare is brittle.
+  if (!new RegExp('class="[^"]*targetable[^"]*" data-king="' + foe + '"').test(html)) {
     throw new Error('敌方国王未被渲染成高亮状态（targetable）');
   }
-  if (html.includes(`class="sb-king targetable" data-king="${HUMAN}"`)) {
+  if (new RegExp('class="[^"]*targetable[^"]*" data-king="' + HUMAN + '"').test(html)) {
     throw new Error('自己的国王不应被渲染成高亮状态');
   }
   if (!html.includes('国王')) {

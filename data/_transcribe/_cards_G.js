@@ -251,7 +251,7 @@ export const CARDS_G = [
       trigger: 'onPlay',
       actions: [{
         op: 'draw', amount: { perKeywordOfTarget: 1 },
-        target: { kind: 'chosenEnemyUnit', prompt: '选择一个单位（按其词条数抽牌）' },
+        target: { kind: 'chosenAnyUnit', prompt: '选择一个单位（按其词条数抽牌）' },
       }],
     }],
   },

@@ -39,6 +39,8 @@ import './checks/16-target-registry.mjs';
 import './checks/17-combat-target.mjs';
 import './checks/18-replay-choice.mjs';
 import './checks/19-combat-fx.mjs';
+import './checks/21-combat-start-trigger.mjs';
+import './checks/20-combat-suspend.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

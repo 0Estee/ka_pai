@@ -1065,6 +1065,56 @@ test('陷阱费用：真花钱，但敌方视角里看不见这笔变化（作�
   assert.equal(visibleMana(s, 0), 8, '揭示之后费用变化就看得见了');
 });
 
+
+//
+group('15 国王中毒与「选择一个单位」跨阵营（作者 2026-10 追加）');
+//
+
+test('淬毒打国王：标记记在玩家身上，下一次回合开始时结算一次（作者 2026-10）', () => {
+  const s = game();
+  const attacker = deploy(s, 0, 'K17', 'mountain', 'front');   // 毒刃刺客 poison:2
+  const before = king(s, 1);
+  M.dealDamage(s, attacker, { kind: 'king', side: 1 }, 3);
+  assert.equal(king(s, 1), before - 3, '对国王的伤害照常结算');
+  assert.equal(s.players[1].kingMarks.length, 1, '淬毒给国王挂了一个标记（国王没有 marks，标记记在玩家上）');
+  const applied = s.log.filter((e) => e.type === 'poison-applied').pop();
+  assert.equal(applied.kingSide, 1, '日志用 kingSide 说明是哪一方国王');
+  // 跳过开战：否则这条线路的单位还会再打国王一次、再挂一个标记，掉血量就不是定值了
+  G.enterPhase(s, 'TURN_END');
+  nextTurn(s);
+  assert.equal(king(s, 1), before - 3 - 2, '下回合开始时国王吃 2 点中毒伤害');
+  assert.equal(s.players[1].kingMarks.length, 0, '结算过的标记被消费掉');
+});
+
+test('疾病不挂国王（它要消灭单位，而国王不是单位）', () => {
+  const s = game();
+  const attacker = deploy(s, 0, 'K03', 'mountain', 'front');   // 瘟疫使者 disease
+  M.dealDamage(s, attacker, { kind: 'king', side: 1 }, 3);
+  assert.equal(s.players[1].kingMarks.length, 0, '国王不会挂疾病标记');
+  const after = king(s, 1);
+  G.enterPhase(s, 'TURN_END');
+  nextTurn(s);
+  assert.equal(king(s, 1), after, '疾病不会让国王掉血');
+});
+
+test('第3补给营「选择一个单位」：友方和敌方都在选项里（作者 2026-10）', () => {
+  const s = game();
+  s.autoResolveChoices = false;   // 手动答这一问
+  const ally = deploy(s, 0, 'U289', 'plainL', 'front');
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  forcePhase(s, 0, 'deploy');
+  const hc = give(s, 0, 'U289');
+  G.playCard(s, 0, hc.iid, { lane: 'mountain', row: 'front' });
+  assert.ok(s.pending && s.pending.request, '打出 U289 会挂起「选择一个单位」');
+  const options = s.pending.request.options.map((o) => o.uid);
+  assert.ok(options.includes(ally.uid), '友方单位在选项里（这正是作者要的）');
+  assert.ok(options.includes(foe.uid), '敌方单位也还在');
+  const hand = s.players[0].hand.length;
+  G.resolveChoice(s, { uid: ally.uid });
+  assert.equal(s.pending, null, '答完就不再挂起');
+  assert.equal(s.players[0].hand.length, hand + 2, '按目标的词条数抽牌（U289 有 combo / armor:1 两个词条）');
+});
+
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

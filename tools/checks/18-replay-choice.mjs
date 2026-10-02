@@ -1,6 +1,27 @@
 /**  回放：真人点选 / 抉择 的问答必须精确重演 */
-import { api, check } from './harness.mjs';
+import { api, check, timers } from './harness.mjs';
 
+
+/**
+ * Manually drain the stubbed setTimeout queue (same helper as 19-combat-fx).
+ *
+ * Why check 18 needs it: the combat FX plays through setTimeout, and `tick()` refuses to
+ * advance while any FX is still queued/playing (author 2026-10 "do not enter the next turn
+ * before the combat animation finishes"). The winner/settle branch (which is what SAVES the
+ * replay into the archive) sits BEHIND that gate, so in this stubbed-timer harness nothing
+ * drains the FX queue and the record is never written -> "not found in the archive".
+ * In the real app the timers fire on their own, so this is a harness-only step.
+ */
+function pumpTimers(rounds) {
+  for (let i = 0; i < rounds; i++) {
+    const pending = [...timers.entries()];
+    if (!pending.length) break;
+    for (const [id, t] of pending) {
+      timers.delete(id);
+      try { t.fn(); } catch { /* unrelated stubs may throw */ }
+    }
+  }
+}
 console.log('\n 回放：真人点选/抉择的问答');
 
 /**
@@ -144,7 +165,20 @@ const difficultyBefore = api.__settings().difficulty;
 api.setDifficulty('normal');
 
 const SEEDS = [2, 111, 207];
-const played = SEEDS.map((sd) => playAsHuman(sd));
+const pinned = SEEDS.map((sd) => playAsHuman(sd));
+
+/*
+ * 「终局已定、却还挂着提问」这种收尾姿势**依赖具体对局**：
+ * 卡牌库或 AI 决策一改，钉死的种子就可能不再走出这个结局（2026-10 就发生过一次）。
+ * 所以钉死的三个种子照验，再按种子顺序往后**动态找一局**补上这个覆盖；
+ * 找到就停（上限 120 局，正常前十局内必有），找不到就让下面那条覆盖断言去报错。
+ */
+let coverage = null;
+for (let sd = 300; sd < 420 && !coverage; sd++) {
+  const r = playAsHuman(sd);
+  if (r.endedWithPending) coverage = r;
+}
+const played = coverage ? [...pinned, coverage] : pinned;
 
 for (const r of played) {
   check(`回放（种子 ${r.seed}）：真人点选/抉择过的一局能逐步精确重演`, () => {
@@ -222,7 +256,8 @@ check('回放：存档里那条必须带齐重建所需的字段（少了就会�
     if (api.__recordingActions().length === before) break;
   }
   // 取消暂停并推一步：tick 会走结算分支，把这一局写进回放档案
-  api.__pause(false);
+api.__pause(false);
+  pumpTimers(60);   // FX must finish before tick() reaches the settle/save branch
   api.__advance();
   //  上面这一步"推一下让 tick 走结算"本身**会多记一条 `a` 动作**（applyLocalAction
   //   照样记账），所以末尾会多出一个动作、而它没有指纹。补采一次，否则对拍会报

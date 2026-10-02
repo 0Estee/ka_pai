@@ -134,7 +134,10 @@ export function* resolveTargets(state, ctx, selector) {
 
     case 'chosenEnemyUnit':
     case 'chosenOwnUnit':
+    // 卡面写「一个单位」没说敌我（第3补给营）
+    case 'chosenAnyUnit':
     case 'chosenEnemyFront': {
+      const anySide = selector.kind === 'chosenAnyUnit';
       const wantSide = selector.kind === 'chosenOwnUnit' ? me : foe;
 
       // 调用方已直接指定目标（UI 点选 / AI 决策）——优先使用，不再发起交互。
@@ -147,7 +150,7 @@ export function* resolveTargets(state, ctx, selector) {
         return [asUnit(picked)];
       }
 
-      let options = allUnits(state).filter((u) => u.side === wantSide);
+      let options = anySide ? allUnits(state) : allUnits(state).filter((u) => u.side === wantSide);
       if (selector.kind === 'chosenEnemyFront' && ctx.chosenLane) {
         options = options.filter((u) => u.lane === ctx.chosenLane && u.row === 'front');
       }
@@ -161,7 +164,7 @@ export function* resolveTargets(state, ctx, selector) {
       const answer = yield {
         type: 'chooseUnit',
         side: me,
-        prompt: selector.prompt || `选择一个${SIDE_NAME[wantSide]}单位`,
+        prompt: selector.prompt || (anySide ? '选择一个单位' : `选择一个${SIDE_NAME[wantSide]}单位`),
         options: options.map((u) => ({ uid: u.uid, label: `${u.name} (${u.atk}/${u.hp}) ${LANE_NAME[u.lane]}-${u.row}` })),
       };
       const picked = options.find((u) => u.uid === answer.uid);

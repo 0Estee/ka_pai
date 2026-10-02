@@ -38,6 +38,8 @@ export function makePlayer(side) {
     hand: [],
     // 国王身上附着的永久被动（卡牌「战略纵深」）。见 effects.js 的 attachKingEffect
     kingEffects: [],
+    // 国王身上的标记（淬毒等）。国王不是单位、没有 marks 容器，所以记在玩家对象上。
+    kingMarks: [],
     /**
      * 本局**这张牌进入战场的次数**，key = cardId（卡牌「扫地僧」的打出效果要读它）。
      * 各方各算自己的。只在这里存计数，具体怎么用见 amounts.js 的 `{ perOwnEntry: N }`。

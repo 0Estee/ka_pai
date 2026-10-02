@@ -2015,7 +2015,7 @@ export const USER_CARDS_B3 = [
               "perKeywordOfTarget": 1
             },
             "target": {
-              "kind": "chosenEnemyUnit",
+              "kind": "chosenAnyUnit",
               "prompt": "选择一个单位（按其词条数抽牌）"
             }
           }

@@ -59,6 +59,18 @@ function analyzeSpell(def) {
       if (spec.kind === 'chosenEnemyTarget' && spec.allowKing !== false) {
         kingTargets.add(foe());
       }
+    } else if (spec.kind === 'chosenAnyUnit') {
+      // 卡面写「一个单位」没说敌我（第3补给营）：两侧都亮，玩家点谁算谁
+      for (const side of [me(), foe()]) {
+        for (const lane of LANES) {
+          for (const row of ROWS) {
+            const u = state.board[lane].units[side][row];
+            if (!u) continue;
+            if (!matchesTargetFilter(u, spec.filter, filterCtx(state))) continue;
+            unitTargets.add(u.uid);
+          }
+        }
+      }
     } else if (spec.kind === 'chosenOwnUnit') {
       for (const lane of LANES) {
         for (const row of ROWS) {
@@ -226,9 +238,21 @@ function resolvePlayerChoice(idx) {
   // 只有单机才恢复「自动代答」；联机要保持挂起状态直到玩家点完
   if (!session && !state.pending) state.autoResolveChoices = true;
   refresh();
+  /**
+   *  回答完必须**把回合循环接回去**（作者 2026-10 报的 bug）。
+   *
+   * 开战阶段的挂起，是 `tick()` 推进自动阶段时**推到一半停下来问人**造成的；
+   * 玩家点完之后如果没人再调一次 `tick()`，这一局就**停在 COMBAT 阶段不动了** 
+   * 表现就是「强化士兵选定攻击目标之后卡死」。
+   * 规则：没有新的挂起请求（否则面板会显示下一问）、对局没结束、且是单机时，接回去。
+   */
+  if (!session && !state.pending && state.winner === null) tick();
 }
 
 function commitPlay(iid, opts) {
+  // 出牌前先抓下卡牌定义（打出后这张牌就离开手牌了），出牌成功后要用它做放大展示
+  const hcBefore = state.players[me()].hand.find((c) => c.iid === iid);
+  const defBefore = hcBefore ? state.cardLib[hcBefore.cardId] : null;
   if (session) {
     // 联机：交给会话（本地应用 + 广播）
     if (!session.submit({ k: 'p', s: me(), i: iid, o: opts || {} })) {
@@ -258,6 +282,10 @@ function commitPlay(iid, opts) {
   // 只有真的打出去了才记进回放（上面 catch 掉的不算）
   RP.recAction(recording, { k: 'p', s: me(), i: iid, o: opts || {} });
   pumpCombatFx();
+  // 「所有锦囊被使用时放大展示给双方，持续 2 秒」（作者 2026-10）
+  //  原来这句只在 applyLocalAction（AI 出的牌）里调过，玩家自己出牌这条路漏了，
+  //   所以「锦囊的放大展示」看起来像没做。
+  flashPlayPresentation(defBefore, { k: 'p', s: me(), i: iid });
   clearSelection();
   refresh();
   return true;

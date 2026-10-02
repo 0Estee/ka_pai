@@ -191,7 +191,8 @@ function slotHTML(state, view, lane, side, row) {
       || (fx.uid !== undefined && unit && unit.uid === fx.uid)));
   const lunge = !!(laneHot && unit && (fx.uids || []).includes(unit.uid));
   const fxClasses = [laneHot ? 'fx-lane' : '', lunge ? 'fx-lunge' : '', here ? 'fx-hit' : ''].filter(Boolean);
-  const fxHTML = (here && fx.text) ? `<span class="fx-float">${fx.text}</span>` : '';
+  const fxRest = (fx && fx.animateFloat === false) ? ' fx-float-rest' : '';
+  const fxHTML = (here && fx.text) ? `<span class="fx-float${fxRest}">${fx.text}</span>` : '';
   const allClasses = classes + (fxClasses.length ? ' ' + fxClasses.join(' ') : '');
   return `<div class="${allClasses}" data-lane="${lane}" data-side="${side}" data-row="${row}">${unitHTML(state, unit, view)}${fxHTML}</div>`;
 }
@@ -219,7 +220,7 @@ function statusBarHTML(state, side, view) {
   return `
     <div class="statusbar ${isMe ? 'me' : 'foe'} ${active ? 'active' : ''}">
       <span class="sb-side"><b>${isMe ? '你' : 'AI'}</b><i class="sb-role">${isFirst ? '先手' : '后手'}</i></span>
-      <span class="sb-king ${kingTargetable ? 'targetable' : ''}${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side) ? ' fx-hit' : ''}" data-king="${side}" title="${kingTargetable ? '点击：把国王指定为目标' : '国王生命'}">♥ ${p.kingHp}</span>${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side && view.fx.text) ? '<span class="fx-float fx-float-king">' + view.fx.text + '</span>' : ''}
+      <span class="sb-king ${kingTargetable ? 'targetable' : ''}${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side) ? ' fx-hit' : ''}" data-king="${side}" title="${kingTargetable ? '点击：把国王指定为目标' : '国王生命'}">♥ ${p.kingHp}</span>${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side && view.fx.text) ? '<span class="fx-float fx-float-king' + (view.fx.animateFloat === false ? ' fx-float-rest' : '') + '">' + view.fx.text + '</span>' : ''}
       <span class="sb-mana" title="费用">◈ ${shownMana}/${p.manaCap}<span class="pips">${manaPips}</span></span>
       <span class="sb-hand" title="手牌">手牌 ${p.hand.length}</span>
     </div>`;

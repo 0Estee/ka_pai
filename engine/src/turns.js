@@ -213,6 +213,19 @@ export function resolveMarks(state) {
     // 淬毒/疾病导致的死亡之后再做轻灵检查
     M.checkNimble(state, unit);
   }
+
+  // 国王也会中毒（作者 2026-10 要求）。国王没有 marks 容器，标记记在玩家对象上。
+  // 与单位中毒同口径：下一次 TURN_START 结算一次，然后标记被消费掉。
+  for (const p of state.players) {
+    const kingMarks = (p.kingMarks || []).splice(0);
+    for (const mark of kingMarks) {
+      if (mark.type !== 'poison') continue;
+      M.log(state, { type: 'poison-tick', kingSide: p.side, x: mark.x });
+      M.dealDamage(state, null, { kind: 'king', side: p.side }, mark.x, {
+        ignoreMechanisms: true, noKeywords: true,
+      });
+    }
+  }
 }
 
 export function resolveByTurnLimit(state) {

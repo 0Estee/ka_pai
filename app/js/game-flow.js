@@ -169,6 +169,16 @@ function tick() {
   pumpCombatFx();
   if (paused) { refresh(); return; }
 
+  /**
+   * 「开战演出没播完，不要进下一回合」（作者 2026-10 要求）。
+   * 开战一瞬间可能产生十几条特效，不等它播完就推进，玩家根本看不清发生了什么。
+   * 播完由 stepCombatFx 的收尾回调重新调 tick() 接回来。
+   */
+  if (view.fx || view.fxTimer || (view.fxQueue && view.fxQueue.length)) {
+    refresh();
+    return;
+  }
+
   if (state.winner !== null) {
     view.busy = false;
     view.hint = '';
@@ -404,8 +414,15 @@ function flashPlayPresentation(playedDef, action) {
       return;
     }
   }
-  // 锦囊：陷阱不算（作者口径：陷阱的使用不算打出锦囊）
-  if (action && action.k === 'p' && playedDef && playedDef.type === 'spell' && !isTrapCard(playedDef)) {
+  // 陷阱：它的「使用」是**埋伏**，按作者口径**不能给对手看**  只给埋的人自己一个提示
+  if (action && action.k === 'p' && playedDef && isTrapCard(playedDef)) {
+    if (typeof me === 'function' && action.s === me()) {
+      showBanner(`${playedDef.name}<small>已埋伏</small>`, 2000);
+    }
+    return;
+  }
+  // 锦囊：放大展示给双方，持续 2 秒
+  if (action && action.k === 'p' && playedDef && playedDef.type === 'spell') {
     showBanner(`${playedDef.name}<small>${playedDef.text || ''}</small>`, 2000);
   }
 }
@@ -437,6 +454,8 @@ function fxOfLogEntry(e) {
     case 'thorns':
       return { kind: 'hit', uid: e.uid, text: '荆棘 ' + e.x };
     case 'poison-tick':
+      // 国王中毒的日志没有 uid，只有 kingSide（见 engine/src/turns.js 的 resolveMarks）
+      if (e.kingSide !== undefined) return { kind: 'hit', kingSide: e.kingSide, text: '中毒 ' + e.x };
       return { kind: 'hit', uid: e.uid, text: '中毒 ' + e.x };
     case 'untargetable-block':
       return { kind: 'hit', uid: e.uid, text: '无法选中' };
@@ -466,18 +485,28 @@ function pumpCombatFx() {
  *  作者 2026-10 反馈「太快了，还没看清楚就结束了」。根因不是动画做得短，
  *   而是 refresh() 会**整块替换 #stage 的 innerHTML**  下一步一渲染，
  *   上一条的 CSS 动画就被打断（旧的 150ms 对上 0.9s 的飘字，等于只播了 1/6）。
- *   所以这个值必须 ** style.css 里最长的那条动画**（现在最长是 0.58s），
+ *   所以这个值必须 ** style.css 里最长的那条动画**（现在最长是 0.80s），
  *   再留一点喘气的时间。
  */
-const FX_STEP_MS = 620;
+const FX_STEP_MS = 820;
 
 function stepCombatFx() {
   view.fx = view.fxQueue.shift() || null;
+  // 飘字只播一次：refresh() 整块重建 #stage，之后任何一次重渲染都会让同一个
+  // .fx-float 重启动画（作者看到的就是「飘字反复触发」）。第一条渲染允许播动画，
+  // 渲染完立刻把标记关掉，之后渲染出来的就是同一段静止文字（.fx-float-rest）。
+  if (view.fx) view.fx.animateFloat = true;
   refresh();
+  if (view.fx) view.fx.animateFloat = false;
   view.fxTimer = setTimeout(() => {
     view.fxTimer = null;
     if (view.fxQueue.length) stepCombatFx();
-    else { view.fx = null; refresh(); }
+    else {
+      view.fx = null;
+      refresh();
+      // 演出播完了，把回合循环接回去（上面那道闸放行）
+      tick();
+    }
   }, FX_STEP_MS);
 }
 

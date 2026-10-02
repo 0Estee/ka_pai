@@ -144,9 +144,9 @@ export function dealDamage(state, source, target, raw, opts = {}) {
     log(state, { type: 'king-damage', side: target.side, amount: finalAmount, hp: p.kingHp, source: source ? source.uid : null });
 
     // 「造成伤害:」异能**包括对国王造成伤害**（作者确认，规则书 §1 已同步修订）。
-    // 但「淬毒 / 疾病」需要给目标挂标记，而国王不是单位，所以它们不在此触发。
+    // 「淬毒」现在**也能挂到国王身上**（作者 2026-10 要求）；「疾病」仍然不触发（国王不是单位）。
     if (source && !opts.noKeywords) {
-      onDealtDamage(state, source, null, finalAmount);
+      onDealtDamage(state, source, null, finalAmount, { kingSide: target.side });
     }
   } else {
     const unit = target.unit;
@@ -200,21 +200,30 @@ export function dealDamage(state, source, target, raw, opts = {}) {
 /**
  * 「造成伤害:」异能 与 淬毒 / 疾病 的共同入口。
  *
- * victim 为 null 表示这次伤害打的是**国王**：
+ * victim 为 null 表示这次伤害打的是**国王**（opts.kingSide 说明是哪一方）：
  *   · 「造成伤害:」异能照常触发
- *   · 「淬毒 / 疾病」不触发（它们要给目标挂标记，而国王不是单位）
+ *   · 「淬毒」照常挂到国王身上（标记记在玩家对象上）、「疾病」不触发（国王不是单位）
  */
-export function onDealtDamage(state, source, victim, amount) {
+export function onDealtDamage(state, source, victim, amount, opts = {}) {
   if (amount <= 0) return;
 
-  if (victim) {
+  // victim 为 null 时用 opts.kingSide 指明「打的是哪一方国王」（国王中毒要用）。
+  const kingSide = victim ? null : (opts.kingSide === undefined ? null : opts.kingSide);
+
+  if (victim || kingSide !== null) {
     const poison = getKw(source, 'poison');
     if (poison && poison.x > 0) {
-      victim.marks.push({ type: 'poison', x: poison.x, sourceUid: source.uid, appliedTurn: state.turn });
-      log(state, { type: 'poison-applied', uid: victim.uid, x: poison.x });
+      const mark = { type: 'poison', x: poison.x, sourceUid: source.uid, appliedTurn: state.turn };
+      if (victim) {
+        victim.marks.push(mark);
+        log(state, { type: 'poison-applied', uid: victim.uid, x: poison.x });
+      } else {
+        state.players[kingSide].kingMarks.push(mark);
+        log(state, { type: 'poison-applied', kingSide, x: poison.x });
+      }
     }
 
-    if (hasKw(source, 'disease')) {
+    if (victim && hasKw(source, 'disease')) {
       victim.marks.push({ type: 'disease', sourceUid: source.uid, appliedTurn: state.turn });
       log(state, { type: 'disease-applied', uid: victim.uid });
     }

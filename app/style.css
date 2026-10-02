@@ -694,7 +694,9 @@ html, body {
   font-weight: 800; font-size: 17px; line-height: 1;
   color: #ff6b6b; text-shadow: 0 1px 3px rgba(0, 0, 0, .85), 0 0 8px rgba(255, 60, 60, .5);
   pointer-events: none; white-space: nowrap;
-  animation: fx-float .58s ease-out forwards;
+  animation: fx-float .80s ease-out forwards;
 }
 .statusbar { position: relative; }
 .fx-float-king { top: 50%; font-size: 13px; color: #ff8a5c; }
+/* 已经播过一次动画的飘字：保持可见，但不重启动画（作者：飘字别反复触发） */
+.fx-float-rest { animation: none; opacity: 1; }
