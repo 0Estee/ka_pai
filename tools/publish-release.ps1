@@ -1,4 +1,4 @@
-<#
+﻿<#
   一键发 Release：建 Release 并把 dist 里的 APK 传上去。
 
   用法：

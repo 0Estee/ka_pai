@@ -358,36 +358,28 @@ window.__resetRecording = () => {
   return recording.actions.length;
 };
 
-window.__replayVerifyLive = (liveDigests) => {
-  if (!recording) return { error: '没有正在录制的对局' };
-  const actions = recording.actions;
+/**
+ * 自检用：拿「同一位置  同一局面」的判据，逐步对拍一条录制。
+ *
+ * @param liveDigests     实战留下的指纹（由 __snapLive 采）
+ * @param recordOverride  可选：**指定的回放记录**。传它就是为了验「存档里那条」
+ *    存档经过 finishRecording 打包 + JSON 序列化（漏字段就播不对），
+ *   与内存里那份 recording 不是一回事：不传就退化成原来的行为。
+ *
+ *  判据必须比「同一位置」而不是「两边当前」；顺序是先 next() 再比。这两条都踩过。
+ */
+window.__replayVerifyLive = (liveDigests, recordOverride) => {
+  const src = recordOverride || recording;
+  if (!src) return { error: '没有正在录制的对局，也没给回放记录' };
+  const actions = src.actions;
   if (!actions.length) return { error: '还没录到任何操作' };
   const snaps = liveDigests || window.__liveDigests || [];
   if (!snaps[actions.length]) {
     return { error: '没有实战指纹（请在每一步操作后调 __snapLive()）' };
   }
-  /**
-   * 自检用：把实战那一局的「每一问的裁定」快照下来（见 takeChoice 的 hold/holdHang）。
-   * 两边逐问对照才能看出是「哪一问上分家的」。
-   */
   if (state && Array.isArray(state.qTrace)) window.__liveQTrace = state.qTrace.slice();
 
-  /**
-   * 判据：**同一位置 → 同一指纹**。
-   *
-   * 踩过的两个坑（都记在这里，别再走一遍）：
-   *   ① 直接比「界面上那一局」与「回放播放器」的当前局面 —— 前者已经走到第 58 步、
-   *      后者才第 1 步，必然第一步就报分叉。要比的是**同一位置**的局面。
-   *   ② 拿俩引擎从零重建、**同步逐条喂**，看着对，其实不行：一局里同一时刻可能
-   *      挂着**两个**请求（出牌本身一个、出牌触发的异能又一个），两个引擎消耗
-   *      录制答案的**时机不同**，就互相偷吃 `{k:'c'}`，报出来的错全是假的。
-   *      所以只留**一个**重放引擎（`createReplayPlayer`），让它自己走，
-   *      拿它每一步的指纹去对实战留下的指纹。
-   *
-   * 指纹用 `RP.replayDigest`，不是 `Net.stateSignature` —— 后者是给联机校验用的，
-   * 它会把 `humanSide` 这类「谁来答这一问」的应用层开关算进去，而实战与回放
-   * 这里**本来就该不同**（实战等真人点，回放照录制喂），一算就误报分叉。
-   */
+  /** 从内存里那份 recording 重建一条等价的回放记录（给不传 recordOverride 的场合用） */
   const recOf = (acts) => ({
     ...RP.newRecording({
       seed: recording.seed, firstPlayer: recording.firstPlayer, deck: recording.deck,
@@ -398,31 +390,15 @@ window.__replayVerifyLive = (liveDigests) => {
     actions: acts.map((a) => ({ ...a })),
   });
 
-  const player = RP.createReplayPlayer(recOf(actions), TEST_CARD_LIB);
+  // 给了 recordOverride 就直接用它（那是「存档里那条」）；否则从内存那份重建一条等价的
+  const player = RP.createReplayPlayer(recordOverride || recOf(actions), TEST_CARD_LIB);
   const trace = [];
   let divergedAt = 0;
   for (let i = 0; i < actions.length; i++) {
-    /**
-     * 顺序要紧：**先应用那一条记录，再比它对不对**。
-     *
-     * `snaps[j]` 是「实战跑完第 j 条记录之后的局面」（由 `recAction` 记账那一刻回头调
-     * `__snapLiveAt(j)` 存下），所以第 i 条记录该对的是 `snaps[i + 1]`，
-     * 比的时刻必须在 `player.next()` **之后**。反过来先比就会整体错开一位，
-     * 每一步都报「分叉」而其实两边完全一致（这个坑踩过）。
-     */
     player.next();
     const live = snaps[i + 1];
     const replay = player.digest();
-    if (typeof window !== 'undefined' && window.__dbg && i >= 0 && i < 40) {
-      const lb = (window.__liveBriefs || [])[i + 1];
-      const rb = window.__stateBrief(player.state);
-      console.log(`[verify] act#${i} ${JSON.stringify(actions[i])}\n--- live ---\n${lb}\n--- 回放 ---\n${rb}`);
-    }
     if (player.error) {
-      if (typeof window !== 'undefined' && window.__dbg) {
-        console.log(`[verify] ✗ 第 ${i + 1} 步失败 err=${player.error} idx=${player.index} pend=${player.state.pending ? player.state.pending.request.type : '-'}`
-          + `\n--- live ---\n${window.__liveBriefs[i + 1]}\n--- live(上一步) ---\n${window.__liveBriefs[i]}\n--- 回放 ---\n${window.__stateBrief(player.state)}`);
-      }
       trace.push({ step: i + 1, k: actions[i].k, action: actions[i], error: player.error });
       divergedAt = i + 1;
       break;
@@ -443,7 +419,6 @@ window.__replayVerifyLive = (liveDigests) => {
       break;
     }
   }
-
   return {
     total: actions.length,
     played: player.index,

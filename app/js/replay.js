@@ -193,6 +193,24 @@ export function finishRecording(rec, state) {
     seed: rec.seed,
     firstPlayer: rec.firstPlayer,
     deck: rec.deck,
+    /**
+     *  下面这四个字段**以前漏了**，而它们是 `createReplayPlayer` 重建这一局时
+     *   必须要读的  漏掉的后果是「**存档里的回放**播不对」：
+     *      shuffled  少了它，重建时会把**已经洗好的牌库再洗一遍**，手牌全变
+     *      opening   少了它，只能「照种子自己洗牌自己发牌」，rng 与牌库的历史
+     *                 对不上，**抽牌顺序从第一步就歪**
+     *      choiceLog 少了它，回放里每一问都落进「流水用尽」兜底  真人当时选的
+     *                 第 2 项被换成第 1 项，紧随其后的 `{k:'c'}` 成了孤儿，
+     *                 报 `当前没有待处理的交互请求`
+     *      humanSide 少了它，联机（客人是 1 号）会错认成 0 号
+     *   为什么以前没被发现：内存里那份 `recording` 是完整的，只有「录完  存进
+     *   档案  再播」这条路才暴露  而当时的自检偏偏是拿内存那份在验。
+     *   （`__replayVerifyLive` 后来加了 recordOverride，门禁里现在两条路都验。）
+     */
+    shuffled: rec.shuffled,
+    opening: rec.opening,
+    humanSide: rec.humanSide,
+    choiceLog: rec.choiceLog,
     bonuses: rec.bonuses || [],
     actions: rec.actions,
     startedAt: rec.startedAt,
