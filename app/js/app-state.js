@@ -56,6 +56,30 @@ function foeName() {
   return session ? '对手' : 'AI';
 }
 
+/**
+ * 这一问该由哪一方回答。
+ *
+ * 引擎的每个交互请求（chooseOption / chooseUnit / combatTarget ...）都写了
+ * `side` = 该做主的那一方；这里缺字段时按「我这一侧」兜底，免得老回放卡住。
+ */
+function choiceOwner(rq) {
+  return rq && rq.side !== undefined ? rq.side : me();
+}
+
+/**
+ * 本地能不能替这一问作答。
+ *
+ *   单机：可以（对面是 AI，请求本来就都是我这侧的）。
+ *   联机：**只有归我这一侧的能答**。对手打出的牌在中途要选效果时，两边都会
+ *         挂起，但只有对手那台设备该点；本地只显示「等待对手选择」，
+ *         答案随后会随锁步的 { k:'c' } 操作传过来（协议里本来就有这种操作）。
+ *
+ * 不这么挡的话，两台设备谁先点谁说了算  等于替对手做决定。
+ */
+function canAnswerChoice(rq) {
+  return !session || choiceOwner(rq) === session.mySide;
+}
+
 /** 当前屏幕 */
 let screen = 'home';
 
@@ -104,7 +128,7 @@ let recordingSeed = 0;
 let recordingDeck = [];
 
 export {
-  HUMAN, AI, me, foe, foeName,
+  HUMAN, AI, me, foe, foeName, choiceOwner, canAnswerChoice,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,

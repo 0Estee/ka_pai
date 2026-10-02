@@ -327,11 +327,16 @@ function refresh() {
   if (state.pending) {
     const rq = state.pending.request;
     const isCombatTarget = rq.type === 'combatTarget';
+    // 联机：这一问归谁答？归对手时本地不能替他选 
+    // 选项还可能泄露对手的手牌/目标，所以连列都不列，只显示等待。
+    const canAnswer = canAnswerChoice(rq);
     stage.innerHTML += `<div class="choice-mask"><div class="choice-box">
       <div class="choice-title">${escMain(rq.prompt || '选择一项')}</div>
       ${isCombatTarget ? '<div class="choice-sub">指定谁，这一击就打谁（可以跨线路、也可以打脸）</div>' : ''}
-      <div class="choice-list">${(rq.options || []).map((o, i) =>
-    `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${escMain(o.label)}</button>`).join('')}</div>
+      ${canAnswer
+      ? `<div class="choice-list">${(rq.options || []).map((o, i) =>
+    `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${escMain(o.label)}</button>`).join('')}</div>`
+      : '<div class="choice-sub net-dim">等待对手选择</div>'}
     </div></div>`;
   }
 

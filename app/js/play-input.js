@@ -219,6 +219,16 @@ function resolvePlayerChoice(idx) {
     return;
   }
   const rq = state.pending.request;
+  /**
+   * 联机：提问归谁，只有那一侧能答。
+   *   对手打出的牌在中途要选效果时，两边都会挂起，但只有对手那台设备该点。
+   *   本地这里只是「等」，答案会随锁步的 { k:'c' } 操作传过来。
+   */
+  if (!canAnswerChoice(rq)) {
+    view.hint = '等待对手选择';
+    refresh();
+    return;
+  }
   const opt = (rq.options || [])[idx];
   if (!opt) {
     if (globalThis.__dbg) console.log(`[resolvePlayerChoice] idx=${idx} 超出选项范围 n=${(rq.options || []).length}`);

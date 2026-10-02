@@ -799,6 +799,70 @@ window.__demoLobby = (peerName) => {
   return r;
 };
 
+/**
+ * 自检钩子：伪造一个联机会话（不联网），造出「对手 / 自己打出的牌要选效果」的现场，
+ * 用来验证「提问归谁答」的界面分流（单机路径有 __demoChoice，联机路径用它）。
+ *
+ *   opts.mySide : 我这一侧（0 = 主机 / 1 = 客人，默认 0）
+ *   opts.owner  : 这张牌归谁打（'me' | 'foe'，默认 'foe'）
+ */
+window.__demoLanChoice = (opts = {}) => {
+  const mySide = opts.mySide === undefined ? 0 : opts.mySide;
+  const owner = opts.owner === undefined ? 'foe' : opts.owner;
+  const real = session;
+  const sent = [];
+  // 假会话：只把交上来的操作记下来（真 Session 才会本地应用 + 广播）
+  session = {
+    isHost: mySide === 0,
+    mySide,
+    step: 0,
+    lastError: '',
+    peerName: '对手',
+    started: true,
+    submit: (a) => { sent.push(a); return true; },
+  };
+  startNewGame();
+  screen = 'game';
+  paused = true;
+  clearTimeout(bannerTimer);
+  clearTimeout(autoAdvanceTimer);
+  const side = owner === 'me' ? mySide : 1 - mySide;
+  // 摆到「出这张牌的那一侧」的行动阶段：DEPLOY_FIRST = 先手的放置阶段
+  state.phase = side === state.firstPlayer ? 'DEPLOY_FIRST' : 'DEPLOY_SECOND';
+  const p = state.players[side];
+  p.manaCap = 20;
+  p.mana = 20;
+  const hc = { iid: state.nextIid++, cardId: 'U393' }; // 歼-10：打出后要「抉择」
+  p.hand.push(hc);
+  state.autoResolveChoices = false;
+  let error = null;
+  try {
+    G.playCard(state, side, hc.iid, { lane: 'mountain', row: 'front' });
+  } catch (err) {
+    error = err.message;
+  }
+  const rq = state.pending ? state.pending.request : null;
+  refresh();
+  const html = document.getElementById('stage').innerHTML;
+  const out = {
+    error,
+    owner,
+    mySide,
+    requestSide: rq ? rq.side : null,
+    pending: !!state.pending,
+    clickable: html.includes('data-act="choose-option"'),
+    waiting: html.includes('等待对手选择'),
+  };
+  if (state.pending) resolvePlayerChoice(0); // 本地点一下，看它敢不敢替对手作答
+  out.sentAfterClick = sent.map((a) => ({ ...a }));
+  out.pendingAfterClick = !!state.pending;
+  state.autoResolveChoices = true;
+  session = real;
+  startNewGame();
+  refresh();
+  return out;
+};
+
 window.__demoKingTarget = () => {
   // 已经分出胜负的局里 selectCard 会直接 return（对局结束就不该再操作了），
   // 于是这个钩子会返回空的 kingTargets —— 截图/自检要的是一个能操作的活局，
