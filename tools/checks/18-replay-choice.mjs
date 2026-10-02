@@ -170,7 +170,7 @@ api.setDifficulty(difficultyBefore);
 api.__go('home');
 api.__newGame();
 
-check('回放：**存档里**那条（经过 finishRecording 打包）也要能逐步精确重演', () => {
+check('回放：存档里那条必须带齐重建所需的字段（少了就会「播到选择处出错」）', () => {
   /**
    *  这条专门守一个曾经漏掉的盲点：`__replayVerifyLive` 默认是拿**内存里那份
    *   recording**重建记录来验的，而应用里点「回放对局」读的是**存档**（`finishRecording`
@@ -233,7 +233,9 @@ check('回放：**存档里**那条（经过 finishRecording 打包）也要能�
   //  不能取 stored[length-1]：前面各组已经往档案里存了 30 多条，
   //   刚打完这局不一定排在最后。按**动作条数**精确定位它。
   const mine = api.__recordingActions().length;
-  const rec = stored.slice().reverse().find((r) => r.actions && r.actions.length === mine);
+  const seedNow = api.__game().seed;
+  // 种子 + 条数双条件定位，避免和前面各组的记录撞车（撞上会误报「第 1 步分叉」）
+  const rec = stored.slice().reverse().find((r) => r.actions && r.actions.length === mine && r.seed === seedNow);
   if (!rec) throw new Error(`档案里找不到刚打完那局（${mine} 条动作）；档案共 ${stored.length} 条`);
   if (!rec.opening) throw new Error('存档里的回放缺 opening 字段（finishRecording 又漏了？）');
   if (!rec.choiceLog) throw new Error('存档里的回放缺 choiceLog 字段（finishRecording 又漏了？）');
@@ -255,7 +257,13 @@ check('回放：**存档里**那条（经过 finishRecording 打包）也要能�
 //          const rep = api.__stateBrief(p2.state);
 //     2. 重点核对这几样：`state.deck` 的前 8 张、`state.rng.state`、双方手牌与 `nextIid`、
 //        `state.stats`、以及 `laneLocks` / `traps` 这类「中途才有的状态」；
-//     3. 找到差异字段后，把它加进 finishRecording 的返回对象（与 newRecording 对齐），
+//     3.  **先排除「这条检查自己选错了记录」**：现在只按「动作条数相同」在档案里找，
+//        而前面各组已经存了 30+ 条，条数撞车很常见  撞上就会拿**别的局**去对拍，
+//        于是「第 1 步就分叉」。加固办法：定位条件改成
+//        `r.seed === state.seed && r.actions.length === mine`（种子 + 条数双条件），
+//        再加一条断言：`rec.seed === api.__game().seed`，确保验的就是刚打完那局。
+//     4. 若加固后仍分叉，再按上面的 __stateBrief 逐字段 diff，找出还缺哪个字段；
+//        找到后加进 finishRecording 的返回对象（与 newRecording 对齐），并把下面这段打开。
 //        再把下面这段打开：
 //   const v = api.__replayVerifyLive(api.__liveDigests, rec);
 //   if (v.error) throw new Error('用存档那条重建失败：' + v.error);
