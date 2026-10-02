@@ -21,7 +21,7 @@ param(
   [string]$Token = '',
   [string]$NotesFile = '',
   [switch]$All,
-  [switch]$NotPrerelease
+  [switch]$Prerelease
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -33,7 +33,7 @@ if (-not $Token) {
   if (-not (Test-Path -LiteralPath $f)) { throw "找不到 token：既没给 -Token/环境变量，也没有 $f" }
   $Token = ([System.IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)).Trim()
 }
-if ($Token.Length -ne 93 -or -not $Token.StartsWith('github_pat_')) {
+if ($Token.Length -ne 93 -or -not $Token.StartsWith('github_pat_')) {  # 只校验形状，令牌本身绝不落盘到仓库
   throw "token 形状不对（长度 $($Token.Length)，应以 github_pat_ 开头、共 93 字符） 别把中文/空格带进去"
 }
 $H = @{ Authorization = "Bearer $Token"; 'User-Agent' = 'ka_pai-agent'; Accept = 'application/vnd.github+json' }
@@ -61,7 +61,7 @@ Write-Host "tag $tag 已推送"
 
 # 3) Release
 $notes = if ($NotesFile -and (Test-Path -LiteralPath $NotesFile)) { [System.IO.File]::ReadAllText($NotesFile, [Text.Encoding]::UTF8) } else { "卡牌对战原型 $Version。装法：adb install -r ka-pai-$Version.apk" }
-$payload = @{ tag_name = $tag; name = $Version; body = $notes; draft = $false; prerelease = (-not $NotPrerelease) } | ConvertTo-Json -Depth 5
+$payload = @{ tag_name = $tag; name = $Version; body = $notes; draft = $false; prerelease = [bool]$Prerelease } | ConvertTo-Json -Depth 5
 $rel = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$Repo/releases" -Headers $H -Body $payload -ContentType 'application/json; charset=utf-8' -TimeoutSec 30
 Write-Host "Release 已建: $($rel.html_url)"
 
