@@ -239,14 +239,20 @@ function resolvePlayerChoice(idx) {
   if (!session && !state.pending) state.autoResolveChoices = true;
   refresh();
   /**
-   *  回答完必须**把回合循环接回去**（作者 2026-10 报的 bug）。
+   * 回答完只在**自动阶段**才把回合循环接回去（作者 2026-10 报的 bug）。
    *
    * 开战阶段的挂起，是 `tick()` 推进自动阶段时**推到一半停下来问人**造成的；
-   * 玩家点完之后如果没人再调一次 `tick()`，这一局就**停在 COMBAT 阶段不动了** 
-   * 表现就是「强化士兵选定攻击目标之后卡死」。
-   * 规则：没有新的挂起请求（否则面板会显示下一问）、对局没结束、且是单机时，接回去。
+   * 玩家点完之后如果没人再调一次 `tick()`，这一局就**停在 COMBAT 阶段不动了**
+   * —— 表现就是「强化士兵选定攻击目标之后卡死」。
+   *
+   * ⚠️ 必须**限定自动阶段**（`G.getActor(state) === null`）：玩家自己的行动
+   *   阶段本来就停在界面上等玩家操作，不该在这里替他跑一次 tick() ——
+   *   tick() 在玩家阶段有一条「没有任何合法出牌 → 900ms 后自动结束阶段」的兜底，
+   *   于是「致命打击」打完 3 费、再答完第二段选择（此时费用已经花光）会被这条
+   *   兜底**立刻结束回合**（作者 2026-10 报的「错误自动结束这个回合」）。
+   *   玩家想结束阶段时按「结束回合」，走 handleAction('end') 那条路。
    */
-  if (!session && !state.pending && state.winner === null) tick();
+  if (!session && !state.pending && state.winner === null && G.getActor(state) === null) tick();
 }
 
 function commitPlay(iid, opts) {

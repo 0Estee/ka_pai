@@ -102,6 +102,11 @@
 多个条件同时满足；`maxAtk`/`minAtk`/`rooted` 用**有效值**（含光环）。
 过滤器里**没有**「生命最低」「攻击力≥X 里挑最大」这类**排序/择优**语义 —— 那些要靠 `chosenEnemyTarget` 让玩家点。
 
+选择器上还可以加 **`askHuman: true`**：这一问若由**真人自己**的单位发起，就不要被自动代答，而是挂起等人点。
+判据是 `ctx.controller === (state.humanSide === undefined ? 0 : state.humanSide)`，**不是** `autoResolveChoices`
+（自动阶段那个开关一直是 true）。命中时请求带 `noAuto: true`，走「强化士兵」同一条挂起协议。
+目前只有狙击手 U287 用了它（`chosenEnemyTarget` + `askHuman`，见裁决 D71）。
+
 ## 触发时机（`effects[].trigger`）
 
 | trigger | 时机 | payload |
@@ -199,7 +204,7 @@
 
 | trigger | 时机 | payload |
 |---|---|---|
-| `onCombatStart` | **逐线路**开战结算之前（狙击手「战斗开始前」、游击队「开战回合」） | `{ lane }` |
+| `onCombatStart` | **逐线路**开战结算之前（狙击手「开战时」、游击队「开战回合」） | `{ lane }` |
 | `onKill` | 本单位消灭了敌方单位（无双剑豪「消灭敌人:」） | `{ victim }` |
 | `onAllyPlayed` | **友方**单位被打出（人间大炮「有队友被打出时」） | `{ played }` |
 | `onEnemyCastSpell` | 对方打出**锦囊**（拳击手/苍耳「对方打出锦囊牌时」） | `{ cardId, cardName, casterSide }` |

@@ -1953,7 +1953,7 @@ export const USER_CARDS_B3 = [
     "atk": 3,
     "hp": 3,
     "keywords": [],
-    "text": "自己线上的战斗开始前:造成2点伤害",
+    "text": "开战时:造成2点伤害",
     "effects": [
       {
         "trigger": "onCombatStart",
@@ -1962,7 +1962,9 @@ export const USER_CARDS_B3 = [
             "op": "damage",
             "amount": 2,
             "target": {
-              "kind": "allEnemyUnitsInLane"
+              "kind": "chosenEnemyTarget",
+              "askHuman": true,
+              "prompt": "狙击手：造成2点伤害，选择一个目标"
             }
           }
         ]

@@ -360,7 +360,7 @@ filter: { maxAtk: 2, spellTargetable: true }  // 多个条件同时满足
 | `onTurnStart` | 每回合开始时（排在标准抽牌之后）（「第5伞兵旅」） |
 | `onUnitBounced` | 场上有单位被弹射时。payload 带 `bounced` / `bouncedSide`（「跳杆运动员」） |
 | `onFriendlyUnitDestroyed` | 国王被动专用：自己的单位被消灭时 |
-| `onCombatStart` | **逐线路**开战结算之前（「狙击手」）。payload `{ lane }` |
+| `onCombatStart` | **逐线路**开战结算之前（「狙击手」；它的一发伤害用 `chosenEnemyTarget` + `askHuman: true` 让真人点，见裁决 D71）。payload `{ lane }` |
 | `onKill` | 本单位消灭了敌方单位（「无双剑豪」）。payload `{ victim }` |
 | `onAllyPlayed` | **友方**单位被打出（「人间大炮」）。payload `{ played }` |
 | `onEnemyCastSpell` | 对方打出**锦囊**（「拳击手」「苍耳」）。payload `{ cardId, cardName, casterSide }` |
@@ -415,7 +415,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**83 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**86 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长

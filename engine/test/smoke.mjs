@@ -1115,6 +1115,54 @@ test('第3补给营「选择一个单位」：友方和敌方都在选项里（�
   assert.equal(s.players[0].hand.length, hand + 2, '按目标的词条数抽牌（U289 有 combo / armor:1 两个词条）');
 });
 
+//
+group('16 狙击手「开战时:造成2点伤害（选择一个目标）」（作者 2026-10 改口径）');
+//
+
+test('狙击手：真人那一侧开战时真的问人，只打被选中的那一个（新口径不再限本线路）', () => {
+  const s = game();
+  s.humanSide = 0;                 // 0 号是真人：它的触发式点选必须真的问它
+  const sniper = deploy(s, 0, 'U287', 'mountain', 'front');
+  const sameLane = deploy(s, 1, 'W04', 'mountain', 'front');
+  const otherLane = deploy(s, 1, 'W04', 'water', 'front');
+  M.queueTrigger(s, sniper, 'onCombatStart', { lane: 'mountain' });
+  G.flushTriggers(s);
+  assert.ok(s.pending && s.pending.request, '开战时应当挂起「选择一个目标」');
+  assert.equal(s.pending.request.type, 'chooseEnemyTarget');
+  assert.equal(s.pending.request.noAuto, true, '真人这一侧不许被自动代答（askHuman）');
+  const opts = s.pending.request.options;
+  const uids = opts.filter((o) => o.uid != null).map((o) => o.uid);
+  assert.ok(uids.includes(sameLane.uid) && uids.includes(otherLane.uid), '不限本线路：别条线路上的敌人也在选项里');
+  assert.ok(opts.some((o) => o.king), '敌方国王也在选项里（与「火箭弹」同口径）');
+  G.resolveChoice(s, { uid: otherLane.uid });
+  assert.equal(s.pending, null, '答完就不再挂起');
+  assert.equal(otherLane.maxHp - otherLane.hp, 2, '被选中的目标吃 2 点伤害');
+  assert.equal(sameLane.hp, sameLane.maxHp, '同线路的敌人没有自动挨打（旧口径是打本线路全体）');
+});
+
+test('狙击手：没有真人（humanSide = -1）时自动算一个，一共只打 2 点', () => {
+  const s = game();
+  s.humanSide = -1;                // 平衡自检 / 门禁脚本的口径：没有真人
+  const sniper = deploy(s, 0, 'U287', 'mountain', 'front');
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  M.queueTrigger(s, sniper, 'onCombatStart', { lane: 'mountain' });
+  G.flushTriggers(s);
+  assert.equal(s.pending, null, 'AI 侧不挂起等人');
+  assert.equal((a.maxHp - a.hp) + (b.maxHp - b.hp), 2, '只落在一个目标上，总共 2 点');
+});
+
+test('狙击手：不在真人那一边时同样不挂起（判据是 humanSide，不是全局开关）', () => {
+  const s = game();
+  s.humanSide = 0;                 // 真人在 0 号，狙击手却是 1 号（敌人的）
+  const sniper = deploy(s, 1, 'U287', 'mountain', 'front');
+  const mine = deploy(s, 0, 'W04', 'water', 'front');
+  M.queueTrigger(s, sniper, 'onCombatStart', { lane: 'mountain' });
+  G.flushTriggers(s);
+  assert.equal(s.pending, null, '敌人的狙击手不会把回合卡住等人');
+  assert.equal(mine.maxHp - mine.hp, 2, '它照样打出了 2 点（选项里只有这一个单位）');
+});
+
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

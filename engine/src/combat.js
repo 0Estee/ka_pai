@@ -25,7 +25,7 @@ import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from 
 import { execActions } from './effects.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
 import { isOver, getActor, checkGameOver } from './turns.js';
-import { flushTriggers } from './choices.js';
+import { flushTriggers, flushTriggersGen } from './choices.js';
 import { resolveHunt, canPlaceUnit } from './play.js';
 
 // ══════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ export function* runCombat(state) {
     if (isOver(state)) return;
     // 「战斗开始前:」异能（卡牌「狙击手」）—— 在该线路结算之前触发
     yield* queueCombatStartTriggers(state, lane);
-    flushTriggers(state);
+    yield* flushTriggersGen(state);
     if (isOver(state)) return;
     yield* resolveLane(state, lane);
     checkGameOver(state);

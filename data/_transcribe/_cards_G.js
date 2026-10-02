@@ -192,19 +192,28 @@ export const CARDS_G = [
   // ─────────────────────────────────────────────────────────
   // 卡面：单位（人形）/ 「狙击手」/ 费用 4 / 攻击3 生命3
   //       词条行：（无）
-  //       效果行：自己线上的战斗开始前:造成2点伤害
-  // 注：新触发时机 onCombatStart —— 引擎在**逐条线路**开战结算之前触发，payload 带 { lane }，
-  //     触发语境下 chosenLane 就是来源所在线路。
-  // 注：⚠️ 卡面只写「造成2点伤害」没写打谁。这里按本批的统一口径落在
-  //     **该线路上的敌方单位**（allEnemyUnitsInLane，含前后排），
-  //     与《引擎DSL速查》/ smoke.mjs 的 T38 示例一致。这是判断，已列进报告。
+  //       效果行：开战时:造成2点伤害
+  // 注：触发时机 onCombatStart —— 引擎在**逐条线路**开战结算之前触发，payload 带 { lane }，
+  //     触发语境下 chosenLane 就是来源所在线路。单位只属于一条线，所以一次开战只触发一次。
+  // 注：⚠️ 作者 2026-10 改成「开战时:造成2点伤害」+ **选择一个目标**
+  //     → chosenEnemyTarget（敌方单位或敌方国王），与「火箭弹」「定点打击」同口径：
+  //     卡面只写造成X点伤害、不限定目标时，作者裁决可以选择国王。
+  //     触发器是在**自动阶段**发作的，不声明 askHuman 的话，真人那一侧会被引擎
+  //     「取第一个选项」静默代答 → 所以带 `askHuman: true`（见 engine/src/targets.js 的 askHumanFor）。
   // ─────────────────────────────────────────────────────────
   {
     id: 'U287', name: '狙击手', type: 'unit', cost: 4, atk: 3, hp: 3, keywords: [],
-    text: '自己线上的战斗开始前:造成2点伤害',
+    text: '开战时:造成2点伤害',
     effects: [{
       trigger: 'onCombatStart',
-      actions: [{ op: 'damage', amount: 2, target: { kind: 'allEnemyUnitsInLane' } }],
+      actions: [{
+        op: 'damage', amount: 2,
+        target: {
+          kind: 'chosenEnemyTarget',
+          askHuman: true,
+          prompt: '狙击手：造成2点伤害，选择一个目标',
+        },
+      }],
     }],
   },
 

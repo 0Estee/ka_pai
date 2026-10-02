@@ -26,6 +26,29 @@ export function describeTarget(t) {
 }
 
 /**
+ * 这次选择要不要**真的问真人**（而不是被自动代答）。
+ *
+ * 触发器（异能）在**自动阶段**发作时 `state.autoResolveChoices` 是 true，
+ * 引擎的默认口径是「取第一个选项」—— 真人永远看不到面板。可有些牌的
+ * 目标本来就必须由它主人自己挑（卡牌「狙击手」的『开战时:造成2点伤害』）：
+ * 卡片在 selector 上写 `askHuman: true` 来表达这层意思，于是判据是
+ * 「**这次效果的主人是哪一方**」：
+ *   主人是真人（`state.humanSide`，没声明时默认 0）→ 请求带 `noAuto`
+ *     → choices.js 的 takeChoice 挂起等人（界面渲染选项，玩家点完喂回来）
+ *   主人是 AI → 不带 `noAuto`，照旧在自动阶段算一个（取第一个选项）
+ *
+ * ⚠️ 判据是 `humanSide` 而不是 `autoResolveChoices` —— 与
+ *   engine/src/combat.js 的 pickCombatTarget 同一条教训：后者是「调用方当下
+ *   把开关开成什么」，回放/锁步时那个开关与原局不一致，同一问就会有
+ *   「原局挂起、回放自动答」的分叉；「这一方是不是真人」则两边永远一样。
+ */
+export function askHumanFor(state, ctx, selector) {
+  if (!selector || selector.askHuman !== true) return false;
+  const human = state.humanSide === undefined ? 0 : state.humanSide;
+  return ctx.controller === human;
+}
+
+/**
  * 解析目标选择器，返回目标引用数组。
  * 需要玩家选择时会 yield。
  *
@@ -166,6 +189,7 @@ export function* resolveTargets(state, ctx, selector) {
         side: me,
         prompt: selector.prompt || (anySide ? '选择一个单位' : `选择一个${SIDE_NAME[wantSide]}单位`),
         options: options.map((u) => ({ uid: u.uid, label: `${u.name} (${u.atk}/${u.hp}) ${LANE_NAME[u.lane]}-${u.row}` })),
+        noAuto: askHumanFor(state, ctx, selector) || undefined,
       };
       const picked = options.find((u) => u.uid === answer.uid);
       return picked ? [asUnit(picked)] : [];
@@ -216,6 +240,7 @@ export function* resolveTargets(state, ctx, selector) {
         side: me,
         prompt: selector.prompt || '选择敌方单位或敌方国王',
         options,
+        noAuto: askHumanFor(state, ctx, selector) || undefined,
       };
       if (answer && answer.king) return [asKing(answer.side)];
       const picked = allUnits(state).find((u) => u.uid === (answer ? answer.uid : null));

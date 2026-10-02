@@ -248,7 +248,17 @@ export function* runKingTriggeredEffects(state, side, triggerName, payload = {})
   }
 }
 
-export function flushTriggers(state) {
+/**
+ * 触发队列的 generator 版：每个触发异能都用 `yield*` 嵌进**调用方**的 generator 链。
+ *
+ * 开战结算（combat.js 的 runCombat）必须用这一版：狙击手改成
+ * 「开战时:造成2点伤害（选择一个目标）」之后，这一问会挂起等人。
+ * 若用同步版 flushTriggers，「挂起」被消耗在它内部（它返回 PENDING 而 runCombat 不理会），
+ * 结果是**这一条线路先结算完、打完人之后才把面板弹给玩家**（顺序语义全错）。
+ * 用这一版时 PENDING 一路传播到最外层，state.pending.gen 指向整条开战链，
+ * 玩家答完由 resolveChoice 接着把后面的结算跑完。
+ */
+export function* flushTriggersGen(state) {
   let guard = 0;
   while (state.triggerQueue.length > 0) {
     if (++guard > 1000) throw new Error('触发链超过 1000 步，可能存在无限循环');
@@ -256,8 +266,16 @@ export function flushTriggers(state) {
     const gen = t.kingSide !== undefined
       ? runKingTriggeredEffects(state, t.kingSide, t.triggerName, t.payload)
       : runTriggeredEffects(state, t.unit, t.triggerName, t.payload);
-    const r = driveGenerator(state, gen);
-    if (r === PENDING) return PENDING;
+    yield* gen;
   }
-  return undefined;
+}
+
+/**
+ * 清空触发队列（同步版）。等价于把 generator 版驱动到底：
+ * 挂起时 state.pending.gen 指向的也是 generator 版（剩下的队列还在链上），
+ * 但**调用方自己**的后半段不在链上（调用方是普通函数），所以
+ * 「触发异能里要问人」的阶段请改用 flushTriggersGen。
+ */
+export function flushTriggers(state) {
+  return driveGenerator(state, flushTriggersGen(state));
 }
