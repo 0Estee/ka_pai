@@ -153,6 +153,12 @@ if (Test-Path (Join-Path $SHOTS '31-apk-midgame.png')) { Pass '中局画面已�
   -Out (Join-Path $SHOTS '32-apk-home-light.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
 if (Test-Path (Join-Path $SHOTS '32-apk-home-light.png')) { Pass '浅色首页已渲染（screens.css + 主题变量生效）' } else { Fail '浅色首页渲染失败' }
 
+# 玻璃首页：第三个外观选项（作者 2026-10），验证磨砂玻璃主题也真的进了 APK
+& powershell -ExecutionPolicy Bypass -File $shot `
+  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fscreen%3Dhome%26theme%3Dglass" `
+  -Out (Join-Path $SHOTS '36-apk-home-glass.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
+if (Test-Path (Join-Path $SHOTS '36-apk-home-glass.png')) { Pass '玻璃首页已渲染（磨砂玻璃主题生效）' } else { Fail '玻璃首页渲染失败' }
+
 # ── 3b. 用 APK 内的字节跑交互路径 ────────────────────────
 # 截图只能证明「画出来了」。下面这三条路径（AI 开局 / 场上卡牌详情 / 冷启动回放）
 # 都是「点了没反应」型的 bug —— 界面照样能画出来，只是点不动，

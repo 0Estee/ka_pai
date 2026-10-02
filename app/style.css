@@ -726,3 +726,148 @@ html, body {
 
 /* 纸质卡牌风格补充（作者 2026-10 选定）：标题走衬线 */
 .result h2, .menu-head h3, .banner, .phase-name { font-family: var(--font-title); }
+
+/* 
+   玻璃主题（作者 2026-10）：磨砂玻璃 + 渐变光斑，设置里可切换。
+    变量表故意写全：换成玻璃时不能漏掉任何一个，否则会露出深色主题的实心板。
+    「透」全靠 body 上那几团光斑：面板是半透明的，底下得有颜色才看得出来。
+    backdrop-filter 只给大面板，20 个格子和单位不加（手机 GPU 扛不住，
+     格子/单位本身半透明已经有玻璃味了）。
+    */
+:root[data-theme="glass"] {
+  --bg: #0a0f1e;  /* 兜底色：body 上真正的背景是渐变光斑 */
+  --bg-2: rgba(255, 255, 255, .06);  /* 顶栏 */
+  --panel: rgba(255, 255, 255, .10);  /* 大面板：半透明才看得到底下的光斑 */
+  --panel-2: rgba(255, 255, 255, .16);  /* 按钮/次级面板 */
+  --panel-active: rgba(255, 255, 255, .26);  /* 按下态 */
+  --line: rgba(255, 255, 255, .28);  /* 分隔线 */
+  --text: #f2f7ff;
+  --dim: #a9b8d6;
+  --desc-text: #dbe6ff;
+  --gold: #ffd479;  /* 玻璃版金色：亮一点，配深底 */
+  --accent: #7ad2ff;
+  --me: #6ee7b7;
+  --foe: #ff9aa8;
+  --legal: #8ef0c8;
+  --target: #ffd479;
+  --hp: #ff9090;
+  --atk: #ffcf8a;
+  --mana: #9ad8ff;
+  --mark: #c9b6ff;
+  --slot-line: rgba(255, 255, 255, .26);  /* 格子虚线 */
+  --slot-bg: rgba(255, 255, 255, .06);  /* 格子：不模糊（20 个格子加 backdrop-filter 手机扛不住） */
+  --slot-front: rgba(255, 255, 255, .12);
+  --slot-mine: rgba(110, 231, 183, .38);
+  --slot-foe: rgba(255, 154, 168, .38);
+  --trap-line: rgba(201, 182, 255, .45);
+  --trap-bg-1: rgba(201, 182, 255, .16);
+  --trap-bg-2: rgba(201, 182, 255, .08);
+  --trap-mark: #c9b6ff;
+  --legal-bg: rgba(142, 240, 200, .14);
+  --legal-glow-1: rgba(142, 240, 200, .75);
+  --legal-glow-2: rgba(142, 240, 200, .5);
+  --legal-glow-3: rgba(142, 240, 200, .95);
+  --unit-bg-1: rgba(255, 255, 255, .18);  /* 单位卡：半透明玻璃片 */
+  --unit-bg-2: rgba(255, 255, 255, .08);
+  --unit-line: rgba(255, 255, 255, .34);
+  --unit-front-line: rgba(255, 255, 255, .26);
+  --unit-back-line: rgba(255, 255, 255, .20);
+  --unit-back-bg-1: rgba(255, 255, 255, .12);
+  --unit-back-bg-2: rgba(255, 255, 255, .05);
+  --hpbar-bg: rgba(255, 255, 255, .20);
+  --hand-bg: rgba(255, 255, 255, .07);  /* 手牌区 */
+  --card-bg-1: rgba(255, 255, 255, .20);  /* 手牌 */
+  --card-bg-2: rgba(255, 255, 255, .09);
+  --card-line: rgba(255, 255, 255, .34);
+  --card-spell-bg-1: rgba(122, 210, 255, .26);  /* 锦囊：偏青的玻璃 */
+  --card-spell-bg-2: rgba(122, 210, 255, .10);
+  --card-spell-line: rgba(122, 210, 255, .5);
+  --card-item-bg-1: rgba(201, 182, 255, .26);  /* 道具：偏紫的玻璃 */
+  --card-item-bg-2: rgba(201, 182, 255, .10);
+  --card-item-line: rgba(201, 182, 255, .5);
+  --card-dim: .5;  /* 费用不够/不可选时的透明度 */
+  --btn-bg-1: rgba(255, 255, 255, .26);
+  --btn-bg-2: rgba(255, 255, 255, .16);
+  --btn-text: #ffffff;
+  --btn-disabled-bg: rgba(255, 255, 255, .07);
+  --btn-disabled-text: rgba(255, 255, 255, .34);
+  --cost-bg-1: rgba(255, 212, 121, .95);  /* 费用徽章：磨砂金 */
+  --cost-bg-2: rgba(255, 176, 60, .90);
+  --cost-text: #2a1c05;
+  --btn-danger-bg: rgba(255, 122, 138, .26);  /* 认输/投降 */
+  --btn-danger-text: #ffd7dd;
+  --pip-off: rgba(255, 255, 255, .18);  /* 未用掉的费用点 */
+  --hint-bg: rgba(122, 210, 255, .16);  /* 提示条 */
+  --hint-text: #eaf5ff;
+  --banner-bg: rgba(255, 214, 130, .93);  /* 横幅：亮玻璃纸条，必须够亮才看得清字 */
+  --banner-text: #241a06;
+  --menu-bg: rgba(10, 15, 30, .72);  /* 菜单：比面板更实一点，战报要读 */
+  --overlay: rgba(6, 10, 20, .58);  /* 遮罩 */
+  --shadow: rgba(3, 8, 20, .50);
+  --shadow-2: rgba(3, 8, 20, .38);
+  --shadow-3: rgba(3, 8, 20, .55);
+  --target-bg: rgba(255, 212, 121, .20);  /* 可点选目标 */
+  --target-ring: rgba(255, 212, 121, .90);
+  --target-halo: rgba(255, 212, 121, .40);
+  --target-pulse-1: rgba(255, 212, 121, .55);
+  --target-pulse-2: rgba(255, 212, 121, .95);
+  --target-pulse-3: rgba(255, 212, 121, .45);
+  --legend-me: #6ee7b7;
+  --legend-foe: #ff9aa8;
+  --radius: 12px;  /* 玻璃要圆一点，纸质那一版是 4px */
+  --font-title: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;  /* 玻璃走现代无衬线，和纸质的衬线标题区分开 */
+}
+
+/* 渐变光斑背景：几团彩色光叠在深色渐变上，固定不随内容滚动 */
+:root[data-theme="glass"] body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(720px 520px at 6% -8%, rgba(122, 210, 255, .45), rgba(122, 210, 255, 0) 62%),
+    radial-gradient(620px 520px at 104% 4%, rgba(201, 182, 255, .40), rgba(201, 182, 255, 0) 58%),
+    radial-gradient(780px 560px at 44% 112%, rgba(110, 231, 183, .32), rgba(110, 231, 183, 0) 60%),
+    linear-gradient(165deg, #0b1226 0%, #121a33 48%, #0a1020 100%);
+  background-attachment: fixed;
+}
+
+/* 磨砂大面板：背景模糊 + 高光上边（-webkit- 前缀是给老 WebView 的） */
+:root[data-theme="glass"] .topbar,
+:root[data-theme="glass"] .statusbar,
+:root[data-theme="glass"] .hand-wrap,
+:root[data-theme="glass"] .menu-panel,
+:root[data-theme="glass"] .screen-head,
+:root[data-theme="glass"] .set-group,
+:root[data-theme="glass"] .lobby-card,
+:root[data-theme="glass"] .room-row,
+:root[data-theme="glass"] .diff-row,
+:root[data-theme="glass"] .net-banner,
+:root[data-theme="glass"] .rp-bar,
+:root[data-theme="glass"] .hint,
+:root[data-theme="glass"] .banner,
+:root[data-theme="glass"] .result,
+:root[data-theme="glass"] .choice-box,
+:root[data-theme="glass"] .unit-info .ui-card,
+:root[data-theme="glass"] .hm-btn {
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border-color: rgba(255, 255, 255, .30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 10px 30px var(--shadow);
+}
+
+/* 手牌区那条阴影往上打，别把下面的手牌压暗 */
+:root[data-theme="glass"] .rp-bar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 -8px 26px var(--shadow); }
+
+/* 圆角回到玻璃该有的大小（纸质那一版被压到 3~5px，是在这个文件里写死的） */
+:root[data-theme="glass"] .card,
+:root[data-theme="glass"] .unit,
+:root[data-theme="glass"] .hint,
+:root[data-theme="glass"] .banner,
+:root[data-theme="glass"] .result,
+:root[data-theme="glass"] .btn-menu,
+:root[data-theme="glass"] .btn-close,
+:root[data-theme="glass"] .btn-end,
+:root[data-theme="glass"] .btn-restart,
+:root[data-theme="glass"] .btn-surrender,
+:root[data-theme="glass"] .choice-box,
+:root[data-theme="glass"] .choice-opt { border-radius: 14px; }
+:root[data-theme="glass"] .c-cost { box-shadow: 0 3px 12px var(--shadow-3); }
+:root[data-theme="glass"] .card.selected { box-shadow: 0 0 0 2px var(--gold), 0 12px 28px var(--shadow-3); }

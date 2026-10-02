@@ -835,3 +835,49 @@
 
 /* 纸质卡牌风格补充（作者 2026-10 选定）：标题走衬线 */
 .home-logo, .screen-head h2 { font-family: var(--font-title); }
+
+/*  玻璃主题补充（作者 2026-10）
+   这个文件里写死的方角/实心色在这里收回来；磨砂只补 style.css 没盖到的面。 */
+:root[data-theme="glass"] .home-logo { text-shadow: 0 2px 20px rgba(122, 210, 255, .55); }
+
+:root[data-theme="glass"] .coin {
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .95), rgba(255, 212, 121, .75) 44%, rgba(255, 168, 60, .55));
+  border: 1px solid rgba(255, 255, 255, .60);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .70), 0 4px 14px var(--shadow);
+}
+
+:root[data-theme="glass"] .hm-btn,
+:root[data-theme="glass"] .seg,
+:root[data-theme="glass"] .seg-item,
+:root[data-theme="glass"] .diff-row,
+:root[data-theme="glass"] .lobby-card,
+:root[data-theme="glass"] .room-row,
+:root[data-theme="glass"] .lobby-status,
+:root[data-theme="glass"] .rp-input,
+:root[data-theme="glass"] .rp-mini,
+:root[data-theme="glass"] .rp-btn,
+:root[data-theme="glass"] .choice-opt,
+:root[data-theme="glass"] .lan-input,
+:root[data-theme="glass"] .lan-manual,
+:root[data-theme="glass"] .unit-info .ui-kws li,
+:root[data-theme="glass"] .unit-info .ui-effect,
+:root[data-theme="glass"] .ui-label {
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border-color: rgba(255, 255, 255, .28);
+}
+
+:root[data-theme="glass"] .seg,
+:root[data-theme="glass"] .seg-item,
+:root[data-theme="glass"] .rp-input,
+:root[data-theme="glass"] .rp-mini,
+:root[data-theme="glass"] .rp-btn,
+:root[data-theme="glass"] .choice-opt,
+:root[data-theme="glass"] .lan-input,
+:root[data-theme="glass"] .lan-manual,
+:root[data-theme="glass"] .lobby-status,
+:root[data-theme="glass"] .unit-info .ui-kws li,
+:root[data-theme="glass"] .unit-info .ui-effect,
+:root[data-theme="glass"] .ui-label { border-radius: 10px; }
+:root[data-theme="glass"] .choice-box { border-radius: 16px; }
+:root[data-theme="glass"] .unit-info .ui-card { border-radius: 16px; }

@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.36.0';
+export const APP_VERSION = '0.37.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -270,7 +270,8 @@ export function homeHTML({ profile, level, storageMode }) {
 // ══════════════════════════════════════════════════════════
 
 export function settingsHTML({ settings, storageMode, replaysBytes }) {
-  const isLight = settings.theme === 'light';
+  // 三个外观选项：深色 / 浅色 / 玻璃（认不出的取值一律当深色，和 render.js 的白名单一致）
+  const theme = settings.theme === 'light' || settings.theme === 'glass' ? settings.theme : 'dark';
   return `
   <div class="screen">
     <div class="screen-head">
@@ -283,11 +284,12 @@ export function settingsHTML({ settings, storageMode, replaysBytes }) {
         <div class="set-row">
           <div class="set-label">
             <div class="set-name">外观</div>
-            <div class="set-desc">深色 / 浅色模式</div>
+            <div class="set-desc">深色 / 浅色 / 玻璃</div>
           </div>
           <div class="seg">
-            <button class="seg-item ${isLight ? '' : 'on'}" data-act="set-theme" data-theme="dark">深色</button>
-            <button class="seg-item ${isLight ? 'on' : ''}" data-act="set-theme" data-theme="light">浅色</button>
+            <button class="seg-item ${theme === 'dark' ? 'on' : ''}" data-act="set-theme" data-theme="dark">深色</button>
+            <button class="seg-item ${theme === 'light' ? 'on' : ''}" data-act="set-theme" data-theme="light">浅色</button>
+            <button class="seg-item ${theme === 'glass' ? 'on' : ''}" data-act="set-theme" data-theme="glass">玻璃</button>
           </div>
         </div>
       </div>

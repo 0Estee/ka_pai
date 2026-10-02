@@ -41,7 +41,8 @@ function makeView() {
 }
 
 function applyTheme() {
-  const theme = settings && settings.theme === 'light' ? 'light' : 'dark';
+  // 主题白名单：认不出的取值一律回落到深色（老存档里可能存着别的字符串）
+  const theme = settings && (settings.theme === 'light' || settings.theme === 'glass') ? settings.theme : 'dark';
   // DOM stub（tools/check-bundle.mjs）里没有 documentElement，必须兜住
   try {
     const root = document.documentElement;
@@ -50,7 +51,7 @@ function applyTheme() {
 }
 
 function setTheme(theme) {
-  settings = { ...settings, theme: theme === 'light' ? 'light' : 'dark' };
+  settings = { ...settings, theme: theme === 'light' || theme === 'glass' ? theme : 'dark' };
   Store.saveSettings(settings);
   applyTheme();
   refresh();
