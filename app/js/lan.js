@@ -39,6 +39,8 @@ function enterLobby(mode) {
       recording = RP.newRecording({
         seed: recordingSeed, firstPlayer: st.firstPlayer, deck: recordingDeck,
         cardSet: RP.cardSetId(TEST_CARD_LIB),
+        // 双方阵营由主机广播过来（见 hostStartMatch），不带上客人那侧重建不出超能力
+        factions: recordingFactions,
       });
       lanInfo.gameReady = true;
       screen = 'game';
@@ -52,8 +54,9 @@ function enterLobby(mode) {
   });
 
   // 开局参数由主机生成，客人从 start 消息里拿到，这里先记下来给 onStart 用
-  session.onSeedDeck = (seed, firstPlayer, deck) => {
+  session.onSeedDeck = (seed, firstPlayer, deck, factions) => {
     recordingSeed = seed; recordingDeck = deck;
+    recordingFactions = (factions || []).slice();
   };
 
   session.start();
@@ -155,7 +158,7 @@ async function hostStartMatch() {
   recordingSeed = seed;
   recordingDeck = deck;
   lanInfo.gameReady = true;
-  await session.beginGame({ seed, firstPlayer: seed % 2, deck });
+  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, myFaction] });
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

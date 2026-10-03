@@ -24,6 +24,7 @@ import {
   startGame, getActor, isOver, enterPhase, advance, checkGameOver,
   triggerInHandEffects, applyHandStatDelta, onTurnStart, onTurnEnd,
   resolveByDeckOut, resolveMarks, resolveByTurnLimit,
+  sacrificeUnit,
 } from './turns.js';
 import {
   costOf, getLegalPlays, legalPlacements, canPlaceUnit, playCard,
@@ -40,6 +41,7 @@ import {
 } from './combat.js';
 import { viewFor, describeUnit, renderBoard } from './view.js';
 import { instantiateUnit, attackPower, probeFromDef, PENDING } from './setup.js';
+import { FACTIONS } from './factions.js';
 
 export {
   createGame,
@@ -71,4 +73,7 @@ export {
   combatTargetPicker,
   viewFor,
   renderBoard,
+  // 阵营与超能力（作者 2026-10-03）
+  FACTIONS,
+  sacrificeUnit,
 };

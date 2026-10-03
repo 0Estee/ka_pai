@@ -20,10 +20,11 @@ import {
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
+import { giveStartingSuperpowers } from './factions.js';
 import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
 import { execActions } from './effects.js';
-import { runCombat } from './combat.js';
-import { returnExpiredTraps, expireRevealedTraps } from './board.js';
+import { runCombat, apiFor } from './combat.js';
+import { returnExpiredTraps, expireRevealedTraps, sacrificeUnitOnBoard } from './board.js';
 import { flushTriggers, driveGenerator } from './choices.js';
 import { PENDING } from './setup.js';
 
@@ -124,6 +125,15 @@ export function onTurnStart(state) {
   // 同一回合里一个单位只问一次选目标（先制 + 追击共用第一次的答案）
   state.combatTargetAsked = {};
   M.log(state, { type: 'turn-start', turn: state.turn });
+
+  // 「下个大回合开始时召唤」（阵营超能力「召唤仪式」）
+  if (Array.isArray(state.delayedSummons) && state.delayedSummons.length) {
+    const due = state.delayedSummons.filter((d) => d.atTurn <= state.turn);
+    state.delayedSummons = state.delayedSummons.filter((d) => d.atTurn > state.turn);
+    for (const d of due) {
+      apiFor(state).summonToken(state, { cardId: d.cardId, side: d.side, lane: undefined, row: 'front' });
+    }
+  }
 
   // 上回合遗留效果（淬毒 / 疾病）—— 裁决 B8：回合开始、费用重置那一刻结算
   resolveMarks(state);
@@ -262,11 +272,25 @@ export function checkGameOver(state) {
 // ══════════════════════════════════════════════════════════
 
 /** 开局：发起始手牌并进入第 1 回合 */
+/**
+ * 献祭（恶魔阵营「结束回合」左边那个按钮走这里）。
+ *
+ * 献祭算作被消灭  会触发「被消灭」与「有队友被献祭」两类观察者，
+ * 所以和 playCard 一样要当场把触发队列结算完，不能只排进队列就返回。
+ */
+export function sacrificeUnit(state, side, uid) {
+  const ok = sacrificeUnitOnBoard(state, side, uid);
+  if (ok) flushTriggers(state);
+  return ok;
+}
+
 export function startGame(state) {
   state.turn = 1;
   // 起手从共享牌库取：先手 5 张、后手 4 张（规则书 §2）
   M.drawCards(state, state.firstPlayer, 5);
   M.drawCards(state, 1 - state.firstPlayer, 4);
+  // 阵营超能力：对局开始时双方各抽一张（作者 2026-10-03）
+  giveStartingSuperpowers(state);
   enterPhase(state, 'TURN_START');
   return state;
 }

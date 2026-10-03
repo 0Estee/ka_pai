@@ -18,6 +18,7 @@ import {
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
 import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
+import { queueDelayedSummon } from './factions.js';
 
 /**
  * 执行一组效果动作。
@@ -177,7 +178,16 @@ export function* execAction(state, ctx, action) {
     case 'sacrifice': {
       let targets = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenOwnUnit' });
       targets = targets.filter((t) => t.kind === 'unit' && t.unit !== ctx.source);
-      for (const t of targets) destroyUnit(state, t.unit, 'sacrifice');
+      for (const t of targets) {
+        /**
+         * 记下被献祭的单位：同一条效果链里后面还要用它
+         * （鲜血祭典按它的攻击力回复、恶魔虚影按次数成长）。
+         */
+        ctx.sacrificed = {
+          uid: t.unit.uid, cardId: t.unit.cardId, atk: t.unit.atk || 0, hp: t.unit.hp || 0, side: t.unit.side,
+        };
+        destroyUnit(state, t.unit, 'sacrifice');
+      }
       break;
     }
 
@@ -468,6 +478,17 @@ export function* execAction(state, ctx, action) {
         cardId: action.cardId, side: resolveSide(action.side, me), lane, row,
         modify: action.modify || null,
       });
+      break;
+    }
+
+    /**
+     * 「下个大回合开始时召唤」（阵营超能力「召唤仪式」）。
+     * 这里只排队；真正的召唤在 turns.js 的 onTurnStart 里做
+     * （那时才是「大回合开始」的唯一时刻，也才保证只结算一次）。
+     */
+    case 'delayedSummon': {
+      const side = resolveSide(action.side, me);
+      queueDelayedSummon(state, side, action.cardId, resolveAmount(state, ctx, action.delay === undefined ? 1 : action.delay));
       break;
     }
 

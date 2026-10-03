@@ -12,6 +12,7 @@ import * as Eco from './economy.js';
 import * as Net from './multiplayer.js';
 import { TEST_CARD_LIB } from '../../engine/cards/test-cards.js';
 import { difficultyByKey, DIFFICULTIES } from './ai.js';
+import { FACTIONS } from '../../engine/src/engine.js';
 import { render } from './ui.js';
 import {
   homeHTML, settingsHTML, replayListHTML, replayBarHTML,
@@ -54,6 +55,28 @@ function setTheme(theme) {
   settings = { ...settings, theme: theme === 'light' || theme === 'glass' ? theme : 'dark' };
   Store.saveSettings(settings);
   applyTheme();
+  refresh();
+}
+
+/** 阵营界面选项：引擎的 FACTIONS + 一句人话说明（策划口径，写在这里以免污染引擎） */
+const FACTION_TAGLINE = {
+  demon: '献祭自己的单位换取力量：更疼的伤害、更高的攻击力',
+};
+
+function factionOptions() {
+  return Object.keys(FACTIONS).map((key) => ({
+    key,
+    name: FACTIONS[key].name || key,
+    tagline: FACTION_TAGLINE[key] || '',
+  }));
+}
+
+/**
+ * 选择本局阵营。和难度不同，**不写进设置**：它是「这一局」的选择。
+ */
+function setFaction(key) {
+  const known = Object.keys(FACTIONS);
+  myFaction = known.indexOf(key) >= 0 ? key : known[0];
   refresh();
 }
 
@@ -224,7 +247,12 @@ function refresh() {
   }
 
   if (screen === 'difficulty') {
-    stage.innerHTML = difficultyHTML({ current: difficulty, difficulties: DIFFICULTIES });
+    stage.innerHTML = difficultyHTML({
+      current: difficulty,
+      difficulties: DIFFICULTIES,
+      faction: myFaction,
+      factions: factionOptions(),
+    });
     return;
   }
 
@@ -358,6 +386,6 @@ function escMain(s) {
 }
 
 export {
-  makeView, applyTheme, setTheme, setDifficulty, goHome, goSettings, goReplays,
+  makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
   showBanner, refresh, escMain, LANE_LABEL, toggleMenu, fillMenuLog,
 };

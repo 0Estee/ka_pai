@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.39.0';
+export const APP_VERSION = '0.40.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -68,34 +68,53 @@ export function playMenuHTML({ difficulty, lanSupported }) {
   `);
 }
 
-export function difficultyHTML({ current, difficulties }) {
+export function difficultyHTML({ current, difficulties, faction, factions }) {
   const cur = difficulties.find((d) => d.key === current) || difficulties[0] || { name: '' };
+  const CHK = String.fromCharCode(0x2713);
   const rows = difficulties.map((d) => {
     const on = d.key === current;
     const cheat = d.bonus
-      ? `<div class="diff-cheat">⚠ 额外优势：${[
+      ? `<div class="diff-cheat">额外优势：${[
         d.bonus.hand ? `起手多 ${d.bonus.hand} 张` : '',
         d.bonus.manaPerTurn ? `每回合多 ${d.bonus.manaPerTurn} 费` : '',
         d.bonus.kingHp ? `国王 +${d.bonus.kingHp} 生命上限` : '',
-      ].filter(Boolean).join(' · ')}</div>`
+      ].filter(Boolean).join('  ')}</div>`
       : '';
     return `
       <button class="diff-row ${on ? 'on' : ''}" data-act="set-difficulty" data-key="${d.key}">
         <div class="diff-main">
-          <div class="diff-name">${escHtml(d.name)}${on ? '<span class="diff-check">✓</span>' : ''}</div>
+          <div class="diff-name">${escHtml(d.name)}${on ? `<span class="diff-check">${CHK}</span>` : ''}</div>
           <div class="diff-tag">${escHtml(d.tagline)}</div>
           ${cheat}
         </div>
       </button>`;
   }).join('');
 
-  return subScreen('AI 难度', `
+  // 阵营（作者 2026-10-03）：对局开始前自选，本局可用该阵营的超能力。
+  const facList = factions && factions.length ? factions : [];
+  const curFac = facList.find((f) => f.key === faction) || facList[0] || null;
+  const facRows = facList.map((f) => {
+    const on = curFac && f.key === curFac.key;
+    return `
+      <button class="diff-row fac-row ${on ? 'on' : ''}" data-act="set-faction" data-key="${f.key}">
+        <div class="diff-main">
+          <div class="diff-name">${escHtml(f.name)}${on ? `<span class="diff-check">${CHK}</span>` : ''}</div>
+          <div class="diff-tag">${escHtml(f.tagline || '')}</div>
+        </div>
+      </button>`;
+  }).join('');
+  const facBlock = facRows ? `
+    <div class="set-head">阵营（本局超能力）</div>
+    <div class="diff-list">${facRows}</div>` : '';
+
+  return subScreen('AI 难度与阵营', `
     <div class="diff-list">${rows}</div>
     <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>），已在上方逐条写明。</div>
+    ${facBlock}
     <button class="hm-btn hm-primary diff-go" data-act="start-ai">
-      <span class="hm-ico">▶</span>
+      <span class="hm-ico"></span>
       <span class="hm-text">开始对战</span>
-      <span class="hm-sub">${escHtml(cur.name)}</span>
+      <span class="hm-sub">${escHtml(cur.name)}${curFac ? '  ' + escHtml(curFac.name) : ''}</span>
     </button>
   `);
 }

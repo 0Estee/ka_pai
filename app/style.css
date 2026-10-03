@@ -872,3 +872,32 @@ html, body {
 :root[data-theme="glass"] .choice-opt { border-radius: 14px; }
 :root[data-theme="glass"] .c-cost { box-shadow: 0 3px 12px var(--shadow-3); }
 :root[data-theme="glass"] .card.selected { box-shadow: 0 0 0 2px var(--gold), 0 12px 28px var(--shadow-3); }
+
+/*  阵营（超能力）与献祭按钮（作者 2026-10-03）  */
+/* 阵营行：和难度行同一套样式，左边加一道竖线区分「这是另一个选择」 */
+.fac-row .diff-main { border-left: 3px solid rgba(255, 120, 160, .55); }
+.set-head { margin: 18px 0 8px; font-size: 15px; opacity: .85; }
+/* 结束阶段左边的献祭按钮：恶魔阵营才会出现 */
+.btn-sac {
+  margin-left: auto; margin-right: 8px;
+  padding: 8px 14px; border-radius: 10px;
+  border: 1px solid rgba(255, 110, 150, .60);
+  background: rgba(255, 90, 140, .18);
+  color: inherit; font: inherit;
+}
+.btn-sac:active { background: rgba(255, 90, 140, .34); }
+
+/* 阵营超能力：手牌上的持久高亮（开局那张没有「出牌」时刻，靠这个提示玩家） */
+.card.is-superpower {
+  box-shadow: 0 0 0 2px rgba(255, 150, 90, .75), var(--shadow, 0 4px 12px rgba(0, 0, 0, .4));
+}
+.card .c-sp {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgba(255, 150, 90, .85);
+  color: #2a1a0a;
+}

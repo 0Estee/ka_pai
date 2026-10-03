@@ -120,18 +120,26 @@ let lanInfo = { roomName: '', port: 0, hostSide: 0, peerName: '', status: 'conne
 let lanManualError = '';
 /** AI 难度（持久化在设置里） */
 let difficulty = DEFAULT_DIFFICULTY;
+/**
+ * 本局选择的阵营（超能力系统，见 engine/src/factions.js）。
+ * 作者 2026-10-03 的规则：对局开始前自选，本局可用该阵营的超能力。
+ * 现在只有一个阵营（恶魔），所以默认就选它；以后加阵营时这里改成 null 更好。
+ */
+let myFaction = 'demon';
 
 /** 本地资产首页。联机模式下「退出房间」要回到它（见 quitRoom）。 */
 const HOME_ASSET_URL = 'file:///android_asset/index.html';
 
 let recordingSeed = 0;
 let recordingDeck = [];
+/** 联机开局时主机广播过来的双方阵营（客人要靠它录回放） */
+let recordingFactions = [];
 
 export {
   HUMAN, AI, me, foe, foeName, choiceOwner, canAnswerChoice,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,
-  lanInfo, lanManualError, difficulty, HOME_ASSET_URL,
-  recordingSeed, recordingDeck,
+  lanInfo, lanManualError, difficulty, myFaction, HOME_ASSET_URL,
+  recordingSeed, recordingDeck, recordingFactions,
 };

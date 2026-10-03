@@ -56,11 +56,19 @@ function newGame() {
   // 必须把当局种子传进去 —— 同一局永远同一副牌，回放与联机的确定性靠这个。
   const deck = buildTestDeck(80, seed);
 
+  /**
+   * 本局阵营（作者 2026-10-03 的「超能力」规则）：对局开始前自选，本局可用该阵营的超能力。
+   * 现在只有一个阵营，AI 就先和玩家同阵营（镜像对局）。以后加阵营时这里改成让 AI 自己选。
+   * 必须和建局参数、录制都对齐：重放时要靠它重建「谁抽得到哪些超能力」。
+   */
+  const factions = [myFaction, myFaction];
+
   state = G.createGame({
     seed,
     firstPlayer: seed % 2,        // 随机决定先后手（规则书 §4）
     deck,
     cardLib: TEST_CARD_LIB,
+    factions,
   });
   /**
    * 记下**开局发牌之前**的牌库与 rng。
@@ -105,6 +113,7 @@ function newGame() {
     // 写死成 -1 的话，真人那一侧录下来的答案会找不到挂起的请求
     //（回放格式 v3 加的字段，见 replay.js 的 build()）。
     humanSide: state.humanSide,
+    factions,
     // 开局发牌前的一刻（牌库 + rng），重放时靠它把起点复原（见上面 `opening` 的说明）
     opening,
   });
@@ -147,6 +156,7 @@ function applyLocalAction(action, fromRemote) {
     if (action.k === 'a') G.advance(state);
     else if (action.k === 'p') G.playCard(state, action.s, action.i, action.o || {});
     else if (action.k === 'c') G.resolveChoice(state, action.v);
+    else if (action.k === 'x') G.sacrificeUnit(state, action.s, action.u);
   } catch (err) {
     console.error('执行操作失败', action, err);
     return false;
@@ -180,6 +190,7 @@ function tick() {
   // 只有在对局屏幕上才驱动回合（首页/设置/回放列表不该有计时器在跑）
   if (screen !== 'game') return;
   pumpCombatFx();
+  presentSuperpowers();
   if (paused) { refresh(); return; }
 
   /**
@@ -455,6 +466,34 @@ function flashPlayPresentation(playedDef, action) {
 // thorns / poison-tick ），所以只要按「日志游标」把新事件翻成特效、按
 // 150ms 一条放出去，每一次攻击就能看得见。纯展示，不碰任何游戏状态。
 // 
+
+/**
+ * 抽到超能力时的提示（作者 2026-10-03 的超能力规则）。
+ *
+ * 扫日志而不是由调用方触发：开局那第一张是 startGame 里抽的，没有对应的「出牌」时刻，
+ * 用游标认新出现的 superpower-draw 条目才不会漏。
+ * 开局那张只写提示行  横幅要留给「使用锦囊」的放大展示，两条抢同一个位置时
+ * 玩家看到的就是「敌方用了锦囊却没提示」（作者报过的那类问题）。
+ * 之后国王掉血触发的抽取才用横幅。
+ */
+function presentSuperpowers() {
+  if (!state || !view) return;
+  const logs = state.log || [];
+  if (view.spCursor === undefined || view.spCursor > logs.length) view.spCursor = 0;
+  for (let i = view.spCursor; i < logs.length; i++) {
+    const e = logs[i];
+    if (!e || e.type !== 'superpower-draw') continue;
+    const def = state.cardLib[e.cardId] || {};
+    const mine = typeof me === 'function' && e.side === me();
+    if (!mine) continue;   // 只提示自己抽到的：对手那张只会挤掉真正的出牌提示
+    // 开局那张不弹横幅：手牌上有持久高亮（ui.js 的 is-superpower / 超能力角标），
+    // 横幅要留给「使用锦囊」的放大展示  两条抢同一个位置时玩家看到的是
+    // 「敌方用了锦囊却没有提示」。
+    if (e.starting) continue;
+    queueBanner('抽到超能力：' + (def.name || e.cardId), 2600, def.text || '');
+  }
+  view.spCursor = logs.length;
+}
 
 /**
  * AI 打出的锦囊也要放大展示（作者 2026-10：敌方使用锦囊时没有任何提示）。

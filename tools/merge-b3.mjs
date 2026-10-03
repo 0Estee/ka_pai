@@ -23,7 +23,7 @@ import url from 'node:url';
 const ROOT = path.resolve(url.fileURLToPath(new URL('..', import.meta.url)));
 const SRC = path.join(ROOT, 'data', '_transcribe');
 const OUT = path.join(ROOT, 'engine', 'cards', 'user-cards-b3.js');
-const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
 // 允许部分合并（某一个片段还没生成就先跳过），方便边录边验；
 // 但**至少要有 A~D** —— 那是最初那 65 张，少了它们就是在往回退。
 const REQUIRED = ['A', 'B', 'C', 'D'];

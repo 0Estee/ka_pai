@@ -261,19 +261,19 @@ export class Session {
   }
 
   /** 主机把开局参数广播出去 */
-  async beginGame({ seed, firstPlayer, deck }) {
-    this.applyStart({ seed, firstPlayer, deck });
+  async beginGame({ seed, firstPlayer, deck, factions }) {
+    this.applyStart({ seed, firstPlayer, deck, factions });
     await this.transport.start();
-    await this.transport.send({ t: 'start', seed, firstPlayer, deck });
+    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions });
     this.onUpdate();
   }
 
-  applyStart({ seed, firstPlayer, deck }) {
+  applyStart({ seed, firstPlayer, deck, factions }) {
     // 先把开局参数交回上层记下来（客人要靠它录回放）。
     // 以前只有主机在 hostStartMatch 里自己记，客人这边的 recordingSeed/recordingDeck
     // 一直是空的 —— 客人那侧存出来的回放会是一副残局。
-    this.onSeedDeck(seed, firstPlayer, deck);
-    this.state = G.createGame({ seed, firstPlayer, deck, cardLib: this.cardLib });
+    this.onSeedDeck(seed, firstPlayer, deck, factions);
+    this.state = G.createGame({ seed, firstPlayer, deck, cardLib: this.cardLib, factions: (factions || []).slice() });
     G.startGame(this.state);
     // 联机时**两边都是真人**，没有 AI 替谁做决定：
     // 效果中途要选目标（「抉择」「打出:指定目标」）时必须挂起等人点，
@@ -319,6 +319,7 @@ export class Session {
     if (a.k === 'a') G.advance(st);
     else if (a.k === 'p') G.playCard(st, a.s, a.i, a.o || {});
     else if (a.k === 'c') G.resolveChoice(st, a.v);
+    else if (a.k === 'x') G.sacrificeUnit(st, a.s, a.u);
     else throw new Error(`未知操作 ${a.k}`);
   }
 

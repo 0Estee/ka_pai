@@ -31,6 +31,7 @@ export const asKing = (side) => ({ kind: 'king', side });
  *   { perKeywordOfTarget: { id:'combo', per: 1 } }      只看某个词条
  *   { perOwnEntry: 1 }          本局这张牌**进入战场**的次数 × 1（扫地僧）
  *   { sourceCostDelta: true }   来源单位当初打出来时的费用修正（僵尸）
+ *   { sacrificedAtk: true }     刚被献祭单位的当前攻击力（鲜血祭典的回复量）
  *   { plus: 1 }                 在其它表达式的计算结果上再加 1（僵尸的「增加1」）
  *
  * 「队友」= 自己场上，「单位」= 场上双方（沿用裁决 D29 的「场上」口径）。
@@ -77,6 +78,12 @@ function resolveAmountBase(state, ctx, amount, target) {
     return src ? (src.paidCostDelta || 0) : 0;
   }
   if (amount.fixed !== undefined) return amount.fixed;
+  /**
+   * 被献祭单位的攻击力（卡牌「鲜血祭典」的回复量）。
+   * 由 actions.js 的 sacrifice 动作记在 ctx 上：献祭与回复在同一条效果链里，
+   * 所以 ctx.sacrificed 就是刚被献祭的那个单位（拿不到就是 0）。
+   */
+  if (amount.sacrificedAtk) return (ctx && ctx.sacrificed) ? (ctx.sacrificed.atk || 0) : 0;
   throw new Error(`未知的动态数值表达式: ${JSON.stringify(amount)}`);
 }
 

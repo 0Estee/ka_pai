@@ -116,6 +116,7 @@ function computePlayable() {
 
 function clearSelection() {
   view.selectedIid = null;
+  view.sacMode = false;
   view.legalSlots = [];
   view.legalUnitTargets = [];
   view.legalLanes = [];
@@ -341,6 +342,19 @@ function handleUnitClick(uid) {
 
   const clicked = M.findUnit(state, uid);
 
+  /** 献祭模式（恶魔阵营）：点谁谁被献祭  只认自己的单位 */
+  if (view.sacMode) {
+    if (!clicked || clicked.side !== me()) {
+      view.hint = '只能献祭自己的单位';
+      refresh();
+      return;
+    }
+    view.sacMode = false;
+    doAction({ k: 'x', s: me(), u: uid });
+    tick();
+    return;
+  }
+
   // 「融合进化」：这类牌是打在**队友现在的位置**上的（队友消失、新牌顶替）。
   // 所以点了场上的队友时，必须先判断这是不是一个合法的融合落点 ——
   // 否则那一下会被当成「查看卡牌详情」，玩家永远也融合不出去。
@@ -394,6 +408,7 @@ function handleAction(act, el) {
   if (act === 'start-game') { screen = 'play'; refresh(); return; }
   if (act === 'choose-ai') { screen = 'difficulty'; refresh(); return; }
   if (act === 'set-difficulty') { setDifficulty(el.dataset.key); return; }
+  if (act === 'set-faction') { setFaction(el.dataset.key); return; }
   if (act === 'start-ai') { startNewGame(); return; }
   if (act === 'open-replays') { goReplays(); return; }
   if (act === 'open-settings') { goSettings(); return; }
@@ -438,6 +453,22 @@ function handleAction(act, el) {
   if (act === 'menu') { toggleMenu(); return; }
   if (act === 'close-menu') { toggleMenu(false); return; }
   if (act === 'close-info') { view.infoUid = null; refresh(); return; }
+
+  /**
+   * 恶魔阵营的「献祭」（作者 2026-10-03）：先进入献祭模式，再点一名自己的单位。
+   * 献祭**算作被消灭**、会触发被消灭效果，所以必须走引擎的 sacrificeUnit，
+   * 不能在界面上把单位抹掉。
+   */
+  if (act === 'sac') {
+    if (view.busy || state.winner !== null) return;
+    if (G.getActor(state) !== me()) return;
+    clearTimeout(autoAdvanceTimer);
+    clearSelection();
+    view.sacMode = true;
+    view.hint = '点一名自己的单位献祭（算作被消灭）';
+    refresh();
+    return;
+  }
 
   if (act === 'end') {
     if (view.busy || state.winner !== null) return;

@@ -19,7 +19,7 @@ import { LANES, ROWS } from '../src/constants.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
-import { TEST_CARD_LIB, buildTestDeck } from '../cards/test-cards.js';
+import { TEST_CARD_LIB, buildTestDeck, DECKABLE_CARDS, TOKEN_CARDS } from '../cards/test-cards.js';
 
 const CHK = String.fromCharCode(0x2713);   // 对勾
 const CROSS = String.fromCharCode(0x2717);
@@ -82,6 +82,7 @@ function game(cfg = {}) {
     firstPlayer: cfg.firstPlayer === undefined ? 0 : cfg.firstPlayer,
     deck: cfg.deck || buildTestDeck(80, seed),
     cardLib: cfg.cardLib || TEST_CARD_LIB,
+    factions: cfg.factions || [],
   });
   G.startGame(state);
   state.autoResolveChoices = true;
@@ -1161,6 +1162,160 @@ test('狙击手：不在真人那一边时同样不挂起（判据是 humanSide�
   G.flushTriggers(s);
   assert.equal(s.pending, null, '敌人的狙击手不会把回合卡住等人');
   assert.equal(mine.maxHp - mine.hp, 2, '它照样打出了 2 点（选项里只有这一个单位）');
+});
+
+//
+group('15 阵营与超能力');
+//
+
+//  阵营与超能力（作者 2026-10-03 规则补充：对局前选阵营，血量 15/9/3 各抽一张）
+const DEMON_SUPERPOWERS = ['U398', 'U399', 'U400', 'U401'];
+
+/** 场上某方有没有这张牌（活着的） */
+function hasUnit(state, side, cardId) {
+  for (const lane of LANES) {
+    for (const row of ROWS) {
+      const u = state.board[lane].units[side][row];
+      if (u && !u.removed && u.cardId === cardId) return true;
+    }
+  }
+  return false;
+}
+
+test('对局开始时双方各抽一张本阵营的超能力（非令牌）', () => {
+  const s = game({ factions: ['demon', 'demon'] });
+  for (const side of [0, 1]) {
+    const p = s.players[side];
+    assert.equal(p.superpowers.length, 1, '开局应当抽到 1 张');
+    const id = p.superpowers[0];
+    assert.ok(DEMON_SUPERPOWERS.indexOf(id) >= 0, '抽到的是恶魔阵营的非令牌超能力：' + id);
+    assert.ok(p.hand.some((c) => c.cardId === id), '抽到的牌进了手牌');
+    assert.equal(s.cardLib[id].faction, 'demon');
+    assert.ok(!s.cardLib[id].token, '令牌不进抽取池');
+  }
+  assert.ok(s.log.some((e) => e.type === 'superpower-draw'), '抽超能力要写日志（界面与回放靠它）');
+});
+
+test('国王血量掉过 15 / 9 / 3 各抽一张，抽过的不重复，一共 4 张', () => {
+  const s = game({ factions: ['demon', null] });
+  const p = s.players[0];
+  assert.equal(p.superpowers.length, 1, '开局 1 张');
+  const hit = (n) => M.dealDamage(s, null, { kind: 'king', side: 0 }, n);
+  hit(6);
+  assert.equal(p.superpowers.length, 2, '20 -> 14，掉过 15');
+  hit(6);
+  assert.equal(p.superpowers.length, 3, '14 -> 8，掉过 9');
+  hit(6);
+  assert.equal(p.superpowers.length, 4, '8 -> 2，掉过 3');
+  hit(1);
+  assert.equal(p.superpowers.length, 4, '同一个阈值只生效一次');
+  assert.equal(new Set(p.superpowers).size, 4, '不会重复抽到同一张');
+  assert.deepEqual(p.superpowers.slice().sort(), DEMON_SUPERPOWERS, '池子正好是这 4 张');
+  assert.equal(s.players[1].superpowers.length, 0, '没有阵营就没有超能力');
+});
+
+test('超能力不进普通牌库；风神翼龙（无阵营）进牌库', () => {
+  assert.ok(!DECKABLE_CARDS.some((c) => c.faction), '带阵营的卡一张都不许进牌库');
+  assert.ok(DECKABLE_CARDS.some((c) => c.id === 'U397'), '风神翼龙在牌库里');
+  assert.ok(!DECKABLE_CARDS.some((c) => c.id === 'U402'), '恶魔虚影是令牌，不进牌库');
+  assert.ok(TOKEN_CARDS.some((c) => c.id === 'U402'), '恶魔虚影确实是个令牌');
+  for (const seed of [1, 2, 3, 12345]) {
+    const deck = buildTestDeck(80, seed);
+    assert.ok(deck.length > 0, '牌库不该是空的');
+    assert.ok(!deck.some((id) => (TEST_CARD_LIB[id] || {}).faction), '实际发出的牌库里也不许出现超能力（seed ' + seed + '）');
+  }
+});
+
+test('下界之风（U398）：敌方所有单位各 2 点，敌方国王也掉 2 点', () => {
+  const s = game();
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  const mine = deploy(s, 0, 'W04', 'mountain', 'back');
+  cast(s, 0, 'U398');
+  assert.equal(a.maxHp - a.hp, 2);
+  assert.equal(b.maxHp - b.hp, 2);
+  assert.equal(king(s, 1), 18, '这张牌连敌方国王一起打（作者口径）');
+  assert.equal(mine.hp, mine.maxHp, '自己人不挨打');
+});
+
+test('鲜血祭典（U399）：回复量 = 被献祭单位的当前攻击力，不超过国王上限', () => {
+  const s = game();
+  s.players[0].kingHp = 12;
+  deploy(s, 0, 'W04', 'mountain', 'front');            // 5 攻
+  cast(s, 0, 'U399');
+  assert.ok(!at(s, 'mountain', 0, 'front'), '被献祭的单位离场');
+  assert.equal(king(s, 0), 17, '按被献祭单位的当前攻击力回复（12 + 5）');
+
+  const s2 = game();
+  s2.players[0].kingHp = 19;
+  deploy(s2, 0, 'W04', 'mountain', 'front');
+  cast(s2, 0, 'U399');
+  assert.equal(king(s2, 0), 20, '回复不超过国王血量上限');
+});
+
+test('死神（U401）选项 0：不发动献祭，直接打出', () => {
+  const s = game();
+  const u = playUnit(s, 0, 'U401', 'mountain', 'front');
+  assert.equal(u.atk, 2);
+  assert.equal(u.maxHp, 2);
+  assert.equal(king(s, 0), 20, '不发动就不伤自己的国王');
+});
+
+test('死神（U401）选项 1：献祭队友换 +1/+1，自己国王 -3，再对敌方目标 5 点', () => {
+  const s = game();
+  const fodder = deploy(s, 0, 'W04', 'water', 'front');   // 被献祭的队友
+  s.chooser = (req) => {
+    if (req.type === 'chooseOption') return { index: 1 };
+    const mine = (req.options || []).find((x) => x.uid === fodder.uid);
+    if (mine) return { uid: mine.uid };
+    const o = (req.options || []).find((x) => x.uid != null);
+    if (o) return { uid: o.uid };
+    return undefined;
+  };
+  const target = deploy(s, 1, 'W04', 'mountain', 'front');
+  const u = playUnit(s, 0, 'U401', 'mountain', 'front');
+  assert.ok(!at(s, 'water', 0, 'front'), '队友被献祭');
+  assert.equal(u.atk, 3, '2 + 1');
+  assert.equal(u.maxHp, 3, '2 + 1');
+  assert.equal(king(s, 0), 17, '自己的国王吃 3 点');
+  assert.equal(target.maxHp - target.hp, 5, '敌方目标吃 5 点');
+});
+
+test('恶魔虚影（U402）：在场时每献祭一名友方单位 +2 攻击力 +1 生命上限', () => {
+  const s = game();
+  const demon = deploy(s, 0, 'U402', 'mountain', 'front');
+  const fodder = deploy(s, 0, 'W04', 'water', 'front');
+  const foe = deploy(s, 1, 'W04', 'mountain', 'back');
+  assert.equal(demon.atk, 1);
+  assert.equal(demon.maxHp, 4);
+  const before = s.stats.unitsDestroyed;
+  assert.equal(G.sacrificeUnit(s, 0, fodder.uid), true, '献祭自己场上的单位');
+  assert.equal(demon.atk, 3, '+2 攻击力');
+  assert.equal(demon.maxHp, 5, '+1 生命上限');
+  assert.equal(s.stats.unitsDestroyed, before + 1, '献祭算作被消灭');
+  assert.ok(s.log.some((e) => e.type === 'destroy' && e.reason === 'sacrifice'), '日志里写清是献祭');
+  assert.equal(G.sacrificeUnit(s, 0, foe.uid), false, '不能献祭对手的单位');
+  assert.equal(G.sacrificeUnit(s, 0, fodder.uid), false, '已经死了的单位不能再献祭');
+});
+
+test('召唤仪式（U400）选项 0：下个大回合开始时才召唤', () => {
+  const s = game();
+  cast(s, 0, 'U400');
+  assert.equal(s.delayedSummons.length, 1, '排队等下个大回合');
+  assert.equal(s.delayedSummons[0].cardId, 'U402');
+  assert.ok(!hasUnit(s, 0, 'U402'), '现在还没上场');
+  nextTurn(s);
+  assert.equal(s.delayedSummons.length, 0, '已经结算过');
+  assert.ok(hasUnit(s, 0, 'U402'), '大回合一开始就召唤出来了');
+});
+
+test('召唤仪式（U400）选项 1：国王扣 2 点生命，立刻召唤', () => {
+  const s = game();
+  s.chooser = (req) => (req.type === 'chooseOption' ? { index: 1 } : undefined);
+  cast(s, 0, 'U400');
+  assert.equal(king(s, 0), 18, '国王扣 2 点生命');
+  assert.ok(hasUnit(s, 0, 'U402'), '立刻上场');
+  assert.equal(s.delayedSummons.length, 0, '没有排队');
 });
 
 //  汇总 

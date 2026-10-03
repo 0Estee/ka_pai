@@ -9,6 +9,7 @@
  * 依赖方向：board ← damage ← stats
  */
 
+import { checkSuperpowerThresholds } from './factions.js';
 import { LANES, ROWS, SIDE, KING_MAX_HP, REBIRTH_HP } from './constants.js';
 import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKeyword, isUntargetable } from './keywords.js';
 import { chance, shuffle } from './rng.js';
@@ -148,6 +149,9 @@ export function dealDamage(state, source, target, raw, opts = {}) {
     if (source && !opts.noKeywords) {
       onDealtDamage(state, source, null, finalAmount, { kingSide: target.side });
     }
+    // 阵营超能力：国王血量掉到 15 / 9 / 3 以下时各抽一张（作者 2026-10-03）。
+    // 不放在上面的 source 判断里  自己对自己造成的伤害（召唤仪式）也该照抽。
+    checkSuperpowerThresholds(state, target.side);
   } else {
     const unit = target.unit;
     if (unit.removed) return 0;

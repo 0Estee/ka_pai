@@ -65,7 +65,7 @@ export function cardSetId(cardLib) {
 // ══════════════════════════════════════════════════════════
 
 /** 开一份新的录制。seed / firstPlayer / deck 必须和 createGame 用的完全一致。 */
-export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanSide, opening }) {
+export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanSide, opening, factions }) {
   return {
     v: REPLAY_VERSION,
     cardSet,
@@ -92,6 +92,12 @@ export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanS
     opening: opening && opening.deck ? { deck: opening.deck.slice(), rngState: opening.rngState >>> 0 } : null,
     // 哪一方是真人（决定重放时哪些提问会挂起等人），-1 = 没有真人
     humanSide: humanSide === undefined ? 0 : humanSide,
+    /**
+     * 双方的阵营（数组下标就是座位号，见 engine/src/factions.js）。
+     * 少了它，重建这一局时双方都抽不到超能力 / 抽到的是别人的那一套，
+     * 而超能力是**发牌之后第一件事**就进手牌的，往后每一步都会分叉。
+     */
+    factions: (factions || []).slice(),
     // 难度给 AI 的额外优势（[{side, hand, manaPerTurn, kingHp}]），重放时要原样加回去
     bonuses: (bonuses || []).map((b) => ({ ...b })),
     /**
@@ -149,6 +155,9 @@ export function recAction(rec, action) {
     rec.actions.push({ k: 'p', s: action.s, i: action.i, o: compactOpts(action.o) });
   } else if (action.k === 'a') {
     rec.actions.push({ k: 'a' });
+  } else if (action.k === 'x') {
+    // 主动献祭（恶魔阵营的界面按钮）：谁把场上的哪个单位献祭了
+    rec.actions.push({ k: 'x', s: action.s, u: action.u });
   } else if (action.k === 'c') {
     rec.actions.push({ k: 'c', v: action.v });
     /**
@@ -210,6 +219,7 @@ export function finishRecording(rec, state) {
     shuffled: rec.shuffled,
     opening: rec.opening,
     humanSide: rec.humanSide,
+    factions: rec.factions || [],
     choiceLog: rec.choiceLog,
     bonuses: rec.bonuses || [],
     actions: rec.actions,
@@ -371,6 +381,7 @@ export function createReplayPlayer(record, cardLib) {
       seed: record.seed,
       firstPlayer: record.firstPlayer,
       deck: (record.deck || []).slice(),
+      factions: (record.factions || []).slice(),
       cardLib,
       // 录制里存的就是**洗好的**牌库，不能再洗（见 newRecording 的 `shuffled`）
       shuffleDeck: !record.shuffled,
@@ -583,6 +594,8 @@ export function createReplayPlayer(record, cardLib) {
         G.playCard(state, a.s, a.i, a.o || {});
       } else if (a.k === 'c') {
         G.resolveChoice(state, a.v);
+      } else if (a.k === 'x') {
+        G.sacrificeUnit(state, a.s, a.u);
       } else {
         error = `第 ${before + 1} 步重放失败：未知操作 ${a.k}`;
         return false;

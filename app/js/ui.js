@@ -9,7 +9,7 @@ import { LANES, LANE_NAME, ROWS, SIDE_NAME } from '../../engine/src/constants.js
 import { KEYWORD_DEFS } from '../../engine/src/keywords.js';
 import { effectiveAtk, hasRooted } from '../../engine/src/auras.js';
 import * as G from '../../engine/src/engine.js';
-import { visibleMana } from '../../engine/src/board.js';
+import { visibleMana, allUnits } from '../../engine/src/board.js';
 
 const PHASE_LABEL = {
   TURN_START: '回合开始',
@@ -262,9 +262,13 @@ function handHTML(state, view) {
     const afford = cost <= p.mana;
     const playable = view.playableIids.includes(hc.iid);
     const selected = hc.iid === view.selectedIid;
+    // 阵营超能力：高亮 + 角标。开局那一张没有「出牌」时刻，写提示行又会被
+    // 后面的阶段提示顶掉，所以做成手牌上的持久标记（玩家一眼能看到自己有什么）。
+    const isSuperpower = !!(p.superpowers || []).includes(hc.cardId);
     const classes = [
       'card',
       def.type === 'unit' ? 'is-unit' : `is-spell ${def.spellKind === 'item' ? 'is-item' : 'is-attack'}`,
+      isSuperpower ? 'is-superpower' : '',
       afford ? 'afford' : 'unafford',
       playable ? 'playable' : 'unplayable',
       selected ? 'selected' : '',
@@ -288,6 +292,7 @@ function handHTML(state, view) {
       <div class="${classes}" data-iid="${hc.iid}">
         <div class="c-cost">${cost}${hc.costDelta ? '<i class="c-cost-mod">*</i>' : ''}</div>
         <div class="c-name">${esc(def.name)}</div>
+        ${isSuperpower ? '<div class="c-sp">超能力</div>' : ''}
         ${stat}
         ${kws}
         ${desc}
@@ -362,6 +367,16 @@ export function render(root, state, view) {
       : (actor === view.humanSide ? '轮到你了' : 'AI 行动中'));
   const canAct = !view.busy && actor === view.humanSide && !state.winner;
 
+  /**
+   * 恶魔阵营的「献祭」按钮（作者 2026-10-03）：出现在结束阶段左边。
+   * 条件 = 自己的阶段 + 自己场上还有单位 + 本局选了阵营（超能力系统开着）。
+   * 点它进入献祭模式，再点一名自己的单位才算数（见 play-input.js）。
+   */
+  const myP = state.players && state.players[view.humanSide];
+  const hasOwnUnit = !!allUnits(state).find((u) => u.side === view.humanSide);
+  const canSac = canAct && !view.isReplay && !!myP && !!myP.faction && hasOwnUnit;
+  const sacBtn = canSac ? '<button class="btn-sac" data-act="sac">献祭</button>' : '';
+
   root.innerHTML = `
     <div class="topbar">
       <span class="turn">第 ${state.turn} 回合</span>
@@ -376,6 +391,7 @@ export function render(root, state, view) {
     <div class="phasebar">
       <span class="phase-name">${phaseText}</span>
       <span class="phase-status">${statusText}</span>
+      ${sacBtn}
       <button class="btn-end" data-act="end" ${canAct ? '' : 'disabled'}>结束阶段</button>
     </div>
 

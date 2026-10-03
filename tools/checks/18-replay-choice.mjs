@@ -155,6 +155,9 @@ function playAsHuman(seed) {
  *   111 —— 确定性复现  与 ：`noAuto` 的 combatTarget 之后紧跟一个引擎代答的
  *         chooseHandCard（修复前必卡在第 43 步）
  *   207 —— 确定性复现 ：终局已定、却还挂着一个没答的提问
+ *   847 —— 同上那种收尾的**确定复现**：加了超能力之后这种结局变得很稀有
+ *         （实测 300..848 共 548 局只命中 1 局），所以钉死它。
+ *         它一旦不灵，请用下面的动态扫描找新种子。
  */
 /**
  * ⚠先把难度**钉死**再开局：前面的  会把难度改成「困难」（02-screen-nav.mjs），
@@ -164,17 +167,20 @@ function playAsHuman(seed) {
 const difficultyBefore = api.__settings().difficulty;
 api.setDifficulty('normal');
 
-const SEEDS = [2, 111, 207];
+const SEEDS = [2, 111, 207, 847];
 const pinned = SEEDS.map((sd) => playAsHuman(sd));
 
 /*
  * 「终局已定、却还挂着提问」这种收尾姿势**依赖具体对局**：
- * 卡牌库或 AI 决策一改，钉死的种子就可能不再走出这个结局（2026-10 就发生过一次）。
- * 所以钉死的三个种子照验，再按种子顺序往后**动态找一局**补上这个覆盖；
- * 找到就停（上限 120 局，正常前十局内必有），找不到就让下面那条覆盖断言去报错。
+ * 卡牌库或 AI 决策一改，钉死的种子就可能不再走出这个结局（2026-10 就发生过两次）。
+ * 所以钉死的种子照验，再按种子顺序往后**动态找一局**补上这个覆盖；
+ * 正常情况下钉死的 847 就够了，这一段根本不会跑。
+ * 真跑起来就得扫很多局：2026-10 加超能力后实测 548 局才命中 1 局（约 16ms/局），
+ * 所以上限给到 900，扫完还找不到就让下面那条覆盖断言去报错。
  */
+// 钉死的种子里已经有这种收尾就别扫了（扫一次要 500+ 局）
 let coverage = null;
-for (let sd = 300; sd < 420 && !coverage; sd++) {
+for (let sd = 300; !coverage && !pinned.some((r) => r.endedWithPending) && sd < 900; sd++) {
   const r = playAsHuman(sd);
   if (r.endedWithPending) coverage = r;
 }
@@ -195,7 +201,7 @@ check('回放：这批对局确实经过了「真人答问」（否则这一节�
 
 check('回放：这批对局确实经过了「终局已定还挂着提问」（否则少守一个坑）', () => {
   if (!played.some((r) => r.endedWithPending)) {
-    throw new Error('没有一局是「终局已定 + 还挂着提问」结束的  种子该换了（试试 207）');
+    throw new Error('没有一局是「终局已定 + 还挂着提问」结束的  种子该换了（钉死的 847 失效了，去 300..900 里扫一个新种子）');
   }
 });
 

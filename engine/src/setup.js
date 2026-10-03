@@ -27,7 +27,7 @@ export const PENDING = Symbol('PENDING');
 // 建局
 // ══════════════════════════════════════════════════════════
 
-export function makePlayer(side) {
+export function makePlayer(side, faction = null) {
   return {
     side,
     kingHp: KING_MAX_HP,
@@ -45,6 +45,13 @@ export function makePlayer(side) {
      * 各方各算自己的。只在这里存计数，具体怎么用见 amounts.js 的 `{ perOwnEntry: N }`。
      */
     entries: {},
+
+    // 阵营（作者 2026-10-03 的超能力系统）。null = 中立：没有超能力可抽。
+    faction,
+    // 本局已经抽到的超能力（cardId 列表，同一个不会抽第二次）
+    superpowers: [],
+    // 已经触发过的国王血量阈值（15 / 9 / 3 各一张，只触发一次）
+    spThresholds: {},
   };
 }
 
@@ -66,6 +73,7 @@ export function makeBoard() {
  * @param {string[]} cfg.deck         共享牌库（卡牌 id 数组）
  * @param {object} cfg.cardLib        卡牌库 { [cardId]: CardDef }
  * @param {boolean} cfg.shuffleDeck   是否洗牌
+   * @param {string[]} cfg.factions     双方阵营（[先手, 后手] 的 key；不传 = 中立）
  */
 export function createGame(cfg = {}) {
   const {
@@ -74,6 +82,7 @@ export function createGame(cfg = {}) {
     deck = [],
     cardLib = {},
     shuffleDeck = true,
+    factions = [],
   } = cfg;
 
   const rng = createRng(seed);
@@ -85,7 +94,7 @@ export function createGame(cfg = {}) {
     turn: 0,
     phase: null,
     firstPlayer,
-    players: [makePlayer(0), makePlayer(1)],
+    players: [makePlayer(0, factions[0]), makePlayer(1, factions[1])],
     deck: deckCopy,
     discard: [],
     board: makeBoard(),
@@ -120,6 +129,8 @@ export function createGame(cfg = {}) {
     extraAttackUsed: {},
     // 本回合对某一方伤害的封顶（卡牌「反应装甲」）
     damageCaps: [],
+    // 「下个大回合开始时召唤」的排队（阵营超能力「召唤仪式」）
+    delayedSummons: [],
     // 「拟定目标攻击」的指定结果：{ [uid]: {uid} | {king:true, side} }
     combatPlans: {},
     // 本回合已经问过选目标的单位（先制 + 追击共用第一次的答案，不重复问）

@@ -157,6 +157,31 @@ export function destroyUnit(state, unit, reason = 'destroy') {
     if (!(watcher.effects || []).some((e) => e.trigger === 'onAnyUnitDestroyed')) continue;
     queueTrigger(state, watcher, 'onAnyUnitDestroyed', { victim: unit, reason });
   }
+
+  /**
+   * 「献祭」是我方主动消灭自己人（作者 2026-10-03）：
+   * 除了正常的被消灭效果，再给同侧、带 onAllySacrificed 异能的单位排一个触发
+   * （恶魔虚影靠「我方每被献祭一个单位」成长）。
+   */
+  if (reason === 'sacrifice') {
+    for (const watcher of allUnits(state)) {
+      if (watcher.removed || watcher.side !== unit.side) continue;
+      if (!(watcher.effects || []).some((e) => e.trigger === 'onAllySacrificed')) continue;
+      queueTrigger(state, watcher, 'onAllySacrificed', { victim: unit });
+    }
+  }
+}
+
+/**
+ * 主动献祭一名己方单位（作者 2026-10-03：恶魔阵营的玩家在「结束回合」左边多一个
+ * 献祭按钮，可以把场上任一己方单位献祭；献祭算作被消灭，会触发被消灭效果）。
+ * 供界面调用；与卡牌的 sacrifice 动作走同一条 destroyUnit 路径。返回是否成功。
+ */
+export function sacrificeUnitOnBoard(state, side, uid) {
+  const unit = findUnit(state, uid);
+  if (!unit || unit.removed || unit.side !== side) return false;
+  destroyUnit(state, unit, 'sacrifice');
+  return true;
 }
 
 /**

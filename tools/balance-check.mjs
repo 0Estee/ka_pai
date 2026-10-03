@@ -14,7 +14,7 @@
  */
 
 import * as G from '../engine/src/engine.js';
-import { TEST_CARD_LIB, buildTestDeck, AUTHOR_CARDS } from '../engine/cards/test-cards.js';
+import { TEST_CARD_LIB, buildTestDeck, DECKABLE_CARDS } from '../engine/cards/test-cards.js';
 
 const N = Number(process.argv[2] || 300);
 const SIZE = Number(process.argv[3] || 80);
@@ -77,7 +77,7 @@ for (let seed = 1; seed <= N; seed++) {
   if (/牌库抽空/.test(s.winReason || '')) deckOut++; else kingWin++;
 }
 
-const pool = AUTHOR_CARDS.filter((c) => !c.token).map((c) => c.id);
+const pool = DECKABLE_CARDS.map((c) => c.id);
 const ok = (label, value, lo, hi) =>
   `${value >= lo && value <= hi ? '✓' : '✗'} ${label}`;
 

@@ -3048,4 +3048,219 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U397",
+    "name": "风神翼龙",
+    "type": "unit",
+    "cost": 4,
+    "atk": 4,
+    "hp": 3,
+    "keywords": [
+      "combo",
+      "nimble"
+    ],
+    "text": ""
+  },
+  {
+    "id": "U398",
+    "name": "下界之风",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "demon",
+    "text": "对敌方所有单位造成2点伤害，并对敌方国王造成2点伤害",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "allEnemyUnits"
+        }
+      },
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "enemyKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U399",
+    "name": "鲜血祭典",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "demon",
+    "text": "献祭一名队友，为国王回复与其攻击力相等的生命",
+    "actions": [
+      {
+        "op": "sacrifice",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "excludeSource": true,
+          "prompt": "选择要献祭的队友"
+        }
+      },
+      {
+        "op": "heal",
+        "amount": {
+          "sacrificedAtk": true
+        },
+        "target": {
+          "kind": "ownKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U400",
+    "name": "召唤仪式",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "demon",
+    "text": "抉择:在下个大回合开始时召唤 恶魔虚影；或对自己的国王造成2点伤害，立即召唤",
+    "actions": [
+      {
+        "op": "choose",
+        "prompt": "召唤仪式:怎么召唤 恶魔虚影？",
+        "options": [
+          {
+            "label": "下个大回合开始时召唤",
+            "actions": [
+              {
+                "op": "delayedSummon",
+                "cardId": "U402",
+                "delay": 1
+              }
+            ]
+          },
+          {
+            "label": "国王扣除2点生命，立即召唤",
+            "actions": [
+              {
+                "op": "damage",
+                "amount": 2,
+                "target": {
+                  "kind": "ownKing"
+                }
+              },
+              {
+                "op": "summon",
+                "cardId": "U402"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U401",
+    "name": "死神",
+    "type": "unit",
+    "cost": 1,
+    "atk": 2,
+    "hp": 2,
+    "keywords": [],
+    "faction": "demon",
+    "text": "献祭一名队友:获得+1攻+1生命上限，对自己的国王造成3点伤害，对一个敌方目标造成5点伤害",
+    "effects": [
+      {
+        "trigger": "onPlay",
+        "actions": [
+          {
+            "op": "choose",
+            "prompt": "死神:要献祭一名队友吗？",
+            "options": [
+              {
+                "label": "不发动，直接打出",
+                "actions": []
+              },
+              {
+                "label": "献祭一名队友",
+                "actions": [
+                  {
+                    "op": "sacrifice",
+                    "target": {
+                      "kind": "chosenOwnUnit",
+                      "excludeSource": true,
+                      "prompt": "选择要献祭的队友"
+                    }
+                  },
+                  {
+                    "op": "buffAtk",
+                    "amount": 1,
+                    "target": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "op": "buffMaxHp",
+                    "amount": 1,
+                    "target": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "op": "damage",
+                    "amount": 3,
+                    "target": {
+                      "kind": "ownKing"
+                    }
+                  },
+                  {
+                    "op": "damage",
+                    "amount": 5,
+                    "target": {
+                      "kind": "chosenEnemyTarget",
+                      "prompt": "造成5点伤害的目标（可以是敌方国王）"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U402",
+    "name": "恶魔虚影",
+    "type": "unit",
+    "cost": 3,
+    "atk": 1,
+    "hp": 4,
+    "token": true,
+    "faction": "demon",
+    "keywords": [
+      "frenzy",
+      "spellImmune"
+    ],
+    "text": "狂热；锦囊免疫；每献祭一名己方单位，获得+2攻+1生命上限",
+    "effects": [
+      {
+        "trigger": "onAllySacrificed",
+        "actions": [
+          {
+            "op": "buffAtk",
+            "amount": 2,
+            "target": {
+              "kind": "self"
+            }
+          },
+          {
+            "op": "buffMaxHp",
+            "amount": 1,
+            "target": {
+              "kind": "self"
+            }
+          }
+        ]
+      }
+    ]
+  },
 ];

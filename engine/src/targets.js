@@ -182,6 +182,8 @@ export function* resolveTargets(state, ctx, selector) {
       if (selector.filter) {
         options = options.filter((u) => matchesTargetFilter(u, selector.filter, filterCtx(state, source)));
       }
+      // 献祭类效果不把「效果来源自己」列进候选（选了也只会被 op 过滤掉，白点一次）
+      if (selector.excludeSource && ctx.source) options = options.filter((u) => u !== ctx.source);
       if (options.length === 0) return [];
 
       const answer = yield {

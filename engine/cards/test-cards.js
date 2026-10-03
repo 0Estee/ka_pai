@@ -249,7 +249,7 @@ function mixSeed(x) {
  */
 export function buildTestDeck(size = 30, seed = 0) {
   // 「令」= 令牌，不可抽得
-  const pool = AUTHOR_CARDS.filter((c) => !c.token);
+  const pool = AUTHOR_CARDS.filter((c) => !c.token && !c.faction); // 「令」= 令牌、带阵营的 = 超能力，都不进普通牌库
   if (pool.length === 0) return [];
 
   // 卡池比卡组大 → 按种子洗牌后取前 size 张（每张 1 份）
@@ -278,8 +278,11 @@ export function buildTestDeck(size = 30, seed = 0) {
   return deck.slice(0, size);
 }
 
-/** 卡池里所有「非令牌」卡（可以进牌库的那些） */
-export const DECKABLE_CARDS = AUTHOR_CARDS.filter((c) => !c.token);
+/**
+ * 卡池里所有能进牌库的卡：非令牌、且没有阵营。
+ * 带阵营的是「超能力」（作者 2026-10-03），只能靠阵营系统抽到，不进普通牌库。
+ */
+export const DECKABLE_CARDS = AUTHOR_CARDS.filter((c) => !c.token && !c.faction);
 
 /** 所有令牌卡（只能被召唤） */
 export const TOKEN_CARDS = AUTHOR_CARDS.filter((c) => c.token);

@@ -90,12 +90,13 @@ engine.js     （门面：状态机与公开 API）
 | `src/actions.js` | 效果动作解释（`execActions` / `execAction`，每个 op 一个 case） |
 | `src/effects.js` | **门面**：卡牌效果 DSL |
 | `src/choices.js` | 交互挂起（generator 驱动）与触发队列 |
+| `src/factions.js` | 阵营与超能力：开局抽牌、国王血量阈值抽牌、延迟召唤（作者 2026-10-03） |
 | `src/combat.js` | 开战结算与召唤接口 |
 | `src/play.js` | 出牌与合法性（`costOf` / `getLegalPlays` / `playCard`） |
 | `src/view.js` | 视图（`viewFor` / `renderBoard`） |
 | `src/engine.js` | **门面**：回合流程、开战结算、合法性校验、胜负判定 |
 | `cards/user-cards.js` | ★ **作者设计的卡牌** 第二批（U01~U17） |
-| `cards/user-cards-b3.js` | ★ **作者设计的卡牌** 第三批（U20~U362，由 `tools/merge-b3.mjs` 从 A~L 十二组片段合并生成） |
+| `cards/user-cards-b3.js` | ★ **作者设计的卡牌** 第三批（U20~U402，由 `tools/merge-b3.mjs` 从 A~M 十三组片段合并生成） |
 | `cards/test-cards.js` | 引擎自检用的演示卡 + 合并后的卡牌库 + 牌库构建（从全部卡里按种子抽 80 张） |
 
 > **为什么光环要单独一层？** 永久加成（吸血鬼的 +1/+1）直接写进 `unit.atk` 就对了。
@@ -110,9 +111,10 @@ engine.js     （门面：状态机与公开 API）
 
 | 函数 | 说明 |
 |---|---|
-| `createGame(cfg)` | 建局。`cfg = { seed, firstPlayer, deck, cardLib, shuffleDeck }` |
+| `createGame(cfg)` | 建局。`cfg = { seed, firstPlayer, deck, cardLib, shuffleDeck, factions }` |
 | `startGame(state)` | 发起手牌并进入第 1 回合 |
 | `advance(state)` | 推进到下一阶段；`TURN_END` 之后自动开下一回合 |
+| `sacrificeUnit(state, side, uid)` | 献祭己方场上的一个单位（算作被消灭；恶魔阵营的献祭按钮走它） |
 | `getActor(state)` | 当前可行动的玩家 side（0=先手 / 1=后手），非行动阶段返回 `null` |
 | `getLegalPlays(state, side)` | 合法出牌列表，含每个单位的所有合法落点 |
 | `playCard(state, side, iid, opts)` | 出牌。`opts = { lane, row, targetUid, choices }` |
@@ -415,7 +417,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**86 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**96 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长

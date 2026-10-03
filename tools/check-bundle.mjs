@@ -43,6 +43,7 @@ import './checks/21-combat-start-trigger.mjs';
 import './checks/20-combat-suspend.mjs';
 import './checks/22-spell-banner.mjs';
 import './checks/23-lan-choice.mjs';
+import './checks/24-faction.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

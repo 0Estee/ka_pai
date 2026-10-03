@@ -9,8 +9,8 @@ check('一局的真实操作序列喂给两个引擎，全程保持一致', () =
   const rec = api.__replays()[0];
   if (!rec || !rec.actions.length) throw new Error('没有可用的操作序列');
 
-  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, rec.actions, rec.bonuses || []);
-  if (!r.ok) throw new Error(`第 ${r.divergedAt} 步开始不一致（共 ${r.steps} 步）`);
+  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, rec.actions, rec.bonuses || [], rec.factions || []);
+  if (!r.ok) throw new Error(`第 ${r.divergedAt} 步开始不一致（共 ${r.steps} 步）` + (r.error ? `  错误：${r.error}` : ''));
   if (r.winnerA !== rec.winner || r.winnerB !== rec.winner) {
     throw new Error(`重放终局对不上：录的是 ${rec.winner}，两个引擎跑出 ${r.winnerA}/${r.winnerB}`);
   }

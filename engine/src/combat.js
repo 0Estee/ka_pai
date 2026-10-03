@@ -487,11 +487,14 @@ export function combatTargetPicker(state, info) {
  */
 export function findSummonSpot(state, side, probe, lane, row) {
   const rows = row === 'front' ? ['front', 'back'] : ['back', 'front'];
-  for (const r of rows) {
-    if (canPlaceUnit(state, side, probe, lane, r)) return { lane, row: r };
+  const first = LANES.indexOf(lane) >= 0 ? lane : null;
+  if (first) {
+    for (const r of rows) {
+      if (canPlaceUnit(state, side, probe, first, r)) return { lane: first, row: r };
+    }
   }
   for (const l of LANES) {
-    if (l === lane) continue;
+    if (l === first) continue;
     for (const r of ['front', 'back']) {
       if (canPlaceUnit(state, side, probe, l, r)) return { lane: l, row: r };
     }

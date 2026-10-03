@@ -351,6 +351,7 @@ window.__resetRecording = () => {
     cardSet: RP.cardSetId(TEST_CARD_LIB),
     bonuses: [],
     humanSide: state.humanSide,
+    factions: state.players.map((p) => p.faction || null),
   });
   // 答案流水也要一起清空：它属于「这一份录制」，不清就等于带着上一段的答案
   // 重放新的一段，从第一问起就错位。
@@ -383,7 +384,7 @@ window.__replayVerifyLive = (liveDigests, recordOverride) => {
   const recOf = (acts) => ({
     ...RP.newRecording({
       seed: recording.seed, firstPlayer: recording.firstPlayer, deck: recording.deck,
-      cardSet: recording.cardSet, bonuses: recording.bonuses, humanSide: recording.humanSide,
+      cardSet: recording.cardSet, bonuses: recording.bonuses, humanSide: recording.humanSide, factions: recording.factions,
       opening: recording.opening,
     }),
     choiceLog: (recording.choiceLog || []).map((e) => ({ ...e })),
@@ -523,9 +524,11 @@ window.__mp = {
    * 用同一串操作喂两个独立引擎（同种子、同牌库），每一步都比较状态指纹。
    * 只要始终一致，就说明「只同步操作、不同步棋盘」是可行的。
    */
-  lockstepCheck: (seed, firstPlayer, deck, actions, bonuses = []) => {
+  lockstepCheck: (seed, firstPlayer, deck, actions, bonuses = [], factions = []) => {
     const build = () => {
-      const s = G.createGame({ seed, firstPlayer, deck: deck.slice(), cardLib: TEST_CARD_LIB });
+      // 阵营也要一起复现：开局抽的那 1 张超能力会进手牌、并消耗 rng 位置，
+      // 不传 factions 的话两个引擎从第一步起就和录制的那局不一样。
+      const s = G.createGame({ seed, firstPlayer, deck: deck.slice(), cardLib: TEST_CARD_LIB, factions: factions.slice() });
       G.startGame(s);
       // 难度加成也要复现，否则「锁步」在一开始就不锁（那是它自己在跟自己比）
       for (const bn of bonuses) applyBonusObject(s, bn.side, bn);
@@ -570,6 +573,7 @@ function applyTo(st, act) {
   if (act.k === 'a') G.advance(st);
   else if (act.k === 'p') G.playCard(st, act.s, act.i, act.o || {});
   else if (act.k === 'c') G.resolveChoice(st, act.v);
+  else if (act.k === 'x') G.sacrificeUnit(st, act.s, act.u);
 }
 
 /**

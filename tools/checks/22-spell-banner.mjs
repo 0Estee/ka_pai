@@ -125,7 +125,13 @@ check('AI 打出锦囊也会放大展示（作者报的「敌方使用锦囊时�
     api.__newGame();
     api.__pause(true);
     // startNewGame 里可能已经排了自动阶段定时器：清干净，否则它会在我们摆完场面之后乱推
-    for (const id of [...timers.keys()]) timers.delete(id);
+    // 开局可能已经排了自动阶段定时器（清掉，否则它会在我们摆完场面之后乱推），
+    // 但**横幅**（2600ms）要照常触发：不清掉它，下面断言「AI 的锦囊横幅」时
+    // 看到的还是开局那条「抽到超能力」的横幅。
+    for (const [id, t] of [...timers.entries()]) {
+      timers.delete(id);
+      if (t.ms >= 2000) { try { t.fn(); } catch { /* 忽略 */ } }
+    }
     const st = api.__game();
     st.humanSide = 0;
     st.players[0].hand.length = 0;
