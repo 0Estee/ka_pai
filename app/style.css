@@ -27,7 +27,11 @@
   --legal: #7fa96b;           /* 可放置 */
   --target: #d9a35e;          /* 可指定目标 */
   --hp: #9dc388;              /* 生命值绿 */
-  --atk: #e2a171;             /* 攻击力橙 */
+  --atk: #e2a171;            /* 攻击力橙 */
+  /* 属性徽记（0.44）：宝石是图片，这三个值只用于徽记底光与数字描边 */
+  --gem-atk: rgba(122, 186, 255, .34);
+  --gem-hp: rgba(255, 110, 110, .34);
+  --stat-stroke: rgba(6, 10, 20, .95);
   --mana: #8fb8dc;            /* 费用蓝 */
   --mark: #c1a3db;            /* 状态标记紫（淬毒 / 疾病） */
 
@@ -140,6 +144,9 @@
   --target: #94541a;
   --hp: #33682f;
   --atk: #8f4a12;
+  --gem-atk: rgba(28, 96, 200, .26);
+  --gem-hp: rgba(196, 32, 32, .26);
+  --stat-stroke: rgba(8, 12, 24, .92);
   --mana: #245b8c;
   --mark: #5b3f8a;
 
@@ -416,7 +423,7 @@ html, body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 3px 4px 16px;
+  padding: 3px 4px 24px;
   border-radius: 4px;
   background: linear-gradient(160deg, var(--unit-bg-1), var(--unit-bg-2));
   border: 1px solid var(--unit-line);
@@ -445,14 +452,39 @@ html, body {
 .u-bottom {
   position: absolute;
   left: 0; right: 0; bottom: 0;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
-  padding: 0 5px 2px;
-  font-weight: 700;
-  font-size: 12px;
+  align-items: flex-end;
+  padding: 0 1px 1px;
+  /* 徽记不吃点击：点卡片本身照旧打开详情面板 */
+  pointer-events: none;
 }
-.u-atk { color: var(--atk); }
-.u-hp { color: var(--hp); }
+/* 属性徽记（作者 2026-10 选定的方案 A）：宝石是图片，数字是 SVG 文字。
+   真描边靠 paint-order: stroke —— CSS 的 text-shadow 八向模拟在浅色主题下会糊。 */
+.stat-badge {
+  position: relative;
+  display: block;
+  width: var(--badge-size, 22px);
+  height: var(--badge-size, 22px);
+  line-height: 0;
+}
+.stat-badge svg { display: block; width: 100%; height: 100%; }
+.stat-badge text {
+  text-anchor: middle;
+  font-family: inherit;
+  font-weight: 800;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: var(--stat-stroke);
+  stroke-width: 7;
+  stroke-linejoin: round;
+}
+.stat-badge .b-num { font-size: 46px; }
+.stat-badge .b-max { font-size: 27px; fill: #eef4ff; stroke-width: 6; }
+/* 宝石图片没画出来时（旧 WebView、资源缺失）也能看出是哪个属性 */
+.stat-badge.sb-atk { background: radial-gradient(circle at 50% 46%, var(--gem-atk) 0%, transparent 66%); }
+.stat-badge.sb-hp { background: radial-gradient(circle at 50% 52%, var(--gem-hp) 0%, transparent 66%); }
 .u-hpbar {
   position: absolute; left: 0; right: 0; bottom: 0;
   height: 2px; background: var(--hpbar-bg);
@@ -752,6 +784,9 @@ html, body {
   --target: #ffd479;
   --hp: #ff9090;
   --atk: #ffcf8a;
+  --gem-atk: rgba(150, 215, 255, .46);
+  --gem-hp: rgba(255, 140, 140, .46);
+  --stat-stroke: rgba(6, 10, 20, .90);
   --mana: #9ad8ff;
   --mark: #c9b6ff;
   --slot-line: rgba(255, 255, 255, .40);  /* 格子虚线 */

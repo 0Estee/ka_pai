@@ -45,6 +45,29 @@ function markLabels(unit) {
   return out;
 }
 
+/**
+ * 属性徽记：蓝四角星 = 攻击力，红盾 = 生命（作者 2026-10 选定的方案 A：内联 SVG）。
+ *
+ * 为什么不用「CSS 背景图 + span 数字」：数字压在宝石高光上，高光处对比度天然不足，
+ * 浅色主题里橙字挤在亮底上几乎读不出来。内联 SVG 才能给文字做真描边
+ * （paint-order: stroke，外深内亮两层），而且是矢量，22 / 28 / 40px 任何尺寸都清晰。
+ * 形状本身携带语义（星 = 攻击、盾 = 生命），色盲也能分辨。
+ */
+function statBadge(kind, value, max) {
+  const file = kind === 'atk' ? 'badge-atk.png' : 'badge-hp.png';
+  const label = kind === 'atk' ? '攻击力' : '生命';
+  const num = Number(value) || 0;
+  const cap = Number(max);
+  const showMax = Number.isFinite(cap) && cap > num;
+  const aria = showMax ? label + " " + num + " / " + cap : label + " " + num;
+  return `<span class="stat-badge sb-${kind}" data-kind="${kind}" data-value="${num}" title="${label}" aria-label="${aria}">`
+    + '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'
+    + `<image href="img/${file}" xlink:href="img/${file}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"></image>`
+    + `<text class="b-num" x="50" y="62">${num}</text>`
+    + (showMax ? `<text class="b-max" x="50" y="88">/${cap}</text>` : '')
+    + '</svg></span>';
+}
+
 function unitHTML(state, unit, view) {
   if (!unit) return '';
   const kws = keywordLabels(state, unit);
@@ -70,8 +93,8 @@ function unitHTML(state, unit, view) {
       <div class="u-kw">${kws.length ? esc(kws.join(' · ')) : ''}</div>
       ${marks.length ? `<div class="u-marks">${esc(marks.join(' '))}</div>` : ''}
       <div class="u-bottom">
-        <span class="u-atk" title="攻击力">⚔${atk}</span>
-        <span class="u-hp" title="生命">♥${unit.hp}${unit.maxHp !== unit.hp ? `<i class="u-max">/${unit.maxHp}</i>` : ''}</span>
+        ${statBadge('atk', atk)}
+        ${statBadge('hp', unit.hp, unit.maxHp)}
       </div>
       ${preview ? `<div class="u-preview" title="开战时这一击会打向谁">${esc(preview)}</div>` : ''}
       ${unit.hp < unit.maxHp ? `<div class="u-hpbar"><i style="width:${Math.max(0, (unit.hp / unit.maxHp) * 100)}%"></i></div>` : ''}
@@ -216,8 +239,8 @@ function ghostHTML(state, g) {
     <div class="unit ghost">
       <div class="u-name">${esc(def ? def.name : g.cardId)}</div>
       <div class="u-bottom">
-        <span class="u-atk" title="攻击力">⚔${def ? def.atk : 0}</span>
-        <span class="u-hp" title="生命">♥0</span>
+        ${statBadge('atk', def ? def.atk : 0)}
+        ${statBadge('hp', 0)}
       </div>
     </div>`;
 }

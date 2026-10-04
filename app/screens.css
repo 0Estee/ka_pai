@@ -19,19 +19,10 @@
 /* 棋盘上的单位：攻击 / 生命要能一眼分清。
    原来只是两个光秃秃的数字并排（如 `3 4`），玩家根本不知道哪个是哪个。 */
 .unit .u-bottom {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  /* 徽记是固定尺寸的方块（见 style.css 的 .stat-badge），不再用 baseline 对齐 */
+  align-items: flex-end;
+  gap: 0;
 }
-.unit .u-atk,
-.unit .u-hp {
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.unit .u-atk { color: var(--atk, #ffb454); }
-.unit .u-hp { color: var(--hp, #7ee787); }
-.unit .u-max { font-size: 9px; opacity: .6; font-style: normal; font-weight: 400; }
 
 /* 「这一击会打向谁」*/
 .unit .u-preview {

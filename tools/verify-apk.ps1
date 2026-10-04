@@ -125,6 +125,79 @@ foreach ($ref in $refs) {
   if ($entries | Where-Object { $_.FullName -eq $entryName }) { Pass "index.html 引用的 $ref 已在包内" }
   else { Fail "index.html 引用了 $ref，但 APK 里没有 $entryName" }
 }
+# ── 2c. 源码里引用的图片资源都必须在包内 ──────────────────── 
+# 2b 只查 index.html 的 href/src，而徽记这类图片是在 JS 里拼出来的 SVG 标记
+# （<image href="img/badge-atk.png">），index.html 里根本看不到它。
+# 漏打进去的症状是「设备上徽记位置一片空白」，构建过程完全正常。
+Head '2c. 源码里引用的图片资源都在包内'
+Add-Type -AssemblyName System.Drawing
+
+# 宝石主色：攻击偏蓝、生命偏红（源图就是这个配色，防止以后换成错的图或纯色占位）
+$gemWant = @{ 'img/badge-atk.png' = 'B'; 'img/badge-hp.png' = 'R' }
+
+function Get-GemStats($path) {
+  # 隔行隔列采样就够（128x128），不必上 LockBits
+  $bmp = New-Object System.Drawing.Bitmap $path
+  $r = 0L; $g = 0L; $b = 0L; $n = 0L; $clear = 0L
+  for ($y = 0; $y -lt $bmp.Height; $y += 2) {
+    for ($x = 0; $x -lt $bmp.Width; $x += 2) {
+      $c = $bmp.GetPixel($x, $y)
+      if ($c.A -lt 128) { $clear++; continue }
+      $r += $c.R; $g += $c.G; $b += $c.B; $n++
+    }
+  }
+  $w = $bmp.Width; $h = $bmp.Height
+  $bmp.Dispose()
+  $mr = 0; $mg = 0; $mb = 0
+  if ($n -gt 0) { $mr = [int]($r / $n); $mg = [int]($g / $n); $mb = [int]($b / $n) }
+  [pscustomobject]@{ W = $w; H = $h; R = $mr; G = $mg; B = $mb; Opaque = $n; Clear = $clear }
+}
+
+$appDir = Join-Path $ROOT app
+$srcPaths = @(
+  (Join-Path $appDir 'index.html'),
+  (Join-Path $appDir 'style.css'),
+  (Join-Path $appDir 'screens.css')
+) + @(Get-ChildItem (Join-Path $appDir 'js') -Filter *.js -File | ForEach-Object { $_.FullName })
+
+# 来源一：源码里写死的相对路径（html/css/js 里的 img/xxx.png）。
+$imgRefs = @{}
+foreach ($f in $srcPaths) {
+  $text = Get-Content $f -Raw -Encoding UTF8
+  foreach ($m in [regex]::Matches($text, 'img/[A-Za-z0-9_.-]+[.](?:png|jpg|jpeg|webp|svg|gif)')) { $imgRefs[$m.Value] = $true }
+}
+# 来源二：app/img/ 目录本身。
+# 属性徽记走的不是写死的路径，而是 JS 里拼出来的 `img/${file}`（file 是三元表达式），
+# 正则扫不到它；按目录反查才能拦住「新加了图片但没打进包」。
+$imgDir = Join-Path $appDir img
+if (Test-Path $imgDir) {
+  foreach ($f in Get-ChildItem $imgDir -File) { $imgRefs["img/" + $f.Name] = $true }
+}
+
+if ($imgRefs.Count -eq 0) {
+  Fail '没有任何图片资源（app/img/ 是空的，也没人写 img/xxx.png 的相对路径），属性徽记会渲染成空白'
+} else {
+  foreach ($rel in ($imgRefs.Keys | Sort-Object)) {
+    $entryName = 'assets/' + $rel
+    if (-not ($entries | Where-Object { $_.FullName -eq $entryName })) {
+      Fail "源码引用了 $rel，但 APK 里没有 $entryName"
+      continue
+    }
+    $out = Join-Path $WORK ($rel -replace '/', [string][char]92)
+    if (-not (Test-Path $out)) { Fail "$rel 在 APK 里但解不出来"; continue }
+    $g = Get-GemStats $out
+    $note = "$rel 已在包内（$($g.W)x$($g.H)，不透明采样 $($g.Opaque) / 透明 $($g.Clear)）"
+    if ($g.Clear -lt 50) { Fail "$note 但没有透明通道，宝石的透明角丢了"; continue }
+    if ($gemWant.ContainsKey($rel)) {
+      $want = $gemWant[$rel]
+      $label = if ($want -eq "B") { "蓝" } else { "红" }
+      $ok = if ($want -eq "B") { $g.B -gt $g.R + 30 } else { $g.R -gt $g.B + 30 }
+      if (-not $ok) { Fail "$note 主色不对（期望偏$label：R$($g.R) G$($g.G) B$($g.B)）"; continue }
+    }
+    Pass $note
+  }
+}
+
 $zip.Dispose()
 
 # 开发用的预览页也复制过去，用于渲染中局画面

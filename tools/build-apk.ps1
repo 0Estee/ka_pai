@@ -16,8 +16,8 @@ param(
   [string]$JdkHome = 'C:\Program Files\Java\jdk-21',
   [string]$BuildToolsVersion = '34.0.0',
   [string]$Platform = 'android-34',
-  [string]$VersionName = '0.43.0',
-  [int]$VersionCode = 44,
+  [string]$VersionName = '0.44.0',
+  [int]$VersionCode = 45,
 [int]$MinSdk = 24,
   [int]$TargetSdk = 34,
   [string]$KeystorePass = 'kapai123',
@@ -183,6 +183,15 @@ New-Item -ItemType Directory -Force -Path (Join-Path $assets 'dist') | Out-Null
 # verify-apk.ps1 会按 APK 实际内容 + index.html 的引用双向校验，漏了会直接报错。
 foreach ($f in @('index.html', 'style.css', 'screens.css')) {
   Copy-Item (Join-Path $APP $f) (Join-Path $assets $f) -Force
+}
+
+# 图片资源（属性徽记等）：源码里按 `img/xxx.png` 的相对路径引用。
+# 漏打进去的症状是「设备上该处一片空白」，而构建过程完全正常，
+# 所以 verify-apk.ps1 会按源码里的引用反向校验。
+$imgDir = Join-Path $APP 'img'
+if (Test-Path $imgDir) {
+  New-Item -ItemType Directory -Force -Path (Join-Path $assets 'img') | Out-Null
+  Copy-Item (Join-Path $imgDir '*') (Join-Path $assets 'img') -Recurse -Force
 }
 # dist/ 下现在是「加载器 bundle.js + modules/ 里一个源文件一个脚本」，整目录复制。
 # （打成一个文件是以前的方案：设备上出错只会报 bundle.js:29000，跟源码对不上。）

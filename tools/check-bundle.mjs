@@ -45,6 +45,7 @@ import './checks/22-spell-banner.mjs';
 import './checks/23-lan-choice.mjs';
 import './checks/24-faction.mjs';
 import './checks/25-summon-cell.mjs';
+import './checks/26-stat-badge.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {
