@@ -24,7 +24,7 @@ ka_pai/
 │   ├── cards/user-cards.js      ★ 作者设计的卡牌 第二批（U01~U17）
 │   ├── cards/user-cards-b3.js   ★ 作者设计的卡牌 第三批（U20~U362，由 tools/merge-b3.mjs 从 A~L 十二组片段合并生成）
 │   ├── cards/test-cards.js      引擎自检用的演示卡 + 合并后的卡牌库 + 牌库构建（80 张抽样）
-│   └── test/smoke.mjs           124 个规则回归测试
+│   └── test/smoke.mjs           126 个规则回归测试
 │
 ├── .dsh/skills/card-authoring/  ★ 制作卡牌的流程（给 AI 用的 skill）
 │

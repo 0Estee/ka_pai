@@ -60,7 +60,8 @@ function enterLobby(mode) {
   };
 
   session.start();
-  session.transport.send({ t: 'hello', name: isHostName() });
+  // 进房间就报一次自己的阵营：主机开局要按两边各自的阵营建局（作者 2026-10-05）
+  session.transport.send({ t: 'hello', name: isHostName(), faction: myFaction });
   screen = 'lobby';
   refresh();
 }
@@ -158,7 +159,15 @@ async function hostStartMatch() {
   recordingSeed = seed;
   recordingDeck = deck;
   lanInfo.gameReady = true;
-  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, myFaction] });
+  /**
+   * 两边各自的阵营（作者 2026-10-05：「联机选不了阵营」）。
+   *
+   * 以前这里两边都传主机的 myFaction  客人根本没有机会选，而且
+   * 就算他在自己的机器上选了，主机也不知道。现在客人的阵营通过
+   * hello / faction 消息报过来（见 multiplayer.js）。拿不到就退回主机自己的。
+   */
+  const guestFaction = session.peerFaction || myFaction;
+  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, guestFaction] });
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

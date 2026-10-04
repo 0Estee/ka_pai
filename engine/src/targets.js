@@ -49,6 +49,32 @@ export function askHumanFor(state, ctx, selector) {
 }
 
 /**
+ * AI 自己挑「一个敌方目标」时的口径（作者 2026-10-05：「ai补刀脆的」）。
+ *
+ * 有单位可选就挑**当前生命最低**的那个（同血取 uid 最小的，和
+ * lowestHpEnemyUnit 用同一条 tie-break，结果确定、不依赖遍历顺序）；
+ * 一个单位都没有时才去打国王  那种情况下选项里本来也只剩国王。
+ *
+ * 挂在选择器的 choose 上（而不是改 takeChoice 的默认「取第一个选项」）：
+ * 只有「选敌方」这几类需要这层判断，选自己人的口径不动。
+ * 真人那一侧不受影响：askHuman 的请求会带 noAuto，在 choose 之前就挂起等人。
+ */
+export function pickFragileTarget(state, options) {
+  const units = allUnits(state);
+  let best = null;
+  for (const o of options) {
+    if (!o || o.king) continue;
+    const u = units.find((x) => x.uid === o.uid);
+    if (!u) continue;
+    if (!best || u.hp < best.hp || (u.hp === best.hp && u.uid < best.uid)) best = u;
+  }
+  if (best) return { uid: best.uid };
+  const king = options.find((o) => o && o.king);
+  if (king) return { king: true, side: king.side };
+  return options[0] || null;
+}
+
+/**
  * 解析目标选择器，返回目标引用数组。
  * 需要玩家选择时会 yield。
  *
@@ -179,6 +205,8 @@ function* resolveTargetsInner(state, ctx, selector) {
     case 'chosenEnemyFront': {
       const anySide = selector.kind === 'chosenAnyUnit';
       const wantSide = selector.kind === 'chosenOwnUnit' ? me : foe;
+      // 「选敌方单位」的选择交给 AI 时按「补刀脆的」挑（作者 2026-10-05）
+      const wantEnemy = selector.kind !== 'chosenOwnUnit' && selector.kind !== 'chosenAnyUnit';
 
       // 调用方已直接指定目标（UI 点选 / AI 决策）——优先使用，不再发起交互。
       // 即便调用方直接指定，也要过一遍过滤器，保证引擎是最终权威：
@@ -208,6 +236,7 @@ function* resolveTargetsInner(state, ctx, selector) {
         side: me,
         prompt: selector.prompt || (anySide ? '选择一个单位' : `选择一个${SIDE_NAME[wantSide]}单位`),
         options: options.map((u) => ({ uid: u.uid, label: `${u.name} (${u.atk}/${u.hp}) ${LANE_NAME[u.lane]}-${u.row}` })),
+        choose: wantEnemy ? () => pickFragileTarget(state, options) : undefined,
         noAuto: askHumanFor(state, ctx, selector) || undefined,
       };
       const picked = options.find((u) => u.uid === answer.uid);
@@ -259,6 +288,7 @@ function* resolveTargetsInner(state, ctx, selector) {
         side: me,
         prompt: selector.prompt || '选择敌方单位或敌方国王',
         options,
+        choose: () => pickFragileTarget(state, options),
         noAuto: askHumanFor(state, ctx, selector) || undefined,
       };
       if (answer && answer.king) return [asKing(answer.side)];

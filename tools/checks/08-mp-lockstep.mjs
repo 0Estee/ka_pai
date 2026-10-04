@@ -28,3 +28,13 @@ check('状态指纹对相同状态稳定、对不同状态敏感', () => {
   a.players[0].kingHp = before;
   if (h3 === h1) throw new Error('国王掉血后哈希没变，指纹不够敏感');
 });
+
+check('认输也是一条操作：喂给两个引擎，终局一致、指纹一致', () => {
+  const rec = api.__replays()[0];
+  if (!rec || rec.actions.length < 4) throw new Error('没有可用的操作序列');
+  const actions = rec.actions.slice(0, 6).concat([{ k: "s", s: 0 }]);
+  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, actions, rec.bonuses || [], rec.factions || []);
+  if (!r.ok) throw new Error('认输这一步开始分叉（第 ' + r.divergedAt + ' 步 / 共 ' + r.steps + ' 步）' + (r.error ? '  错误：' + r.error : ''));
+  if (r.winnerA !== 1 || r.winnerB !== 1) throw new Error('认输（0 号位认输）后两个引擎的胜者应当都是 1，实际 ' + r.winnerA + '/' + r.winnerB);
+  if (r.hashA !== r.hashB) throw new Error('认输之后两端指纹不同（终局文案或状态字段两端不一致）');
+});

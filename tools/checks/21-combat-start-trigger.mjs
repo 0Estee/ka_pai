@@ -63,3 +63,24 @@ check('狙击手（AI 侧）：不挂起，同样在 lane-combat 之前打 2 点
   if (!(idxDmg < idxLane)) throw new Error('AI 侧这 2 点没有发生在 lane-combat 之前（dmg@' + idxDmg + '，lane-combat@' + idxLane + '）');
   api.__pause(false);
 });
+
+check('狙击手（AI 侧）：多个敌人时补刀生命最低的那个（作者 2026-10-05）', () => {
+  api.__go('home');
+  api.__newGame();
+  api.__pause(true);
+  api.__place(1, 'U287', 'mountain', 'front');
+  const tough = api.__place(0, 'W04', 'mountain', 'front');
+  const weak = api.__place(0, 'U242', 'plainL', 'front');
+  let n = 0;
+  while (api.__game().phase !== 'COMBAT' && n++ < 14) api.__advance();
+  const st = api.__game();
+  const hung = !!st.pending;
+  const log = st.log;
+  const idxWeak = log.findIndex((e) => e.type === 'damage' && e.uid === weak.uid && e.amount === 2);
+  const idxTough = log.findIndex((e) => e.type === 'damage' && e.uid === tough.uid && e.amount === 2);
+  const idxLane = log.findIndex((e) => e.type === 'lane-combat');
+  api.__pause(false);
+  if (hung) throw new Error('AI 侧不该挂起等人：' + JSON.stringify(st.pending.request));
+  if (idxWeak < 0 || (idxLane >= 0 && idxWeak > idxLane)) throw new Error('这 2 点没有落在生命最低的敌人（3 血的拳击手）身上，idxWeak=' + idxWeak);
+  if (idxTough >= 0 && (idxLane < 0 || idxTough < idxLane)) throw new Error('打的是血厚的那个（说明还是取第一个选项），idxTough=' + idxTough);
+});

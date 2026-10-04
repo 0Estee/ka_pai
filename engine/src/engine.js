@@ -25,6 +25,7 @@ import {
   triggerInHandEffects, applyHandStatDelta, onTurnStart, onTurnEnd,
   resolveByDeckOut, resolveMarks, resolveByTurnLimit,
   sacrificeUnit,
+  surrender,
 } from './turns.js';
 import {
   costOf, getLegalPlays, legalPlacements, canPlaceUnit, playCard,
@@ -76,4 +77,5 @@ export {
   // 阵营与超能力（作者 2026-10-03）
   FACTIONS,
   sacrificeUnit,
+  surrender,
 };

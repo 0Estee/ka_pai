@@ -157,6 +157,8 @@ function applyLocalAction(action, fromRemote) {
     else if (action.k === 'p') G.playCard(state, action.s, action.i, action.o || {});
     else if (action.k === 'c') G.resolveChoice(state, action.v);
     else if (action.k === 'x') G.sacrificeUnit(state, action.s, action.u);
+    // 认输（作者 2026-10-05）：也是一条操作，联机才会广播给对手
+    else if (action.k === 's') G.surrender(state, action.s);
   } catch (err) {
     console.error('执行操作失败', action, err);
     return false;

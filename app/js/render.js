@@ -285,6 +285,9 @@ function refresh() {
       // 联机要金币 > 0（作者裁决：联机没有保底，归零后只能去打 AI 赚回来）
       gold: profile.gold,
       canPvp: Eco.canPlayPvp(profile),
+      // 大厅里也要能选阵营（作者 2026-10-05）
+      faction: myFaction,
+      factions: factionOptions(),
     });
     return;
   }

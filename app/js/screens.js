@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.42.0';
+export const APP_VERSION = '0.43.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -185,7 +185,7 @@ export function lanScanHTML({ rooms, scanning, manualError }) {
 }
 
 /** 联机大厅：主机等对手，客人等主机开始 */
-export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp }) {
+export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions }) {
   const isHost = mode === 'host';
   const statusText = {
     connected: peerName ? `已连接：${peerName}` : '等待对手加入…',
@@ -194,6 +194,33 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
   }[status] || status;
 
   const joinUrl = isHost && localIp ? `http://${localIp}:${port}/` : '';
+
+  /**
+   * 阵营（作者 2026-10-05：联机选不了阵营）。
+   *
+   * 以前阵营选择只在「AI 难度与阵营」页里，联机开局用的是主机的 myFaction，
+   * 客人既看不到也选不了。这里复用同一套 set-faction 行，两边各自在房间里选，
+   * 换一次广播一次（见 play-input.js）。
+   *
+   * 打勾符号要自己来一份：difficultyHTML 里那个 CHK 是它的局部变量，
+   * 在大厅里直接用会 ReferenceError（门禁 13-lan-lobby 抓到的就是这个）。
+   */
+  const facCHK = String.fromCharCode(0x2713);
+  const facList = factions && factions.length ? factions : [];
+  const curFac = facList.find((f) => f.key === faction) || facList[0] || null;
+  const facRows = facList.map((f) => {
+    const on = curFac && f.key === curFac.key;
+    return `
+      <button class="diff-row fac-row ${on ? 'on' : ''}" data-act="set-faction" data-key="${f.key}">
+        <div class="diff-main">
+          <div class="diff-name">${escHtml(f.name)}${on ? `<span class="diff-check">${facCHK}</span>` : ''}</div>
+          <div class="diff-tag">${escHtml(f.tagline || '')}</div>
+        </div>
+      </button>`;
+  }).join('');
+  const facBlock = facRows ? `
+    <div class="set-head">阵营（本局超能力）</div>
+    <div class="diff-list">${facRows}</div>` : '';
 
   // 联机要金币 > 0。余额 ≤ 0 时按钮点不动，并明确告诉玩家去打 AI ——
   // 联机**没有保底**（输了真扣），所以这里必须说清楚为什么进不去。
@@ -223,6 +250,8 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
       </div>
 
       ${startBlock}
+
+      ${facBlock}
 
       <div class="hf-warn">联机中请勿退出 App 或切换 Wi-Fi；中途掉线会暂停并等待最多 60 秒重连。<br>⚠ 联机对局<b>没有金币保底</b>：赢了加金币，输了扣金币，扣到 0 就只能先打 AI。</div>
     </div>

@@ -435,7 +435,14 @@ function handleAction(act, el) {
   if (act === 'start-game') { screen = 'play'; refresh(); return; }
   if (act === 'choose-ai') { screen = 'difficulty'; refresh(); return; }
   if (act === 'set-difficulty') { setDifficulty(el.dataset.key); return; }
-  if (act === 'set-faction') { setFaction(el.dataset.key); return; }
+  if (act === 'set-faction') {
+    setFaction(el.dataset.key);
+    // 联机大厅里换阵营要告诉对手：主机开局按两边各自的阵营建局（作者 2026-10-05）
+    if (session) {
+      try { session.transport.send({ t: 'faction', key: myFaction }); } catch { /* 断线时忽略，重连后 hello 会再报一次 */ }
+    }
+    return;
+  }
   if (act === 'start-ai') { startNewGame(); return; }
   if (act === 'open-replays') { goReplays(); return; }
   if (act === 'open-settings') { goSettings(); return; }
@@ -508,9 +515,16 @@ function handleAction(act, el) {
   }
 
   if (act === 'surrender') {
-    state.winner = foe();
-    state.winReason = '你认输了';
+    if (!state || state.winner !== null) return;
+    /**
+     * 认输也是一条**操作**（作者 2026-10-05：联机时一方认输，另一方看不到终局）。
+     *
+     * 以前这里直接改 state.winner  单机没问题，联机下那只是本地改本地：
+     * 两端只同步操作，对手那一侧永远收不到，于是它既不结束也不判胜。
+     * 走 doAction 才会广播给对手、并记进回放。
+     */
     toggleMenu(false);
+    doAction({ k: 's', s: me() });
     tick(); // 走统一路径：结算金币 + 存档回放
   }
 }

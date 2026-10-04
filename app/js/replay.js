@@ -158,6 +158,9 @@ export function recAction(rec, action) {
   } else if (action.k === 'x') {
     // 主动献祭（恶魔阵营的界面按钮）：谁把场上的哪个单位献祭了
     rec.actions.push({ k: 'x', s: action.s, u: action.u });
+  } else if (action.k === 's') {
+    // 认输：谁认的（唯一一条会让对局立刻终局的操作）
+    rec.actions.push({ k: 's', s: action.s });
   } else if (action.k === 'c') {
     rec.actions.push({ k: 'c', v: action.v });
     /**
@@ -596,6 +599,8 @@ export function createReplayPlayer(record, cardLib) {
         G.resolveChoice(state, a.v);
       } else if (a.k === 'x') {
         G.sacrificeUnit(state, a.s, a.u);
+      } else if (a.k === 's') {
+        G.surrender(state, a.s);
       } else {
         error = `第 ${before + 1} 步重放失败：未知操作 ${a.k}`;
         return false;

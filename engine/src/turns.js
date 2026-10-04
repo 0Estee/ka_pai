@@ -279,6 +279,25 @@ export function checkGameOver(state) {
   return state.winner !== null;
 }
 
+/**
+ * 认输（作者 2026-10-05：「联机时一方认输，另一方不显示对局结束」）。
+ *
+ * 以前这一步是界面直接改 state.winner（见 app/js/play-input.js），联机下
+ * 那只是本地改本地  两端只同步**操作**，对手那一侧永远收不到东西。
+ * 现在它是一条真正的引擎操作，走和出牌 / 推进同一条流水。
+ *
+ * winReason 用两侧一致的中性文案：联机锁步是逐字节比状态指纹，
+ * 写「你认输了」会让两端状态不同（一端是真人、另一端是对手）。
+ */
+export function surrender(state, side) {
+  if (state.winner !== null) return state.winner;
+  const loser = side === 0 || side === 1 ? side : 0;
+  state.winner = 1 - loser;
+  state.winReason = '一方认输';
+  M.log(state, { type: 'game-over', winner: state.winner, reason: state.winReason });
+  return state.winner;
+}
+
 // ══════════════════════════════════════════════════════════
 // 开局
 // ══════════════════════════════════════════════════════════

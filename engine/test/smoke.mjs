@@ -13,6 +13,7 @@ import * as G from '../src/engine.js';
 import * as M from '../src/mechanics.js';
 import { instantiateUnit } from '../src/setup.js';
 import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
+import { pickFragileTarget } from '../src/targets.js';
 import { filterCtx, effectiveAtk, hasRooted, syncStatAuras } from '../src/auras.js';
 import { trapsOf, visibleMana } from '../src/board.js';
 import { dealDamage } from '../src/damage.js';
@@ -1719,6 +1720,35 @@ test('U425 神罚：攻击力 3 或以上的敌人被永久设为 0，其余不�
   cast(s, 0, 'U425');
   assert.equal(big.atk, 0, '5 攻的被打成 0');
   assert.equal(small.atk, 2, '2 攻的不受影响');
+});
+
+//
+group('18 认输与 AI 补刀（作者 2026-10-05）');
+//
+
+test('认输：立刻终局、判对方胜、文案两端一致，且重复调用不改结果', () => {
+  const s = game({ seed: 31 });
+  assert.equal(G.surrender(s, 0), 1);
+  assert.equal(s.winner, 1);
+  assert.equal(s.winReason, '一方认输');
+  const last = s.log[s.log.length - 1];
+  assert.equal(last.type, 'game-over');
+  assert.equal(G.surrender(s, 0), 1);
+  assert.equal(s.winner, 1, '重复认输不该改结果');
+});
+
+test('AI 补刀：pickFragileTarget 挑生命最低的敌人，没有单位时退国王', () => {
+  const s = game({ seed: 32 });
+  const tough = deploy(s, 1, 'W04', 'mountain', 'front');
+  const weak = deploy(s, 1, 'U242', 'mountain', 'front');
+  const options = [
+    { uid: tough.uid, side: 1, label: 'tough' },
+    { uid: weak.uid, side: 1, label: 'weak' },
+    { king: true, side: 1 },
+  ];
+  assert.equal(pickFragileTarget(s, options).uid, weak.uid, '应当补刀生命最低的单位');
+  const kingOnly = pickFragileTarget(s, [{ king: true, side: 1 }]);
+  assert.equal(kingOnly.king, true, '没有单位可选时退回国王');
 });
 
 //  汇总 

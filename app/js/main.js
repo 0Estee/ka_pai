@@ -575,6 +575,7 @@ function applyTo(st, act) {
   else if (act.k === 'p') G.playCard(st, act.s, act.i, act.o || {});
   else if (act.k === 'c') G.resolveChoice(st, act.v);
   else if (act.k === 'x') G.sacrificeUnit(st, act.s, act.u);
+  else if (act.k === 's') G.surrender(st, act.s);
 }
 
 /**
@@ -799,6 +800,8 @@ window.__demoLobby = (peerName) => {
     // 按钮是否被 disabled（灰掉就点不动 = 开不了局）
     startDisabled: /data-act="lan-start"[^>]*\bdisabled\b/.test(html),
     showsPeer: html.includes('已连接'),
+    // 大厅里能不能选阵营（以前只有难度页有；联机时客人只能被主机安排）
+    factionRows: (html.match(/data-act="set-faction"/g) || []).length,
   };
   session = real;
   return r;
@@ -1006,5 +1009,43 @@ window.__autoPlay = (maxSteps = 4000) => {
     htmlLength: html.length,
     htmlOk: html.includes('board-row') && html.includes('class="hand"'),
     stalled: state.winner === null && guard >= maxSteps,
+  };
+};
+
+/**
+ * 自检钩子：伪造一个联机会话，按一次「认输」，看这条操作有没有真的交给会话发出去。
+ * 联机认输的旧 bug：一边认输只改了本机 state.winner，对手收不到操作，所以不结算。
+ * 返回 { sent, finish() }：sent 是交给 session.submit 的操作；finish() 收尾。
+ */
+window.__demoSurrender = (mySide = 0) => {
+  const real = session;
+  const sent = [];
+  session = {
+    isHost: mySide === 0,
+    mySide,
+    step: 0,
+    lastError: '',
+    peerName: '对手',
+    started: true,
+    submit(a) {
+      sent.push(a);
+      // 真会话的 submit 也会先本地应用再发包，这里保持一致
+      if (a.k === 's') applyLocalAction(a, false);
+      return true;
+    },
+  };
+  startNewGame();
+  screen = 'game';
+  paused = true;
+  clearTimeout(bannerTimer);
+  clearTimeout(autoAdvanceTimer);
+  refresh();
+  return {
+    sent,
+    finish() {
+      session = real;
+      startNewGame();
+      refresh();
+    },
   };
 };

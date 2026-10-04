@@ -246,6 +246,8 @@ export class Session {
     this.state = null;
     this.started = false;
     this.peerName = '';
+    /** 对手选的阵营（联机开局要用它建局，见 lan.js 的 hostStartMatch） */
+    this.peerFaction = '';
     this.roomName = '';
     this.step = 0;
     this.running = false;
@@ -320,6 +322,7 @@ export class Session {
     else if (a.k === 'p') G.playCard(st, a.s, a.i, a.o || {});
     else if (a.k === 'c') G.resolveChoice(st, a.v);
     else if (a.k === 'x') G.sacrificeUnit(st, a.s, a.u);
+    else if (a.k === 's') G.surrender(st, a.s);
     else throw new Error(`未知操作 ${a.k}`);
   }
 
@@ -342,6 +345,13 @@ export class Session {
     switch (msg.t) {
       case 'hello':
         this.peerName = msg.name || '';
+        // 进房间时互相报一次阵营，主机开局才能按各自的阵营建局
+        if (msg.faction) this.peerFaction = msg.faction;
+        return true;
+
+      case 'faction':
+        // 对手在大厅里换了阵营
+        this.peerFaction = msg.key || '';
         return true;
 
       case 'start':
