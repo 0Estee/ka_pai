@@ -21,6 +21,27 @@ import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
 import { queueDelayedSummon } from './factions.js';
 
 /**
+ * 召唤落点的询问（作者 2026-10-04：召唤时直接在场上选一个位置放下）。
+ * 只在这张牌没写死落点、调用方也没指定时才问；合法格只有一个就直接用。
+ * 判据与 targets.js 的 askHumanFor 一致：这一方是真人 -> 带 noAuto 挂起等人，
+ * AI 那一侧照旧取第一个选项（回放/锁步两边永远走同一条路）。
+ */
+function* askSummonCell(ctx, side, cardId, prompt) {
+  const cells = ctx.api && ctx.api.legalSummonCells ? ctx.api.legalSummonCells(ctx.state, side, cardId) : [];
+  if (cells.length === 0) return null;
+  if (cells.length === 1) return cells[0];
+  const human = ctx.state.humanSide === undefined ? 0 : ctx.state.humanSide;
+  const answer = yield {
+    type: 'summonCell',
+    side,
+    prompt: prompt || '选择召唤位置',
+    options: cells,
+    noAuto: side === human || undefined,
+  };
+  return answer && answer.lane ? answer : cells[0];
+}
+
+/**
  * 执行一组效果动作。
  * ctx: { state, source, controller, card, chosenLane, chosenTargetUid, api }
  */
@@ -316,6 +337,18 @@ export function* execAction(state, ctx, action) {
     }
 
     // ── 冻结（作者补充规则）：下一次攻击不进行，然后解除冻结
+    /**
+     * 「友方国王本回合获得无敌」（阵营超能力「庇佑」）。
+     * 国王不是单位，挂不了单位词条 -> 标记记在玩家对象上，只在**本回合**生效
+     * （damage.js 的王伤分支比对 state.turn；必中类伤害仍可穿透，与单位无敌同口径）。
+     */
+    case 'kingInvincible': {
+      const side = resolveSide(action.side, me);
+      state.players[side].kingInvincibleTurn = state.turn;
+      log(state, { type: 'king-invincible', side, turn: state.turn });
+      break;
+    }
+
     case 'freeze': {
       const targets = yield* resolveTargets(state, ctx, action.target);
       for (const t of targets) {
@@ -472,10 +505,16 @@ export function* execAction(state, ctx, action) {
     // ── 召唤衍生物
     case 'summon': {
       if (!ctx.api || !ctx.api.summonToken) throw new Error('缺少 summonToken api');
-      const lane = action.lane || ctx.chosenLane;
-      const row = action.row || 'front';
+      const side = resolveSide(action.side, me);
+      let lane = action.lane || ctx.chosenLane;
+      let row = action.row || 'front';
+      // 没写死落点 -> 问落点（真人挂起等他点格子，AI 取第一个合法格）
+      if (!lane) {
+        const pick = yield* askSummonCell(ctx, side, action.cardId, action.prompt);
+        if (pick) { lane = pick.lane; row = pick.row; }
+      }
       ctx.api.summonToken(state, {
-        cardId: action.cardId, side: resolveSide(action.side, me), lane, row,
+        cardId: action.cardId, side, lane, row,
         modify: action.modify || null,
       });
       break;
@@ -488,7 +527,9 @@ export function* execAction(state, ctx, action) {
      */
     case 'delayedSummon': {
       const side = resolveSide(action.side, me);
-      queueDelayedSummon(state, side, action.cardId, resolveAmount(state, ctx, action.delay === undefined ? 1 : action.delay));
+      // 落点在打出时就选好（下个大回合开始时无人可问：那一刻是自动阶段）
+      const spot = yield* askSummonCell(ctx, side, action.cardId, action.prompt);
+      queueDelayedSummon(state, side, action.cardId, resolveAmount(state, ctx, action.delay === undefined ? 1 : action.delay), spot);
       break;
     }
 
@@ -581,6 +622,26 @@ export function* execAction(state, ctx, action) {
         if (t.kind !== 'unit' || t.unit.removed) continue;
         grantKeyword(state, t.unit, action.keyword, action.x || 0,
           { untilTurn: action.untilTurnEnd ? state.turn : null });
+      }
+      break;
+    }
+
+    /**
+     * 「一名队友本回合获得无敌并+2生命」（上帝阵营超能力「圣经」）。
+     *
+     * 为什么要合成一个 op：每个动作各自解析目标，拆成 grantKeyword + buffMaxHp
+     * 会让玩家把同一个队友选两次（targets.js 只在调用方预先给了
+     * ctx.chosenTargetUid 时才复用目标）。合成后只问一次，也就只记一条答案。
+     */
+    case 'grantKeywordBuff': {
+      const targets = yield* resolveTargets(state, ctx, action.target);
+      for (const t of targets) {
+        if (t.kind !== 'unit' || t.unit.removed) continue;
+        if (action.keyword) {
+          grantKeyword(state, t.unit, action.keyword, action.x || 0,
+            { untilTurn: action.untilTurnEnd ? state.turn : null });
+        }
+        if (action.maxHp) buffMaxHp(state, t.unit, resolveAmount(state, ctx, action.maxHp, t));
       }
       break;
     }

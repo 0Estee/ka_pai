@@ -106,6 +106,11 @@ function computePlayable() {
   // 这里必须兜住：以前回放分支也调这个函数，冷启动点「回放」会直接抛
   // TypeError，refresh() 中断在中间 —— 界面停在回放列表，看着就是「点了没反应」。
   if (!state) return;
+  // 召唤落点：挂起问位置时把合法格交给界面高亮（见 engine/src/actions.js 的 askSummonCell）
+  const rq = state.pending && state.pending.request;
+  view.legalSummonCells = rq && rq.type === 'summonCell'
+    ? (rq.options || []).filter((o) => o.lane && o.row)
+    : [];
   if (state.winner !== null) return;
   if (G.getActor(state) !== me()) return;
   for (const play of G.getLegalPlays(state, me())) {
@@ -121,6 +126,7 @@ function clearSelection() {
   view.legalUnitTargets = [];
   view.legalLanes = [];
   view.legalKingTargets = [];
+  view.legalSummonCells = [];
   view.infoUid = null;
   view.hint = '';
 }
@@ -164,6 +170,7 @@ function selectCard(iid) {
   view.legalUnitTargets = [];
   view.legalLanes = [];
   view.legalKingTargets = [];
+  view.legalSummonCells = [];
 
   if (def.type === 'unit') {
     view.legalSlots = places;
@@ -313,6 +320,22 @@ function commitPlay(iid, opts) {
 
 function handleSlotClick(slotEl) {
   if (view.busy || state.winner !== null) return;
+
+  /**
+   * 召唤落点（作者 2026-10-04：召唤时直接在场上选择一个位置放下）。
+   * 挂起期间棋盘不禁点，玩家点自己那侧的格子就是选落点。
+   * 选项本身就是引擎要的答案（见 resolvePlayerChoice 的注释），所以这里只找下标。
+   */
+  const rq = state.pending && state.pending.request;
+  if (rq && rq.type === 'summonCell') {
+    if (Number(slotEl.dataset.side) !== me()) return;
+    if (!canAnswerChoice(rq)) { view.hint = '等待对手选择'; refresh(); return; }
+    const idx = (rq.options || []).findIndex((o) => o.lane === slotEl.dataset.lane && o.row === slotEl.dataset.row);
+    if (idx < 0) { view.hint = '这里不能召唤'; refresh(); return; }
+    resolvePlayerChoice(idx);
+    return;
+  }
+
   if (view.selectedIid === null) return;
   if (Number(slotEl.dataset.side) !== me()) return;
 

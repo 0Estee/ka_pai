@@ -139,6 +139,16 @@ export function dealDamage(state, source, target, raw, opts = {}) {
     return 0;
   }
 
+  /**
+   * 「本回合国王无敌」（阵营超能力「庇佑」）：标记记在玩家对象上，只看本回合。
+   * 与单位无敌同口径：无视机制的伤害（淬毒）照样被挡，必中（unpreventable）穿透。
+   */
+  if (isKing && state.players[target.side].kingInvincibleTurn === state.turn
+      && !(opts && opts.unpreventable)) {
+    log(state, { type: 'damage-blocked', target: `king${target.side}`, raw: amount });
+    return 0;
+  }
+
   if (isKing) {
     const p = state.players[target.side];
     p.kingHp -= finalAmount;

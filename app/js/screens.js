@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.40.0';
+export const APP_VERSION = '0.41.0';
 
 function fmtDate(ts) {
   if (!ts) return '';

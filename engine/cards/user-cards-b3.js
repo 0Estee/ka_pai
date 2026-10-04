@@ -3263,4 +3263,134 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U403",
+    "name": "传教",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "god",
+    "text": "在场上召唤一个 上帝的信徒（选择一个位置）",
+    "actions": [
+      {
+        "op": "summon",
+        "cardId": "U407",
+        "prompt": "选择「上帝的信徒」的落点"
+      }
+    ]
+  },
+  {
+    "id": "U404",
+    "name": "圣经",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "god",
+    "text": "一名队友本回合获得无敌并+2生命，抽一张牌",
+    "actions": [
+      {
+        "op": "grantKeywordBuff",
+        "keyword": "invincible",
+        "untilTurnEnd": true,
+        "maxHp": 2,
+        "target": {
+          "kind": "chosenOwnUnit",
+          "filter": {
+            "spellTargetable": true
+          },
+          "prompt": "选择一名队友（本回合无敌，+2生命）"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U405",
+    "name": "庇佑",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "god",
+    "text": "所有友方单位和友方国王本回合获得无敌，抽一张牌",
+    "actions": [
+      {
+        "op": "grantKeyword",
+        "keyword": "invincible",
+        "untilTurnEnd": true,
+        "target": {
+          "kind": "allOwnUnits"
+        }
+      },
+      {
+        "op": "kingInvincible"
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U406",
+    "name": "祝福",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "god",
+    "text": "使一名队友获得祝福1，抽一张牌",
+    "actions": [
+      {
+        "op": "grantKeyword",
+        "keyword": "blessing",
+        "x": 1,
+        "target": {
+          "kind": "chosenOwnUnit",
+          "filter": {
+            "spellTargetable": true
+          },
+          "prompt": "选择一名队友（祝福1）"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U407",
+    "name": "上帝的信徒",
+    "type": "unit",
+    "cost": 3,
+    "atk": 2,
+    "hp": 4,
+    "token": true,
+    "faction": "god",
+    "keywords": [],
+    "text": "回合开始:所有队友获得+2生命，为友方国王回复2点生命",
+    "effects": [
+      {
+        "trigger": "onTurnStart",
+        "actions": [
+          {
+            "op": "buffMaxHp",
+            "amount": 2,
+            "target": {
+              "kind": "allOwnUnits"
+            }
+          },
+          {
+            "op": "heal",
+            "amount": 2,
+            "target": {
+              "kind": "ownKing"
+            }
+          }
+        ]
+      }
+    ]
+  },
 ];

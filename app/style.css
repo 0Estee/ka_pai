@@ -901,3 +901,27 @@ html, body {
   background: rgba(255, 150, 90, .85);
   color: #2a1a0a;
 }
+
+/* 召唤落点：不遮棋盘的底部选项条（作者 2026-10-04：召唤时直接在场上选一个位置放下） */
+.choice-bar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--menu-bg, rgba(24, 36, 62, .70));
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+.choice-bar .choice-title {
+  width: 100%;
+  font-size: 13px;
+  opacity: .92;
+}
+.choice-bar .choice-opt { padding: 6px 10px; border-radius: 8px; }

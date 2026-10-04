@@ -17,6 +17,7 @@ import { nextInt } from './rng.js';
 /** 已知阵营：key 存在卡牌定义的 faction 字段里，name 是界面上显示的名字 */
 export const FACTIONS = {
   demon: { key: 'demon', name: '恶魔' },
+  god: { key: 'god', name: '上帝' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */
@@ -88,9 +89,13 @@ export function checkSuperpowerThresholds(state, side) {
  * 「下个大回合开始时召唤」：只排队，不召唤。
  * 真正的召唤在 turns.js 的 onTurnStart（大回合开始的唯一时刻），保证只结算一次。
  */
-export function queueDelayedSummon(state, side, cardId, delay) {
+export function queueDelayedSummon(state, side, cardId, delay, spot) {
   if (!Array.isArray(state.delayedSummons)) state.delayedSummons = [];
   const d = Math.max(1, delay || 1);
-  state.delayedSummons.push({ side, cardId, atTurn: state.turn + d });
-  log(state, { type: 'delayed-summon', side, cardId, atTurn: state.turn + d });
+  // spot 是打出时就选好的落点（作者 2026-10-04：召唤时在场上选一个位置）。
+  // 到点时若那格被占，summonToken 会就近找合法格（findSummonSpot）。
+  const lane = spot && spot.lane ? spot.lane : undefined;
+  const row = spot && spot.row ? spot.row : 'front';
+  state.delayedSummons.push({ side, cardId, atTurn: state.turn + d, lane, row });
+  log(state, { type: 'delayed-summon', side, cardId, atTurn: state.turn + d, lane, row });
 }

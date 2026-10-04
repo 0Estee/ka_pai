@@ -108,7 +108,8 @@ document.addEventListener('click', (ev) => {
   // 回放中只允许操作控制条，不响应对局内的点击
   if (screen !== 'game') return;
   // 有挂起的交互请求时，棋盘一律不响应 —— 必须先把它答完
-  if (state && state.pending) return;
+  // 例外：召唤落点（summonCell）本来就要玩家点棋盘上的格子（作者 2026-10-04）
+  if (state && state.pending && state.pending.request.type !== 'summonCell') return;
   // 顺序要紧：国王在状态条里、单位在格子内部，必须先判断更内层的元素
   const kingEl = ev.target.closest('[data-king]');
   if (kingEl) {

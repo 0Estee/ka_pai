@@ -15,6 +15,7 @@ import { instantiateUnit } from '../src/setup.js';
 import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
 import { filterCtx, effectiveAtk, hasRooted } from '../src/auras.js';
 import { trapsOf, visibleMana } from '../src/board.js';
+import { dealDamage } from '../src/damage.js';
 import { LANES, ROWS } from '../src/constants.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -114,6 +115,16 @@ function cast(state, side, cardId, opts = {}) {
   forcePhase(state, side, 'spell');
   const hc = give(state, side, cardId);
   G.playCard(state, side, hc.iid, opts);
+  return state;
+}
+
+/** 应答「召唤落点」挂起（作者 2026-10-04：召唤时直接在场上的格子里选一个） */
+function answerSummonCell(state, lane, row) {
+  const rq = state.pending && state.pending.request;
+  assert.ok(rq && rq.type === 'summonCell', '应当挂起问召唤落点');
+  const idx = (rq.options || []).findIndex((o) => o.lane === lane && o.row === row);
+  assert.ok(idx >= 0, '这个格子必须是合法落点');
+  G.resolveChoice(state, { lane, row });
   return state;
 }
 
@@ -1298,26 +1309,122 @@ test('恶魔虚影（U402）：在场时每献祭一名友方单位 +2 攻击力
   assert.equal(G.sacrificeUnit(s, 0, fodder.uid), false, '已经死了的单位不能再献祭');
 });
 
-test('召唤仪式（U400）选项 0：下个大回合开始时才召唤', () => {
+test('召唤仪式（U400）选项 0：下个大回合开始时才召唤，落点在打出时就选好', () => {
   const s = game();
   cast(s, 0, 'U400');
+  answerSummonCell(s, 'plainL', 'front');
   assert.equal(s.delayedSummons.length, 1, '排队等下个大回合');
   assert.equal(s.delayedSummons[0].cardId, 'U402');
+  assert.equal(s.delayedSummons[0].lane, 'plainL', '落点在打出时就选好了');
   assert.ok(!hasUnit(s, 0, 'U402'), '现在还没上场');
   nextTurn(s);
   assert.equal(s.delayedSummons.length, 0, '已经结算过');
   assert.ok(hasUnit(s, 0, 'U402'), '大回合一开始就召唤出来了');
+  const u = s.board.plainL.units[0].front;
+  assert.ok(u && u.cardId === 'U402', '落在当时选好的格子上');
 });
 
 test('召唤仪式（U400）选项 1：国王扣 2 点生命，立刻召唤', () => {
   const s = game();
   s.chooser = (req) => (req.type === 'chooseOption' ? { index: 1 } : undefined);
   cast(s, 0, 'U400');
+  answerSummonCell(s, 'mountain', 'front');
   assert.equal(king(s, 0), 18, '国王扣 2 点生命');
   assert.ok(hasUnit(s, 0, 'U402'), '立刻上场');
   assert.equal(s.delayedSummons.length, 0, '没有排队');
 });
 
+// 
+group('16 上帝阵营与召唤落点（作者 2026-10-04，裁决 D73）');
+
+test('上帝阵营：开局各抽 1 张超能力，4 张非令牌 + 1 张令牌，且不进牌库', () => {
+  const s = game({ factions: ['god', 'god'] });
+  assert.equal(s.players[0].faction, 'god', '阵营写进玩家状态');
+  assert.equal(s.players[0].superpowers.length, 1, '开局抽 1 张');
+  assert.equal(s.players[1].superpowers.length, 1, '对手也抽 1 张');
+  const drawn = s.cardLib[s.players[0].superpowers[0]];
+  assert.equal(drawn.faction, 'god', '抽到的是本阵营的');
+  const all = Object.values(s.cardLib).filter((c) => c.faction === 'god');
+  assert.equal(all.filter((c) => !c.token).length, 4, '4 张非令牌超能力');
+  assert.equal(all.filter((c) => c.token).length, 1, '1 张令牌（上帝的信徒）');
+  const deck = buildTestDeck(80, 7);
+  assert.ok(!deck.some((id) => s.cardLib[id] && s.cardLib[id].faction), '超能力不进普通牌库');
+});
+
+test('传教（U403）：挂起问召唤落点，选中的格子才放人，且遵守地形', () => {
+  const s = game({ factions: ['god', 'god'] });
+  cast(s, 0, 'U403');
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'summonCell', '应当挂起问落点');
+  assert.equal(rq.side, 0, '问的是我方');
+  assert.ok(rq.noAuto, '真人这一侧要挂起等点选');
+  const cells = rq.options || [];
+  assert.ok(cells.some((o) => o.lane === 'plainL' && o.row === 'front'), '含具体格子');
+  assert.ok(!cells.some((o) => o.lane === 'water'), '信徒不会游泳，水路不在选项里');
+  G.resolveChoice(s, { lane: 'plainL', row: 'front' });
+  const u = s.board.plainL.units[0].front;
+  assert.ok(u && u.cardId === 'U407', '信徒落在选好的格子上');
+  assert.equal(u.atk, 2, '2 点攻击');
+  assert.equal(u.hp, 4, '4 点生命');
+});
+
+test('上帝的信徒（U407）：回合开始全队 +2 生命上限，并给国王回 2 血', () => {
+  const s = game({ factions: ['god', 'god'] });
+  cast(s, 0, 'U403');
+  G.resolveChoice(s, { lane: 'plainL', row: 'front' });
+  const cult = s.board.plainL.units[0].front;
+  forcePhase(s, 0, 'deploy');
+  const buddy = playUnit(s, 0, 'U242', 'mountain', 'front');
+  s.players[0].kingHp = 15;
+  nextTurn(s);
+  assert.equal(cult.maxHp, 6, '信徒自己也 +2');
+  assert.equal(buddy.maxHp, 5, '队友拳击手 3 变 5');
+  assert.equal(buddy.hp, 5, '加生命上限时那 2 点也一起加上');
+  assert.equal(s.players[0].kingHp, 17, '国王回 2 血');
+});
+
+test('圣经（U404）：同一个队友只问一次，给无敌并 +2 生命，再抽一张', () => {
+  const s = game({ factions: ['god', 'god'] });
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  let asked = 0;
+  const kinds = [];
+  s.chooser = (req) => { asked++; kinds.push(req.type); return req.type === 'chooseUnit' ? req.options[0] : undefined; };
+  const handBefore = s.players[0].hand.length;
+  cast(s, 0, 'U404');
+  assert.equal(asked, 1, '同一个队友只问一次');
+  assert.deepEqual(kinds, ['chooseUnit'], '问的就是选队友');
+  assert.ok(u.keywords.some((k) => k.id === 'invincible'), '获得无敌');
+  assert.equal(u.maxHp, 5, '+2 生命上限');
+  assert.equal(s.players[0].hand.length, handBefore + 1, '抽一张牌');
+});
+
+test('庇佑（U405）：友方单位与国王本回合无敌，下一回合失效', () => {
+  const s = game({ factions: ['god', 'god'] });
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U405');
+  assert.ok(u.keywords.some((k) => k.id === 'invincible'), '队友获得无敌');
+  assert.equal(dealDamage(s, null, { kind: 'unit', unit: u }, 3), 0, '无敌期间不掉血');
+  assert.equal(dealDamage(s, null, { kind: 'king', side: 0 }, 5), 0, '国王本回合免疫');
+  assert.equal(dealDamage(s, null, { kind: 'king', side: 0 }, 5, { unpreventable: true }), 5, '无视机制的伤害照样生效');
+  s.turn += 1;
+  assert.equal(dealDamage(s, null, { kind: 'king', side: 0 }, 5), 5, '下一回合不再免疫');
+});
+
+test('祝福（U406）：目标获得祝福 1，并抽一张', () => {
+  const s = game({ factions: ['god', 'god'] });
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  s.chooser = (req) => (req.type === 'chooseUnit' ? req.options[0] : undefined);
+  const handBefore = s.players[0].hand.length;
+  cast(s, 0, 'U406');
+  assert.ok(u.keywords.some((k) => k.id === 'blessing' && k.x === 1), '祝福 1 生效');
+  assert.equal(s.players[0].hand.length, handBefore + 1, '抽一张牌');
+});
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

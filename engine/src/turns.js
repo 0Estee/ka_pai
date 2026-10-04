@@ -131,7 +131,7 @@ export function onTurnStart(state) {
     const due = state.delayedSummons.filter((d) => d.atTurn <= state.turn);
     state.delayedSummons = state.delayedSummons.filter((d) => d.atTurn > state.turn);
     for (const d of due) {
-      apiFor(state).summonToken(state, { cardId: d.cardId, side: d.side, lane: undefined, row: 'front' });
+      apiFor(state).summonToken(state, { cardId: d.cardId, side: d.side, lane: d.lane, row: d.row || 'front' });
     }
   }
 

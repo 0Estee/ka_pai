@@ -26,7 +26,7 @@ import { execActions } from './effects.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
 import { isOver, getActor, checkGameOver } from './turns.js';
 import { flushTriggers, flushTriggersGen } from './choices.js';
-import { resolveHunt, canPlaceUnit } from './play.js';
+import { resolveHunt, canPlaceUnit, legalPlacements } from './play.js';
 
 // ══════════════════════════════════════════════════════════
 // 开战结算（规则书 §8）
@@ -385,6 +385,21 @@ export function collectAttackEvents(state, lane, unit, events) {
 
 export function apiFor(state) {
   return {
+    /**
+     * 召唤落点的合法格（作者 2026-10-04：召唤时由玩家在场上选一个位置放下）。
+     * 界面高亮格子与引擎生成选项列表共用这一份口径。
+     */
+    legalSummonCells(st, side, cardId) {
+      const def = st.cardLib[cardId];
+      if (!def) return [];
+      // 与普通放置共用同一份合法性（含地形「两栖 / 轻灵」判定），见 play.js 的 legalPlacements
+      return legalPlacements(st, side, def).map((p) => ({
+        lane: p.lane,
+        row: p.row,
+        label: `${LANE_NAME[p.lane]}-${p.row === 'front' ? '前排' : '后排'}`,
+      }));
+    },
+
     summonToken(st, { cardId, side, lane, row, modify }) {
       const def = st.cardLib[cardId];
       if (!def) throw new Error(`召唤失败：卡牌库缺少 ${cardId}`);

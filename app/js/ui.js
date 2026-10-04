@@ -167,8 +167,10 @@ function slotHTML(state, view, lane, side, row) {
   const mine = side === view.humanSide;
   // 只有自己的格子才可能被高亮为合法落点，否则对手的同名格会一起亮
   const isLegal = mine && view.legalSlots.some((p) => p.lane === lane && p.row === row);
+  // 召唤落点：挂起等玩家点格子时，合法格借「可放置」那套发光样式亮起来
+  const isSummonCell = mine && (view.legalSummonCells || []).some((c) => c.lane === lane && c.row === row);
   const isLaneTarget = mine && row === 'front' && view.legalLanes.includes(lane) && !unit;
-  const interactive = isLegal || isLaneTarget;
+  const interactive = isLegal || isLaneTarget || isSummonCell;
   const classes = [
     'slot',
     mine ? 'mine' : 'foe',

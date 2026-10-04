@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-node engine/test/smoke.mjs     # 跑规则回归测试（重建中，当前 37 个）
+node engine/test/smoke.mjs     # 跑规则回归测试（当前 102 个）
 ```
 
 ```js
@@ -417,7 +417,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**96 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**102 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长
@@ -434,6 +434,9 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 - 光环（拷问官授予扎根并减攻、密命王牌孤立加攻）—— 读取时叠加，离场即失效
 - 国王附着被动（战略纵深）、数值修改（骨折）、受伤过滤器（斩杀）
 - 胜负判定：国王归零、同时归零平局、30 回合上限、牌库抽空比血量
+- 阵营与超能力（恶魔 / 上帝）：开局各抽 1 张、国王血量 15/9/3 阈值各一张；「令」字是令牌，不进抽取池
+- 召唤时选落点（裁决 D73）：`summon` / `delayedSummon` 没写死落点时挂起 `{ type: 'summonCell', side, options }`，
+  答案就是选项本身（`{ lane, row }`）；AI 侧取第一个合法格，界面是不遮棋盘的底部条
 
 ## 仍未实现 / 待你裁决
 
