@@ -62,6 +62,10 @@ function setTheme(theme) {
 const FACTION_TAGLINE = {
   demon: '献祭自己的单位换取力量：更疼的伤害、更高的攻击力',
   god: '稳扎稳打：无敌、治疗与祝福，让队友站得住',
+  sword: '一套连招打到底：穿透、额外攻击与成吨的伤害',
+  music: '用光环与音波削弱全场：全体 -1/-1，越打越弱',
+  science: '攒钱拍科技：费用越滚越多，锦囊还能再放一次',
+  divine: '守护国王：替伤、治疗，并把敌人的攻击力永久清零',
 };
 
 function factionOptions() {

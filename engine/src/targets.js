@@ -54,7 +54,7 @@ export function askHumanFor(state, ctx, selector) {
  *
  * ctx 中可用：source / controller / chosenLane / chosenTargetUid
  */
-export function* resolveTargets(state, ctx, selector) {
+function* resolveTargetsInner(state, ctx, selector) {
   if (!selector) return [];
   const { controller: me, source } = ctx;
   const foe = 1 - me;
@@ -155,6 +155,23 @@ export function* resolveTargets(state, ctx, selector) {
       return [asUnit(best)];
     }
 
+    /**
+     * 复用**同一个**已选定的目标（actions.js 的 compound op 专用；卡牌「二式剑心」：
+     * 一名队友攻击力设为4 + 额外攻击一次，两件事打的是同一个人）。
+     *
+     * 与 chosenEnemyUnit 等选择器的区别：这里**永远不发起新的交互**，
+     * 目标由父动作选好之后写进子动作的 ctx（chosenTargetUid / chosenTargetIsKing）。
+     * 拿不到目标就返回空数组，子动作自然整段跳过。
+     */
+    case 'compoundTarget': {
+      if (ctx.chosenTargetIsKing) {
+        return ctx.chosenTargetKingSide === undefined ? [] : [asKing(ctx.chosenTargetKingSide)];
+      }
+      if (ctx.chosenTargetUid == null) return [];
+      const picked = allUnits(state).find((u) => u.uid === ctx.chosenTargetUid);
+      return picked && !picked.removed ? [asUnit(picked)] : [];
+    }
+
     case 'chosenEnemyUnit':
     case 'chosenOwnUnit':
     // 卡面写「一个单位」没说敌我（第3补给营）
@@ -249,6 +266,16 @@ export function* resolveTargets(state, ctx, selector) {
       return picked ? [asUnit(picked)] : [];
     }
 
+    /**
+     * 触发事件里被指向的那个单位（键名 unit / played / victim 都认）。
+     * 「友方单位打出时:随机使其获得+1攻击力或+1生命」（科学令牌「新兴研究」U421 的国王被动）
+     * 用得上：国王的被动没有来源单位，目标只能由触发方塞进 payload。
+     */
+    case 'payloadUnit': {
+      const u = ctx.payload && (ctx.payload.unit || ctx.payload.played || ctx.payload.victim);
+      return u && !u.removed ? [asUnit(u)] : [];
+    }
+
     default:
       throw new Error(`未知的目标选择器: ${selector.kind}`);
   }
@@ -264,3 +291,23 @@ function* requireLane(ctx, selector) {
   };
   ctx.chosenLane = answer.lane;
 }
+
+/**
+ * 对外的目标解析入口：只是把 resolveTargetsInner 的结果抄一份到 ctx.spellTargets 上。
+ *
+ * 有什么用：音乐阵营超能力「和弦」U416 是**在手牌中**的被动  「有敌方单位成为锦囊牌的
+ * 目标时使其-1攻击力-1生命」。锦囊的目标是在这里解析出来的，所以只有这一条公共入口
+ * 才能把所有解析路径（点选 / 范围 / 最低血量 / 国王选项）一网打尽。
+ * 只在 ctx.spellTargets 存在时记录  那个数组由 play.js 的锦囊结算入口创建，
+ * 所以单位异能的解析不会误记成「锦囊的目标」。
+ */
+export function* resolveTargets(state, ctx, selector) {
+  const out = yield* resolveTargetsInner(state, ctx, selector);
+  if (ctx && Array.isArray(ctx.spellTargets)) {
+    for (const t of out) {
+      if (t.kind === 'unit' && t.unit.side !== ctx.controller) ctx.spellTargets.push(t.unit);
+    }
+  }
+  return out;
+}
+

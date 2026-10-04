@@ -26,6 +26,7 @@ export const asKing = (side) => ({ kind: 'king', side });
  * 动态数值：`amount` 不再只能是裸数字。
  *
  *   { perOwnUnit: 2 }           己方场上单位数 × 2      （力量光波、宝藏）
+ *   { perEnemyUnit: 1 }       敌方场上单位数 * 1    （万剑归宗）
  *   { perAllUnits: 1 }          场上**双方**单位总数 × 1 （石中剑）
  *   { perKeywordOfTarget: 1 }   目标的词条数 × 1        （第3补给营）
  *   { perKeywordOfTarget: { id:'combo', per: 1 } }      只看某个词条
@@ -50,6 +51,11 @@ function resolveAmountBase(state, ctx, amount, target) {
   const ownCount = () => allUnits(state).filter((u) => u.side === me).length;
 
   if (amount.perOwnUnit !== undefined) return amount.perOwnUnit * ownCount();
+  /** 场上**敌方**单位数 * N（卡牌「万剑归宗」：对敌方单位造成的伤害 = 敌方单位数） */
+  if (amount.perEnemyUnit !== undefined) {
+    const foeCount = allUnits(state).filter((u) => u.side !== me).length;
+    return amount.perEnemyUnit * foeCount;
+  }
   if (amount.perAllUnits !== undefined) return amount.perAllUnits * allUnits(state).length;
   if (amount.perKeywordOfTarget !== undefined) {
     const u = target && target.unit;

@@ -16,7 +16,7 @@ import {
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
+import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { instantiateUnit, probeFromDef } from './setup.js';
 import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
@@ -40,7 +40,16 @@ export function costOf(state, handCard) {
   if (!handCard) return 0;
   const def = state.cardLib[handCard.cardId];
   if (!def) return 0;
-  return Math.max(0, def.cost + (handCard.costDelta || 0));
+  // 这张手牌实例此刻挂在谁手上  「永久减费」与「按使用次数涨费」读的是那一方的账
+  let owner = null;
+  for (const p of state.players) {
+    if (p.hand && p.hand.indexOf(handCard) >= 0) { owner = p; break; }
+  }
+  // 永久减费（科学令牌「新兴研究」U421）：写在这一方身上，本局剩下的时间都有效
+  const handDelta = owner ? (owner.handCostDelta || 0) : 0;
+  // 按「本局这张牌被用过几次」涨费（剑道令牌「连斩」U410：第 1 张不加费，之后每张 +1）
+  const perUse = def.perUseCost && owner ? (owner.usedCount[def.id] || 0) * def.perUseCost : 0;
+  return Math.max(0, def.cost + (handCard.costDelta || 0) + handDelta + perUse);
 }
 
 /**
@@ -159,6 +168,8 @@ export function playCard(state, side, iid, opts = {}) {
   p.hand.splice(idx, 1);
   p.mana -= cost;
   state.stats.cardsPlayed++;
+  // 「本局这张牌被用过几次」（剑道令牌「连斩」按次数涨费，见 costOf 的 perUseCost）
+  p.usedCount[def.id] = (p.usedCount[def.id] || 0) + 1;
 
   // 「在手牌中:在你出牌时…」（卡牌「黑龙」）—— 打出任意一张牌时，
   // 手上带这条异能的牌先结算一次。放在「移出手牌之后」，
@@ -249,7 +260,12 @@ export function playCard(state, side, iid, opts = {}) {
     M.log(state, { type: 'cast', cardId: def.id, name: def.name, side, lane: ctx.chosenLane });
     // 「对方打出锦囊牌时:」（卡牌「拳击手」「苍耳」）
     notifyEnemyCastSpell(state, def, side);
-    driveGenerator(state, execActions(state, ctx, def.actions || []));
+    // 打出锦囊期间的记账（科学超能力「克隆」U419 要重新结算「上一张锦囊」）：
+    //   currentSpell 在执行期间指向这一张，用来挡「克隆自己克隆自己」的死循环。
+    p.currentSpell = def.id;
+    driveGenerator(state, runSpellWithWatchers(state, ctx, def));
+    p.lastSpell = def.id;
+    p.currentSpell = null;
   }
 
   flushTriggers(state);
@@ -257,8 +273,53 @@ export function playCard(state, side, iid, opts = {}) {
   // 「轻灵」是状态检查：任何生命变动之后都要复检（血量掉到一半以下可能在水路淹死）
   M.checkAllNimble(state);
   flushTriggers(state);
+  syncStatAuras(state);
   checkGameOver(state);
   return state;
+}
+
+/**
+ * 锦囊的结算入口：把「锦囊自己的效果」与「在手牌中的响应」串成**同一条 generator**。
+ *
+ * 为什么要串在一条链上：锦囊中途可能挂起问人（选目标 / 选线路），这时候整条 generator
+ * 被存进 state.pending.gen。若把在手牌响应写在 playCard 的调用点之后，挂起恢复时那一步
+ * 永远不会被跑到；串进同一条链就自然接得上，顺序也确定 = 锦囊效果完全结算完，再看手牌响应。
+ */
+function* runSpellWithWatchers(state, ctx, def) {
+  // targets.js 的 resolveTargets 会把「本次锦囊选中的敌方单位」灌进来（见那里的包装）
+  ctx.spellTargets = [];
+  yield* execActions(state, ctx, def.actions || []);
+  yield* applyInHandSpellWatchers(state, ctx);
+}
+
+/**
+ * 「在手牌中时:有敌方单位成为锦囊牌的目标，则使其-1攻击力-1生命」
+ * （音乐阵营超能力「和弦」U416，作者 2026-10 口径）。
+ *
+ * 发动不花费用（它本来就在 playCard 流程里，不走 playCard），但要有和打出锦囊一样的提示：
+ * 所以照常写一条 in-hand-trigger 日志，界面按它弹和 cast 同一个展示。
+ * 目标是 ctx.spellTargets（范围选择器也算成为目标；每张锦囊各触发一次，可叠加）。
+ * 自己打自己的那一次不算  这张牌在结算前已经移出手牌了。
+ */
+function* applyInHandSpellWatchers(state, ctx) {
+  const side = ctx.controller;
+  const hit = [];
+  for (const u of ctx.spellTargets || []) {
+    if (u && !u.removed && hit.indexOf(u) < 0) hit.push(u);
+  }
+  if (hit.length === 0) return;
+  for (const handCard of state.players[side].hand.slice()) {
+    const wdef = state.cardLib[handCard.cardId];
+    if (!wdef || !wdef.inHandSpellTarget) continue;
+    const atk = wdef.inHandSpellTarget.atk || 0;
+    const maxHp = wdef.inHandSpellTarget.maxHp || 0;
+    for (const u of hit) {
+      if (u.removed) continue;
+      if (atk) M.buffAtk(state, u, atk);
+      if (maxHp) M.debuffMaxHp(state, u, -maxHp);
+    }
+    M.log(state, { type: 'in-hand-trigger', cardId: wdef.id, name: wdef.name, side, uids: hit.map((u) => u.uid) });
+  }
 }
 
 /** 「有队友被打出时:」的观察者（卡牌「人间大炮」） */
@@ -268,9 +329,13 @@ export function notifyAllyPlayed(state, played, side) {
     if (!(u.effects || []).some((e) => e.trigger === 'onAllyPlayed')) continue;
     M.queueTrigger(state, u, 'onAllyPlayed', { played });
   }
+  // 国王的「友方单位打出时:」被动（科学令牌「新兴研究」U421）：国王不是单位，
+  // 挂不了单位异能，只能走国王触发表（queueKingTrigger），payload 带上被派出的那个单位。
+  M.queueKingTrigger(state, side, 'onAllyPlayed', { played });
 }
 
 /** 「对方打出锦囊牌时:」的观察者（卡牌「拳击手」加身材、「苍耳」反伤） */
+
 export function notifyEnemyCastSpell(state, def, casterSide) {
   for (const u of M.allUnits(state)) {
     if (u.removed || u.side === casterSide) continue;

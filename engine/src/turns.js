@@ -21,7 +21,7 @@ import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
 import { giveStartingSuperpowers } from './factions.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
+import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { runCombat, apiFor } from './combat.js';
 import { returnExpiredTraps, expireRevealedTraps, sacrificeUnitOnBoard } from './board.js';
@@ -135,6 +135,14 @@ export function onTurnStart(state) {
     }
   }
 
+  // 「下个回合开始时抽一张牌」（阵营超能力「前沿科技」）：与延迟召唤同族，
+  // 紧挨着兑现，保证顺序固定、联机锁步与回放不会分叉。
+  if (Array.isArray(state.delayedDraws) && state.delayedDraws.length) {
+    const drawDue = state.delayedDraws.filter((d) => d.atTurn <= state.turn);
+    state.delayedDraws = state.delayedDraws.filter((d) => d.atTurn > state.turn);
+    for (const d of drawDue) M.drawCards(state, d.side, d.n || 1);
+  }
+
   // 上回合遗留效果（淬毒 / 疾病）—— 裁决 B8：回合开始、费用重置那一刻结算
   resolveMarks(state);
 
@@ -157,6 +165,10 @@ export function onTurnStart(state) {
       M.queueTrigger(state, unit, 'onTurnStart', { turn: state.turn });
     }
   }
+
+  // 「在场」式属性光环的幂等对账（卡牌「降噪耳机」）。放在回合开始的最后：
+  // 此刻棋盘已经是本回合的形态，跟下一个「敌方单位进场/离场」的时机之间没有空隙。
+  syncStatAuras(state);
 }
 
 export function onTurnEnd(state) {
@@ -280,7 +292,7 @@ export function checkGameOver(state) {
  */
 export function sacrificeUnit(state, side, uid) {
   const ok = sacrificeUnitOnBoard(state, side, uid);
-  if (ok) flushTriggers(state);
+  if (ok) { flushTriggers(state); syncStatAuras(state); }
   return ok;
 }
 

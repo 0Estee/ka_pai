@@ -3393,4 +3393,499 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U408",
+    "name": "一式·刀客",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "sword",
+    "text": "选择一名队友：使其获得穿透 2 并 +1 攻击力。",
+    "actions": [
+      {
+        "op": "grantKeywordBuff",
+        "keyword": "pierce",
+        "x": 2,
+        "atk": 1,
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U409",
+    "name": "回刃",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "sword",
+    "text": "召唤一张「连斩」加入手牌，并为友方国王回复 1 点生命。",
+    "actions": [
+      {
+        "op": "summonToHand",
+        "cardId": "U410"
+      },
+      {
+        "op": "heal",
+        "amount": 1,
+        "target": {
+          "kind": "ownKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U410",
+    "name": "连斩",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 0,
+    "faction": "sword",
+    "token": true,
+    "perUseCost": 1,
+    "text": "造成 2 点伤害，并召唤一张「回刃」加入手牌。本局友方每使用过一张「连斩」，这张牌的花费 +1。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "chosenEnemyTarget",
+          "prompt": "「连斩」要打谁？"
+        }
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U409"
+      }
+    ]
+  },
+  {
+    "id": "U411",
+    "name": "二式·剑心",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "sword",
+    "text": "选择一名队友：其攻击力设为 4，并额外攻击一次；抽一张牌。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "setStats",
+            "atk": 4,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "extraAttack",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U412",
+    "name": "终式·万剑归宗",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "sword",
+    "text": "对所有敌人造成等于场上敌方单位数量的伤害；对敌方国王造成等于场上友方单位数量的伤害；抽一张牌。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": {
+          "perEnemyUnit": 1
+        },
+        "target": {
+          "kind": "allEnemyUnits"
+        }
+      },
+      {
+        "op": "damage",
+        "amount": {
+          "perOwnUnit": 1
+        },
+        "target": {
+          "kind": "enemyKing"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U413",
+    "name": "回旋曲",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "music",
+    "text": "选择一名敌人：其 -2 攻击力 -2 生命；选择并移动一名队友；抽一张牌。",
+    "actions": [
+      {
+        "op": "modifyStats",
+        "atk": -2,
+        "maxHp": -2,
+        "target": {
+          "kind": "chosenEnemyTarget",
+          "allowKing": false,
+          "prompt": "选择一名敌人"
+        }
+      },
+      {
+        "op": "move",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "prompt": "把队友移到哪条线路"
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U414",
+    "name": "超重低音",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "music",
+    "text": "造成 3 点伤害；所有敌方单位 -2 攻击力 -2 生命。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 3,
+        "target": {
+          "kind": "chosenEnemyTarget",
+          "prompt": "选择目标"
+        }
+      },
+      {
+        "op": "modifyStats",
+        "atk": -2,
+        "maxHp": -2,
+        "target": {
+          "kind": "allEnemyUnits"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U415",
+    "name": "降噪耳机",
+    "type": "unit",
+    "cost": 1,
+    "atk": 2,
+    "hp": 3,
+    "faction": "music",
+    "keywords": [],
+    "text": "在场：所有敌方单位 -1 攻击力 -1 生命。",
+    "auras": [
+      {
+        "kind": "buffAtk",
+        "amount": -1,
+        "to": "allEnemies"
+      },
+      {
+        "kind": "buffMaxHp",
+        "amount": -1,
+        "to": "allEnemies"
+      }
+    ]
+  },
+  {
+    "id": "U416",
+    "name": "和弦",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "music",
+    "inHandSpellTarget": {
+      "atk": -1,
+      "maxHp": -1
+    },
+    "text": "选择一名敌人：其 -1 攻击力 -1 生命。在手牌中：有敌方单位成为锦囊牌的目标时，使其 -1 攻击力 -1 生命。",
+    "actions": [
+      {
+        "op": "modifyStats",
+        "atk": -1,
+        "maxHp": -1,
+        "target": {
+          "kind": "chosenEnemyTarget",
+          "allowKing": false,
+          "prompt": "选择一名敌人"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U417",
+    "name": "反应堆",
+    "type": "unit",
+    "cost": 1,
+    "atk": 0,
+    "hp": 1,
+    "faction": "science",
+    "keywords": [
+      "combo"
+    ],
+    "text": "组合。回合开始：友方 +1 费用。被消灭：对这条线上的所有敌方单位造成 4 点伤害。",
+    "effects": [
+      {
+        "trigger": "onTurnStart",
+        "actions": [
+          {
+            "op": "gainMana",
+            "amount": 1
+          }
+        ]
+      },
+      {
+        "trigger": "onDeath",
+        "actions": [
+          {
+            "op": "damage",
+            "amount": 4,
+            "target": {
+              "kind": "allEnemyUnitsInLane"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U418",
+    "name": "博士",
+    "type": "unit",
+    "cost": 1,
+    "atk": 2,
+    "hp": 1,
+    "faction": "science",
+    "keywords": [
+      "spellImmune"
+    ],
+    "text": "锦囊免疫。回合开始：抽一张牌。",
+    "effects": [
+      {
+        "trigger": "onTurnStart",
+        "actions": [
+          {
+            "op": "draw",
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U419",
+    "name": "克隆",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "science",
+    "text": "触发你使用的上一张锦囊牌的效果；抽一张牌。",
+    "actions": [
+      {
+        "op": "repeatLastSpell"
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U420",
+    "name": "前沿科技",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "science",
+    "text": "召唤一张「新兴研究」加入手牌；下个回合开始时抽一张牌。",
+    "actions": [
+      {
+        "op": "summonToHand",
+        "cardId": "U421"
+      },
+      {
+        "op": "delayedDraw",
+        "n": 1,
+        "delay": 1
+      }
+    ]
+  },
+  {
+    "id": "U421",
+    "name": "新兴研究",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 4,
+    "faction": "science",
+    "token": true,
+    "text": "友方手中卡牌花费 -1。友方单位打出时：随机使其获得 +1 攻击力或 +1 生命。",
+    "actions": [
+      {
+        "op": "permanentHandCost",
+        "amount": -1,
+        "side": "controller"
+      },
+      {
+        "op": "attachKingEffect",
+        "side": "controller",
+        "effects": [
+          {
+            "trigger": "onAllyPlayed",
+            "actions": [
+              {
+                "op": "randomOne",
+                "options": [
+                  {
+                    "actions": [
+                      {
+                        "op": "buffAtk",
+                        "amount": 1,
+                        "target": {
+                          "kind": "payloadUnit"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "actions": [
+                      {
+                        "op": "buffMaxHp",
+                        "amount": 1,
+                        "target": {
+                          "kind": "payloadUnit"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U422",
+    "name": "神使",
+    "type": "unit",
+    "cost": 1,
+    "atk": 1,
+    "hp": 4,
+    "faction": "divine",
+    "keywords": [
+      "armor:1"
+    ],
+    "kingGuard": true,
+    "text": "装甲 1。替友方国王承受伤害。回合开始：获得 +1 装甲。",
+    "effects": [
+      {
+        "trigger": "onTurnStart",
+        "actions": [
+          {
+            "op": "buffKeywordX",
+            "keyword": "armor",
+            "x": 1,
+            "target": {
+              "kind": "self"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U423",
+    "name": "祈祷",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "divine",
+    "text": "友方国王本回合每次受伤 -2；为友方国王回复 3 点生命。",
+    "actions": [
+      {
+        "op": "kingDamageReduce",
+        "amount": 2,
+        "side": "controller"
+      },
+      {
+        "op": "heal",
+        "amount": 3,
+        "target": {
+          "kind": "ownKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U424",
+    "name": "诅咒",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "divine",
+    "text": "选择一名敌人：将其攻击力永久设为 0（本局内无法再被加成提升）；抽一张牌。",
+    "actions": [
+      {
+        "op": "lockAtk",
+        "value": 0,
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "prompt": "选择一名敌人"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U425",
+    "name": "神罚",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "divine",
+    "text": "将所有攻击力大于等于 3 的敌人的攻击力永久设为 0。",
+    "actions": [
+      {
+        "op": "lockAtk",
+        "value": 0,
+        "target": {
+          "kind": "allEnemyUnits",
+          "filter": {
+            "minAtk": 3
+          }
+        }
+      }
+    ]
+  },
 ];

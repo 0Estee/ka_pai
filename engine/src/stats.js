@@ -108,8 +108,38 @@ export function revokeKeyword(state, unit, keywordId) {
   return true;
 }
 
+/**
+ * 把一只单位的攻击力**永久锁死**（卡牌「诅咒」「神罚」）。
+ *
+ * 作者 2026-10 口径：永久设为 0 = 本局剩下的时间内不能通过加成提升攻击力，攻击力只能为 0。
+ * 所以不只是把 atk 写成 0，还在 unit.atkLocked 上留一个标记，
+ * 让所有改攻击力的通道（buffAtk / setUnitStats）全部让路。
+ */
+export function lockAtk(state, unit, value = 0) {
+  if (!unit || unit.removed) return;
+  unit.atk = Math.max(0, value);
+  unit.atkLocked = Math.max(0, value);
+  log(state, { type: 'atk-locked', uid: unit.uid, atk: unit.atk });
+}
+
+/**
+ * 调整某个**已有词条的数量** x，没有就新加一个（卡牌「神使：回合开始:获得+1装甲」）。
+ *
+ * 为什么不直接用 grantKeyword：那个遇到同名已有词条会**直接返回 false**（同名词条不叠加），
+ * 而作者口径「+1装甲」要的正是把装甲的 X 加 1。
+ */
+export function buffKeywordX(state, unit, keywordId, delta = 1) {
+  if (!unit || unit.removed || !delta) return;
+  const existing = (unit.keywords || []).find((k) => k.id === keywordId);
+  if (existing) existing.x = Math.max(0, (existing.x || 0) + delta);
+  else unit.keywords.push({ id: keywordId, x: Math.max(0, delta) });
+  log(state, { type: 'buff-keyword-x', uid: unit.uid, keyword: keywordId, delta, x: existing ? existing.x : Math.max(0, delta) });
+}
+
 export function buffAtk(state, unit, amount) {
   if (!unit || unit.removed) return;
+  /** 被「永久设为0」锁死的单位不再接受任何攻击力加成（卡牌「诅咒」「神罚」） */
+  if (unit.atkLocked !== undefined && unit.atkLocked !== null) return;
   unit.atk = Math.max(0, unit.atk + amount);
   log(state, { type: 'buff-atk', uid: unit.uid, amount, atk: unit.atk });
 }

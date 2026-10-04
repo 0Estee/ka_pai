@@ -15,10 +15,12 @@ import {
   drawCards, gainMana, gainManaCap, laneUnits, allUnitsInLane, allUnits, log, freezeUnit,
   canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
   sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword, transformUnit,
+  buffKeywordX, lockAtk,
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
 import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
 import { queueDelayedSummon } from './factions.js';
+import { nextInt } from './rng.js';
 
 /**
  * 召唤落点的询问（作者 2026-10-04：召唤时直接在场上选一个位置放下）。
@@ -642,6 +644,7 @@ export function* execAction(state, ctx, action) {
             { untilTurn: action.untilTurnEnd ? state.turn : null });
         }
         if (action.maxHp) buffMaxHp(state, t.unit, resolveAmount(state, ctx, action.maxHp, t));
+        if (action.atk) buffAtk(state, t.unit, resolveAmount(state, ctx, action.atk, t));
       }
       break;
     }
@@ -679,6 +682,125 @@ export function* execAction(state, ctx, action) {
           keepStats: !!action.preserveStats,
         });
       }
+      break;
+    }
+
+    /**
+     * 「重复你上一张打出的锦囊牌的效果」（科学阵营超能力「克隆」U419）。
+     *
+     * 读 state.players[me].lastSpell：play.js 在锦囊**结算完成后**才把它记成刚打出的这张，
+     * 所以结算期间读到的正是上一张。防自我递归：上一张就是当前这张（克隆套克隆）时直接跳过，
+     * 否则会无限套娃。子效果按作者口径**重新选目标**（不继承上一张的选择）。
+     */
+    case 'repeatLastSpell': {
+      const p = state.players[me];
+      const prevId = p.lastSpell;
+      if (!prevId || prevId === p.currentSpell) break;
+      const prevDef = state.cardLib && state.cardLib[prevId];
+      if (!prevDef || prevDef.type === 'unit') break;
+      // 防死循环第二道：上一张自己就是「克隆」类效果时不再往上一层套
+      // （否则 克隆 -> 克隆 -> 克隆 ... 无限递归）
+      if (JSON.stringify(prevDef.actions || []).indexOf('repeatLastSpell') >= 0) break;
+      const sub = { ...ctx, source: null, chosenTargetUid: null, chosenTargetIsKing: false, card: prevDef };
+      yield* execActions(state, sub, prevDef.actions || []);
+      break;
+    }
+
+    /**
+     * 「把几件事作用在**同一个**目标上」（剑道阵营超能力「二式剑心」U411：
+     * 一名队友攻击力设为4 + 额外攻击一次 + 抽一张牌）。
+     *
+     * 为什么需要：每个 op 各自解析目标，拆开写会让玩家把同一个队友选三次。
+     * 父动作先选一次，把 uid 抄进子 ctx；子动作的 target 必须写
+     * `{ kind: compoundTarget }`  那个选择器只读 ctx、永不发起新的交互。
+     */
+    case 'compound': {
+      const picked = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenEnemyTarget' });
+      if (picked.length === 0) break;
+      const first = picked[0];
+      const sub = {
+        ...ctx,
+        chosenTargetUid: first.kind === 'unit' ? first.unit.uid : null,
+        chosenTargetIsKing: first.kind === 'king',
+        chosenTargetKingSide: first.kind === 'king' ? first.side : undefined,
+      };
+      yield* execActions(state, sub, action.actions || []);
+      break;
+    }
+
+    /**
+     * 「下个回合开始时抽一张牌」（科学阵营超能力「前沿科技」U420）。
+     * 与 delayedSummon 同族：记在 state.delayedDraws 上，由 turns.js 的 onTurnStart 兑现
+     * （兑现点就在延迟召唤旁边，保证两边顺序一致、联机锁步不会分叉）。
+     */
+    case 'delayedDraw': {
+      const side = resolveSide(action.side, me);
+      const n = action.n || 1;
+      const delay = action.delay === undefined ? 1 : action.delay;
+      if (!state.delayedDraws) state.delayedDraws = [];
+      state.delayedDraws.push({ side, n, atTurn: state.turn + delay });
+      break;
+    }
+
+    /**
+     * 「随机获得 A 或 B」（科学令牌「新兴研究」U421）。
+     * options 里每一项是一组 actions（也可以是裸 actions 数组），用 state.rng 抽一组 
+     * 走 rng 才能让联机锁步与回放重放出同一个结果。
+     */
+    case 'randomOne': {
+      const options = action.options || [];
+      if (options.length === 0) break;
+      const pick = options[nextInt(state.rng, options.length)];
+      yield* execActions(state, ctx, pick.actions || pick);
+      break;
+    }
+
+    /**
+     * 「友方手中卡牌-1花费」**永久**（本局剩下的时间）的手牌费用修正，
+     * 记在玩家对象上（科学令牌「新兴研究」，做成国王被动后由它调用）。
+     */
+    case 'permanentHandCost': {
+      const side = resolveSide(action.side, me);
+      const amount = action.amount === undefined ? -1 : action.amount;
+      state.players[side].handCostDelta = (state.players[side].handCostDelta || 0) + amount;
+      break;
+    }
+
+    /**
+     * 「获得+1装甲」= 把装甲词条的 X 加 1（神佑阵营超能力「神使」，作者 2026-10-04 口径）。
+     * 不能直接用 grantKeyword  遇到已有同名会被拒，而同名的「+1」正是要叠加。
+     */
+    case 'buffKeywordX': {
+      const targets = yield* resolveTargets(state, ctx, action.target || { kind: 'self' });
+      for (const t of targets) {
+        if (t.kind !== 'unit' || t.unit.removed) continue;
+        buffKeywordX(state, t.unit, action.keyword, action.x === undefined ? 1 : action.x);
+      }
+      break;
+    }
+
+    /**
+     * 把攻击力**永久设为 0**（神佑阵营超能力「诅咒」「神罚」）。
+     * 作者口径：本局剩下的时间内不能通过任何加成提升攻击力，攻击力只能为 0。
+     * 所以走 lockAtk（留 unit.atkLocked 标记），不是简单的 setStats。
+     */
+    case 'lockAtk': {
+      const targets = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenEnemyUnit' });
+      for (const t of targets) {
+        if (t.kind !== 'unit' || t.unit.removed) continue;
+        lockAtk(state, t.unit, action.value === undefined ? 0 : action.value);
+      }
+      break;
+    }
+
+    /**
+     * 「友方国王本回合每次受伤-2」（神佑阵营超能力「祈祷」U423）。
+     * 记在玩家对象上、按回合失效，不是一次性消耗  一次施放管本回合的每一次受伤。
+     * damage.js 的国王分支读它（先扣减、再看神使转移）。
+     */
+    case 'kingDamageReduce': {
+      const side = resolveSide(action.side, me);
+      state.players[side].kingDamageReduce = { amount: action.amount || 0, turn: state.turn };
       break;
     }
 

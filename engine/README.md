@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-node engine/test/smoke.mjs     # 跑规则回归测试（当前 102 个）
+node engine/test/smoke.mjs     # 跑规则回归测试（当前 124 个）
 ```
 
 ```js
@@ -417,7 +417,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**102 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**124 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长

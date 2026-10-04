@@ -23,7 +23,7 @@ import {
 } from './damage.js';
 import {
   grantKeyword, expireTimedKeywords, sealUnit, isSealed, revokeKeyword, returnCardsToDeck,
-  buffAtk, buffMaxHp, drawCards, gainManaCap, gainMana, transformUnit,
+  buffAtk, buffMaxHp, drawCards, gainManaCap, gainMana, transformUnit, lockAtk, buffKeywordX,
 } from './stats.js';
 
 export {
@@ -32,6 +32,6 @@ export {
   destroyUnit, vanishUnit, dealDamage, queueTrigger, queueKingTrigger, healUnit, healKing,
   damageCapFor, addDamageCap, freezeUnit, consumeFreeze, checkNimble, checkAllNimble,
   grantKeyword, expireTimedKeywords, sealUnit, isSealed, revokeKeyword, returnCardsToDeck,
-  buffAtk, buffMaxHp, debuffMaxHp, setUnitStats, advanceStatStep, drawCards, gainManaCap, gainMana,
+  buffAtk, buffMaxHp, debuffMaxHp, setUnitStats, advanceStatStep, drawCards, gainManaCap, gainMana, lockAtk, buffKeywordX,
   transformUnit,
 };

@@ -18,6 +18,11 @@ import { nextInt } from './rng.js';
 export const FACTIONS = {
   demon: { key: 'demon', name: '恶魔' },
   god: { key: 'god', name: '上帝' },
+  // 作者 2026-10-04 给的第二批四大阵营（各 4 张非令牌超能力，卡 id U408~U425）
+  sword: { key: 'sword', name: '剑道' },
+  music: { key: 'music', name: '音乐' },
+  science: { key: 'science', name: '科学' },
+  divine: { key: 'divine', name: '神佑' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */

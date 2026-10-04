@@ -16,7 +16,7 @@
  */
 
 import { ADJACENT_LANES } from './constants.js';
-import { allUnits } from './mechanics.js';
+import { allUnits, buffMaxHp, debuffMaxHp } from './mechanics.js';
 import { hasKw } from './keywords.js';
 
 /**
@@ -279,4 +279,47 @@ export function filterCtx(state, source) {
     isRooted: (u) => hasRooted(state, u),
     source,
   };
+}
+/**
+ * 「在场」式**属性光环**的物化同步（卡牌「降噪耳机：在场:所有敌方单位-1攻击力-1生命」）。
+ *
+ * 为什么要物化：攻击力那一半是**读取时**算的（auraAtkDelta + effectiveAtk），
+ * 但 maxHp / hp 是**存下来的数值**，没有读取时叠加的余地，只能真的改上去。
+ * 所以这里做成**幂等对账**：
+ *   want = 当前所有生效中的 buffMaxHp 光环对该单位的总和（被封印记 0，与 auraAtkDelta 一致）
+ *   have = unit.auraMaxHp（上一次已经施加到身上的量）
+ *   diff = want - have，少了就补、多了就还回去，最后把 auraMaxHp 记成 want
+ * 于是光环来源一进场，敌方全场的生命上限与当前生命立刻 -1（1 血的当场阵亡）；
+ * 来源一离场，还活着的单位把这一份还回来（已阵亡的不复活）。
+ *
+ * 物化的是「光环给的 maxHp/hp 修正」，与 buffAtk 那条读取时通道互不重叠，不会重复计算。
+ * 调用点：凡是会改变单位集合的流程跑完一轮后都要调一次
+ * （play.js 的 playCard / damage.js 的 dealDamage / combat.js 的 summonToken 与 runCombat /
+ *   turns.js 的 onTurnStart 与 sacrificeUnit）。
+ */
+export function syncStatAuras(state) {
+  if (state._syncingAuras) return;
+  state._syncingAuras = true;
+  try {
+    for (const unit of allUnits(state)) {
+      if (unit.removed) continue;
+      let want = 0;
+      if (!unit.sealed && !isSealedByAura(state, unit)) {
+        for (const { source, aura } of liveAuras(state)) {
+          if (aura.kind !== 'buffMaxHp') continue;
+          if (!appliesTo(state, source, aura, unit)) continue;
+          want += aura.amount || 0;
+        }
+      }
+      const have = unit.auraMaxHp || 0;
+      const diff = want - have;
+      if (diff === 0) continue;
+      if (diff > 0) buffMaxHp(state, unit, diff);
+      else debuffMaxHp(state, unit, -diff);
+      if (unit.removed) continue;
+      unit.auraMaxHp = want;
+    }
+  } finally {
+    state._syncingAuras = false;
+  }
 }

@@ -52,6 +52,23 @@ export function makePlayer(side, faction = null) {
     superpowers: [],
     // 已经触发过的国王血量阈值（15 / 9 / 3 各一张，只触发一次）
     spThresholds: {},
+    /**
+     * 本局**这张牌被用过几次**（key = cardId，各方各算自己的）。
+     * 「连斩」按这个涨费用：本局每用过一张连斩，这张牌 +1 花费。
+     * 与 entries 的区别：entries 记「进场次数」（单位），这里记「使用次数」（含锦囊）。
+     */
+    usedCount: {},
+    /** 「友方手中卡牌-1花费」这类**永久**手牌费用修正（卡牌「新兴研究」），负数 = 减费 */
+    handCostDelta: 0,
+    /**
+     * 上一张打出的锦囊 / 当前正在结算的锦囊（卡牌「克隆」要重复上一张的效果）。
+     * play.js 在锦囊**结算完成后**才把 lastSpell 记成本次这张，
+     * 所以结算期间 lastSpell 仍是上一张、currentSpell 是本次这张（防自我递归）。
+     */
+    lastSpell: null,
+    currentSpell: null,
+    /** 「友方国王本回合每次受伤-N」（卡牌「祈祷」）：{ amount, turn }，按回合失效 */
+    kingDamageReduce: null,
   };
 }
 
@@ -131,6 +148,8 @@ export function createGame(cfg = {}) {
     damageCaps: [],
     // 「下个大回合开始时召唤」的排队（阵营超能力「召唤仪式」）
     delayedSummons: [],
+    /** 「下个回合开始时抽牌」（卡牌「前沿科技」）：[{ side, n, atTurn }] */
+    delayedDraws: [],
     // 「拟定目标攻击」的指定结果：{ [uid]: {uid} | {king:true, side} }
     combatPlans: {},
     // 本回合已经问过选目标的单位（先制 + 追击共用第一次的答案，不重复问）

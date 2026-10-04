@@ -13,7 +13,7 @@ import * as G from '../src/engine.js';
 import * as M from '../src/mechanics.js';
 import { instantiateUnit } from '../src/setup.js';
 import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
-import { filterCtx, effectiveAtk, hasRooted } from '../src/auras.js';
+import { filterCtx, effectiveAtk, hasRooted, syncStatAuras } from '../src/auras.js';
 import { trapsOf, visibleMana } from '../src/board.js';
 import { dealDamage } from '../src/damage.js';
 import { LANES, ROWS } from '../src/constants.js';
@@ -1425,6 +1425,302 @@ test('祝福（U406）：目标获得祝福 1，并抽一张', () => {
   assert.ok(u.keywords.some((k) => k.id === 'blessing' && k.x === 1), '祝福 1 生效');
   assert.equal(s.players[0].hand.length, handBefore + 1, '抽一张牌');
 });
+//
+group('17 四大阵营：剑道 / 音乐 / 科学 / 神佑（作者 2026-10-04，裁决 D74）');
+//
+
+const NEW_FACTIONS = {
+  sword: ['U408', 'U409', 'U411', 'U412'],
+  music: ['U413', 'U414', 'U415', 'U416'],
+  science: ['U417', 'U418', 'U419', 'U420'],
+  divine: ['U422', 'U423', 'U424', 'U425'],
+};
+
+test('四大阵营：每阵营 4 张非令牌超能力，开局各抽 1 张，不进牌库', () => {
+  for (const key of Object.keys(NEW_FACTIONS)) {
+    const want = NEW_FACTIONS[key];
+    const s = game({ factions: [key, key] });
+    for (const side of [0, 1]) {
+      const p = s.players[side];
+      assert.equal(p.superpowers.length, 1, key + ' 开局抽 1 张');
+      assert.ok(want.indexOf(p.superpowers[0]) >= 0, key + ' 抽到本阵营非令牌：' + p.superpowers[0]);
+      assert.ok(p.hand.some((c) => c.cardId === p.superpowers[0]), '抽到的牌进手牌');
+    }
+    const all = Object.values(s.cardLib).filter((c) => c.faction === key);
+    assert.equal(all.filter((c) => !c.token).length, 4, key + ' 4 张非令牌');
+    assert.ok(!DECKABLE_CARDS.some((c) => c.faction), '带阵营的牌不进牌库');
+  }
+});
+
+test('新阵营的国王血量掉过 15 / 9 / 3 各抽一张，合计 4 张不重复', () => {
+  const s = game({ factions: ['science', null] });
+  const p = s.players[0];
+  const hit = (n) => dealDamage(s, null, { kind: 'king', side: 0 }, n);
+  assert.equal(p.superpowers.length, 1, '开局 1 张');
+  hit(6);
+  assert.equal(p.superpowers.length, 2, '20 -> 14，掉过 15');
+  hit(6);
+  assert.equal(p.superpowers.length, 3, '14 -> 8，掉过 9');
+  hit(6);
+  assert.equal(p.superpowers.length, 4, '8 -> 2，掉过 3');
+  hit(1);
+  assert.equal(p.superpowers.length, 4, '同一个阈值只生效一次');
+  assert.equal(new Set(p.superpowers).size, 4, '不会重复抽');
+  assert.equal(s.players[1].superpowers.length, 0, '没有阵营就没有超能力');
+});
+
+test('没选阵营就不抽超能力', () => {
+  const s = game({ factions: [null, null] });
+  assert.equal(s.players[0].superpowers.length, 0);
+  assert.equal(s.players[1].superpowers.length, 0);
+});
+
+test('U408 刀客：一名队友获得穿透 2 并 +1 攻击力', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  const atkBefore = u.atk;
+  s.chooser = (req) => (req.type === 'chooseUnit' ? { uid: u.uid } : undefined);
+  cast(s, 0, 'U408');
+  const pierce = u.keywords.find((k) => k.id === 'pierce');
+  assert.ok(pierce && pierce.x === 2, '拿到穿透 2');
+  assert.equal(u.atk, atkBefore + 1, '+1 攻击力');
+});
+
+test('U409 回刃：把连斩放进手牌，并给自己的国王回 1 点', () => {
+  const s = game();
+  s.players[0].kingHp = 15;
+  const before = s.players[0].hand.length;
+  cast(s, 0, 'U409');
+  assert.equal(s.players[0].hand.length, before + 1, '手牌里多一张');
+  assert.ok(s.players[0].hand.some((c) => c.cardId === 'U410'), '给的是连斩');
+  assert.equal(king(s, 0), 16, '国王回 1 点');
+});
+
+test('U410 连斩：每用过一张就 +1 花费，打出后召唤一张回刃', () => {
+  const s = game();
+  forcePhase(s, 0, 'spell');
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  s.chooser = (req) => {
+    if (req.type !== 'chooseUnit') return undefined;
+    const o = (req.options || []).find((x) => x.uid === foe.uid);
+    return o ? { uid: o.uid } : undefined;
+  };
+  const h1 = give(s, 0, 'U410');
+  assert.equal(G.costOf(s, h1), 0, '第一张 0 费');
+  G.playCard(s, 0, h1.iid);
+  assert.equal(foe.maxHp - foe.hp, 2, '造成 2 点伤害');
+  assert.ok(s.players[0].hand.some((c) => c.cardId === 'U409'), '召唤一张回刃进手牌');
+  const h2 = give(s, 0, 'U410');
+  assert.equal(G.costOf(s, h2), 1, '用过一张后 +1 花费');
+});
+
+test('U411 剑心：同一个队友只问一次，攻击力设为 4 并额外攻击一次', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  let asked = 0;
+  s.chooser = (req) => {
+    asked++;
+    return req.type === 'chooseUnit' ? { uid: u.uid } : undefined;
+  };
+  const handBefore = s.players[0].hand.length;
+  cast(s, 0, 'U411');
+  assert.equal(asked, 1, '同一个队友只问一次');
+  assert.equal(u.atk, 4, '攻击力设为 4');
+  assert.equal(foe.maxHp - foe.hp, 4, '额外攻击一次（用 4 点的攻击力打对面前排）');
+  assert.equal(s.players[0].hand.length, handBefore + 1, '抽一张牌');
+});
+
+test('U412 万剑归宗：按敌方单位数打全体敌人，按友方单位数打敌方国王', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  playUnit(s, 0, 'W04', 'plainR', 'front');
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  forcePhase(s, 0, 'spell');
+  const handBefore = s.players[0].hand.length;
+  cast(s, 0, 'U412');
+  assert.equal(a.maxHp - a.hp, 2, '敌方 2 个单位，每个吃 2 点');
+  assert.equal(b.maxHp - b.hp, 2, '另一条线的也吃 2 点');
+  assert.equal(king(s, 1), 19, '友方 1 个单位，敌方国王吃 1 点');
+  assert.equal(s.players[0].hand.length, handBefore + 1, '抽一张牌');
+});
+
+test('U414 超重低音：点选一个目标打 3 点，所有敌方单位 -2 攻击力 -2 生命', () => {
+  const s = game();
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  forcePhase(s, 0, 'spell');
+  s.chooser = (req) => (req.type === 'chooseUnit' ? { uid: a.uid } : undefined);
+  cast(s, 0, 'U414');
+  assert.equal(a.maxHp - a.hp, 3, '被点名的吃 3 点（再加全体 -2 生命已含在上限里）');
+  assert.equal(a.maxHp, 4, '生命上限 -2');
+  assert.equal(a.atk, 3, '攻击力 -2');
+  assert.equal(b.maxHp, 4, '未被点名的也 -2 生命上限');
+  assert.equal(b.hp, 4, '当前生命一起降');
+  assert.equal(b.atk, 3, '也 -2 攻击力');
+});
+
+test('U415 降噪耳机：在场时所有敌方单位 -1 攻击力 -1 生命上限，1 血单位当场阵亡，离场后还回来', () => {
+  const s = game();
+  const tough = deploy(s, 1, 'W04', 'mountain', 'front');
+  const weak = deploy(s, 1, 'W02', 'plainL', 'front');
+  assert.equal(weak.hp, 1, 'W02 是 1 血');
+  forcePhase(s, 0, 'deploy');
+  const headset = playUnit(s, 0, 'U415', 'plainR', 'front');
+  assert.equal(effectiveAtk(s, tough), 4, '敌方 -1 攻击力');
+  assert.equal(tough.maxHp, 5, '敌方 -1 生命上限');
+  assert.equal(tough.hp, 5, '当前生命一起降');
+  assert.equal(at(s, 'plainL', 1, 'front'), null, '1 血单位被压到 0，当场阵亡');
+  G.sacrificeUnit(s, 0, headset.uid);
+  syncStatAuras(s);
+  assert.equal(effectiveAtk(s, tough), 5, '光环撞掉后攻击力还回来');
+  assert.equal(tough.maxHp, 6, '生命上限也还回来');
+});
+
+test('U416 和弦：在手牌中让被锦囊选中的敌人 -1 攻击力 -1 生命，不花费用', () => {
+  const s = game();
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  give(s, 0, 'U416');
+  s.chooser = (req) => (req.type === 'chooseUnit' ? { uid: foe.uid } : undefined);
+  const manaBefore = s.players[0].mana;
+  const hc = give(s, 0, 'U410');
+  G.playCard(s, 0, hc.iid);
+  assert.equal(foe.maxHp - foe.hp, 2, '连斩打出 2 点');
+  assert.equal(foe.atk, 4, '手里的和弦跟着 -1 攻击力');
+  assert.equal(foe.maxHp, 5, '并 -1 生命上限');
+  assert.equal(s.players[0].mana, manaBefore, '和弦在手牌里发动不花费用');
+  assert.ok(s.log.some((e) => e.type === 'in-hand-trigger'), '要写日志，界面好弹一样的横幅');
+});
+
+test('U417 反应堆：回合开始给友方 +1 费用', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  playUnit(s, 0, 'U417', 'mountain', 'front');
+  nextTurn(s);
+  assert.equal(s.players[0].mana, s.players[0].manaCap + 1, '费用回满后再 +1');
+});
+
+test('U417 反应堆：被消灭时对这条线上的敌方单位造成 4 点', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  const r = playUnit(s, 0, 'U417', 'mountain', 'front');
+  const foe1 = deploy(s, 1, 'W04', 'mountain', 'front');
+  const foe2 = deploy(s, 1, 'W04', 'water', 'front');
+  assert.equal(dealDamage(s, null, { kind: 'unit', unit: r }, 1), 1, '1 血打死');
+  G.flushTriggers(s);
+  assert.equal(foe1.maxHp - foe1.hp, 4, '同线路的敌人吃 4 点');
+  assert.equal(foe2.maxHp - foe2.hp, 0, '别的线路不挨打');
+});
+
+test('U418 博士：带锦囊免疫，回合开始抽一张牌', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  const d = playUnit(s, 0, 'U418', 'mountain', 'front');
+  assert.ok(d.keywords.some((k) => k.id === 'spellImmune'), '带锦囊免疫');
+  const before = s.players[0].hand.length;
+  nextTurn(s);
+  assert.equal(s.players[0].hand.length, before + 2, '回合开始抽一张');
+});
+
+test('U419 克隆：重复你上一张锦囊的效果，并抽一张牌', () => {
+  const s = game();
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U398');
+  assert.equal(a.maxHp - a.hp, 2, '第一张打 2 点');
+  assert.equal(king(s, 1), 18, '敌方国王也 2 点');
+  const before = s.players[0].hand.length;
+  cast(s, 0, 'U419');
+  assert.equal(a.maxHp - a.hp, 4, '克隆又打了一次');
+  assert.equal(king(s, 1), 16, '敌方国王又吃 2 点');
+  assert.equal(s.players[0].hand.length, before + 1, '克隆自己还要抽一张');
+});
+
+test('U419 克隆：上一张也是克隆时不再套娃', () => {
+  const s = game();
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U419');
+  const before = s.players[0].hand.length;
+  cast(s, 0, 'U419');
+  assert.equal(s.players[0].hand.length, before + 1, '只抽自己那一张，没有无限套娃');
+});
+
+test('U420 前沿科技：把新兴研究放进手牌，下个回合开始时再抽一张', () => {
+  const s = game();
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U420');
+  assert.ok(s.players[0].hand.some((c) => c.cardId === 'U421'), '新兴研究进了手牌');
+  assert.ok(!s.players[0].hand.some((c) => c.cardId === 'U420'), '自己已经打出去了');
+  const before = s.players[0].hand.length;
+  nextTurn(s);
+  assert.equal(s.players[0].hand.length, before + 2, '下个回合开始时抽一张');
+});
+
+test('U421 新兴研究：友方手牌永久 -1 费用，打出的友方单位随机 +1 攻击力或 +1 生命', () => {
+  const s = game();
+  forcePhase(s, 0, 'spell');
+  const hc = give(s, 0, 'U242');
+  const costBefore = G.costOf(s, hc);
+  cast(s, 0, 'U421');
+  assert.equal(G.costOf(s, hc), Math.max(0, costBefore - 1), '手牌永久 -1 费用');
+  forcePhase(s, 0, 'deploy');
+  const u = playUnit(s, 0, 'U242', 'mountain', 'front');
+  assert.ok(u.atk === 3 || u.maxHp === 4, '随机拿到 +1 攻击力或 +1 生命');
+});
+
+test('U422 神使：替国王承受伤害，回合开始装甲 +1', () => {
+  const s = game();
+  forcePhase(s, 0, 'deploy');
+  const g1 = playUnit(s, 0, 'U422', 'mountain', 'front');
+  assert.equal(g1.atk, 1);
+  assert.equal(g1.maxHp, 4);
+  dealDamage(s, null, { kind: 'king', side: 0 }, 3);
+  assert.equal(king(s, 0), 20, '国王一点血不掉');
+  assert.equal(g1.maxHp - g1.hp, 2, '神使顶上（装甲 1 挡掉 1 点）');
+  nextTurn(s);
+  assert.equal(g1.keywords.find((k) => k.id === 'armor').x, 2, '回合开始装甲 +1');
+});
+
+test('U423 祈祷：本回合国王每次受伤 -2，并回复 3 点，下回合失效', () => {
+  const s = game();
+  s.players[0].kingHp = 15;
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U423');
+  assert.equal(king(s, 0), 18, '回复 3 点（15 + 3）');
+  dealDamage(s, null, { kind: 'king', side: 0 }, 5);
+  assert.equal(king(s, 0), 15, '这一下 5 点被减到 3 点');
+  s.turn += 1;
+  dealDamage(s, null, { kind: 'king', side: 0 }, 5);
+  assert.equal(king(s, 0), 10, '下一回合不再减免，实吃 5 点');
+});
+
+test('U424 诅咒：一名敌人的攻击力永久设为 0，之后的加成也无效', () => {
+  const s = game();
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  forcePhase(s, 0, 'spell');
+  s.chooser = (req) => (req.type === 'chooseUnit' ? { uid: foe.uid } : undefined);
+  cast(s, 0, 'U424');
+  assert.equal(foe.atk, 0, '攻击力被设为 0');
+  M.buffAtk(s, foe, 3);
+  assert.equal(foe.atk, 0, '之后再怎么加也还是 0');
+});
+
+test('U425 神罚：攻击力 3 或以上的敌人被永久设为 0，其余不动', () => {
+  const s = game();
+  const big = deploy(s, 1, 'W04', 'mountain', 'front');
+  const small = deploy(s, 1, 'W02', 'water', 'front');
+  forcePhase(s, 0, 'spell');
+  cast(s, 0, 'U425');
+  assert.equal(big.atk, 0, '5 攻的被打成 0');
+  assert.equal(small.atk, 2, '2 攻的不受影响');
+});
+
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

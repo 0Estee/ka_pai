@@ -16,7 +16,7 @@ import { chance, shuffle } from './rng.js';
 //  这一句让 damage  auras 多一条边（auras  mechanics  damage 本来就有环）。
 //   项目规矩是「环里只放函数声明、不要放加载期求值的顶层 const」
 //   这里只用到一个函数，且只在调用期使用，ESM 与打包器都安全。
-import { isSealedByAura } from './auras.js';
+import { isSealedByAura, syncStatAuras } from './auras.js';
 import {
   log, findUnit, laneUnits, allUnitsInLane, allUnits, enemyFrontUnit, enemyCombatTarget,
   findBodyguard, removeUnitFromBoard, destroyUnit, canMoveTo, moveUnitToLane, bounceUnit, trapsOf,
@@ -70,7 +70,7 @@ export function consumeFreeze(state, units) {
  *
  * 返回实际造成的伤害值。
  */
-export function dealDamage(state, source, target, raw, opts = {}) {
+function dealDamageCore(state, source, target, raw, opts = {}) {
   if (raw <= 0) return 0;
 
   // ── 「为后方的单位承受伤害」（卡牌「伪装土堆」）：伤害改由同线路前排的代收者吃下。
@@ -94,7 +94,8 @@ export function dealDamage(state, source, target, raw, opts = {}) {
    */
   if (target && target.kind === 'unit' && !opts.noUntargetable
       && isUntargetable(target.unit) && source !== target.unit) {
-    // source 可能是 null（环境伤害 / 无来源），所以这里不能直接读 source.side\n    log(state, { type: 'untargetable-block', uid: target.unit.uid, from: source ? source.side : null, amount: raw });
+    // source 可能是 null（环境伤害 / 无来源），所以这里不能直接读 source.side
+    log(state, { type: 'untargetable-block', uid: target.unit.uid, from: source ? source.side : null, amount: raw });
     return 0;
   }
 
@@ -151,13 +152,36 @@ export function dealDamage(state, source, target, raw, opts = {}) {
 
   if (isKing) {
     const p = state.players[target.side];
-    p.kingHp -= finalAmount;
-    log(state, { type: 'king-damage', side: target.side, amount: finalAmount, hp: p.kingHp, source: source ? source.uid : null });
+    /**
+     * 「友方国王本回合每次受伤-2」（神佑超能力「祈祷」U423）：先扣减。
+     * 作者 2026-10 口径明确：祈祷的 -2 **先扣**，再看「神使」转不转移。
+     */
+    let kingAmount = finalAmount;
+    const reduce = p.kingDamageReduce;
+    if (reduce && reduce.turn === state.turn && !(opts && opts.unpreventable)) {
+      const after = Math.max(0, kingAmount - (reduce.amount || 0));
+      if (after !== kingAmount) {
+        log(state, { type: 'king-damage-reduced', side: target.side, from: kingAmount, to: after });
+        kingAmount = after;
+      }
+    }
+    /**
+     * 「替友方国王承受伤害」（神佑超能力「神使」U422）：场上血量最低的那个神使顶上去。
+     * noRedirect 传下去防循环（转移出去的那一次不能再被转一次）。
+     */
+    const guard = opts.noRedirect ? null : findKingGuard(state, target.side);
+    if (guard && kingAmount > 0) {
+      log(state, { type: 'king-guard', side: target.side, uid: guard.uid, amount: kingAmount });
+      dealDamage(state, source, { kind: 'unit', unit: guard }, kingAmount, { ...opts, noRedirect: true });
+      return 0;
+    }
+    p.kingHp -= kingAmount;
+    log(state, { type: 'king-damage', side: target.side, amount: kingAmount, hp: p.kingHp, source: source ? source.uid : null });
 
     // 「造成伤害:」异能**包括对国王造成伤害**（作者确认，规则书 §1 已同步修订）。
     // 「淬毒」现在**也能挂到国王身上**（作者 2026-10 要求）；「疾病」仍然不触发（国王不是单位）。
     if (source && !opts.noKeywords) {
-      onDealtDamage(state, source, null, finalAmount, { kingSide: target.side });
+      onDealtDamage(state, source, null, kingAmount, { kingSide: target.side });
     }
     // 阵营超能力：国王血量掉到 15 / 9 / 3 以下时各抽一张（作者 2026-10-03）。
     // 不放在上面的 source 判断里  自己对自己造成的伤害（召唤仪式）也该照抽。
@@ -357,7 +381,9 @@ export function debuffMaxHp(state, unit, amount) {
  */
 export function setUnitStats(state, unit, { hp, maxHp, atk }) {
   if (!unit || unit.removed) return;
-  if (atk !== undefined) unit.atk = Math.max(0, atk);
+  /** 被「永久设为0」锁死的单位：攻击力只能是 0（卡牌「诅咒」「神罚」，见 stats.js 的 lockAtk） */
+  if (atk !== undefined && unit.atkLocked === undefined) unit.atk = Math.max(0, atk);
+  if (atk !== undefined && unit.atkLocked !== undefined) unit.atk = unit.atkLocked;
   if (maxHp !== undefined) unit.maxHp = Math.max(0, maxHp);
   if (hp !== undefined) unit.hp = hp;
   if (unit.hp > unit.maxHp) unit.hp = unit.maxHp;
@@ -440,3 +466,36 @@ function triggerTrapOnDamage(state, source, target) {
   }
   return null;
 }
+
+/**
+ * 「替友方国王承受伤害」（神佑超能力「神使」U422）：找一个还在场上的神使。
+ * 作者口径：由**生命最低**的那一张顶伤害；血量相同按 uid 稳定取舍（联机锁步要确定性）。
+ */
+function findKingGuard(state, side) {
+  let best = null;
+  for (const u of allUnits(state)) {
+    if (u.removed || u.side !== side) continue;
+    const def = state.cardLib[u.cardId];
+    if (!def || !def.kingGuard) continue;
+    if (!best || u.hp < best.hp || (u.hp === best.hp && u.uid < best.uid)) best = u;
+  }
+  return best;
+}
+
+let _damageDepth = 0;
+
+/**
+ * 造成伤害的**对外入口**：包一层 depth 计数，只在最外层退出时同步一次光环物化的数值
+ * （「降噪耳机」这类「在场:所有敌方单位-1生命上限」的光环，生命上限是存储值，只能物化对账）。
+ * 内部递归（荆棘 / 溅射 / 转移）不会重复同步。
+ */
+export function dealDamage(state, source, target, raw, opts = {}) {
+  _damageDepth++;
+  try {
+    return dealDamageCore(state, source, target, raw, opts);
+  } finally {
+    _damageDepth--;
+    if (_damageDepth === 0) syncStatAuras(state);
+  }
+}
+

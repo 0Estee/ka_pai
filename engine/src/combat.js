@@ -21,7 +21,7 @@ import {
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
+import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
 import { isOver, getActor, checkGameOver } from './turns.js';
@@ -44,6 +44,8 @@ export function* runCombat(state) {
     checkGameOver(state);
   }
   M.log(state, { type: 'combat-end' });
+  // 开战期间可能有单位被打死（光环来源离场）或新单位落地，光环物化的数值要重新对账
+  syncStatAuras(state);
 }
 
 /** 「战斗开始前 / 开战回合」的触发（逐线路） */
@@ -421,6 +423,7 @@ export function apiFor(state) {
       M.queueTrigger(st, unit, 'onPlay', {});
       M.queueTrigger(st, unit, 'onEnterLane', { from: null, lane: spot.lane });
       resolveHunt(st, unit);
+      syncStatAuras(st);
       return unit;
     },
 

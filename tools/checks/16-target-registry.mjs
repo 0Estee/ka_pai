@@ -62,7 +62,7 @@ function bodyEnd(text, start, nextAnchor) {
  *   要么被 analyzeSpell 显式处理（需要玩家点选的那些）。
  */
 check('引擎支持的每个 target.kind 都被界面登记为「需选择」或「无需选择」', () => {
-  const RESOLVE_ANCHOR = 'export function* resolveTargets';
+  const RESOLVE_ANCHOR = 'function* resolveTargets';
   const EXEC_ANCHOR = 'export function* execActions';
   const engine = findSourceFile(path.join(ROOT, 'engine', 'src'), RESOLVE_ANCHOR);
   const a = engine.text.indexOf(RESOLVE_ANCHOR);
