@@ -17,7 +17,9 @@
 
 $ErrorActionPreference = 'Continue'
 
-$ROOT   = 'E:\ka_pai'
+$ROOT   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+# 资产目录显式传给测试：它的默认值按工作目录推导，在 tools/netserver 下会指错。
+$assets = Join-Path $ROOT 'app'
 $JDK    = 'C:\Program Files\Java\jdk-21'
 $SRC    = Join-Path $ROOT 'android\app\java'
 $TESTSRC = Join-Path $ROOT 'tools\netserver'
@@ -58,7 +60,7 @@ try {
   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
   # stdout.encoding 必须显式指定：JDK 18+ 的 java 默认按控制台代码页（本机 GBK）
   # 写 stdout，只设置 [Console]::OutputEncoding 不够，中文断言名照样是乱码。
-  & "$JDK\bin\java.exe" '-Dfile.encoding=UTF-8' '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -cp $OUT DesktopTest
+  & "$JDK\bin\java.exe" '-Dfile.encoding=UTF-8' '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' "-Dassets=$assets" -cp $OUT DesktopTest
   $code = $LASTEXITCODE
 } finally {
   [Console]::OutputEncoding = $prevEnc

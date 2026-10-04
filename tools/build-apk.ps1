@@ -12,13 +12,13 @@
 # 产物: dist\ka-pai-<version>.apk
 
 param(
-  [string]$SdkRoot = 'E:\ka_pai\.toolchain\sdk',
+  [string]$SdkRoot = '',
   [string]$JdkHome = 'C:\Program Files\Java\jdk-21',
   [string]$BuildToolsVersion = '34.0.0',
   [string]$Platform = 'android-34',
   [string]$VersionName = '0.44.0',
   [int]$VersionCode = 45,
-[int]$MinSdk = 24,
+  [int]$MinSdk = 24,
   [int]$TargetSdk = 34,
   [string]$KeystorePass = 'kapai123',
   [string]$KeystoreAlias = 'kapai',
@@ -32,7 +32,11 @@ param(
 # 于是脚本会在编译成功之后照样中断。每个外部命令后面都显式检查 $LASTEXITCODE。
 $ErrorActionPreference = 'Continue'
 
-$ROOT      = 'E:\ka_pai'
+# 仓库根按脚本自身位置推导（tools/ 的上一级）。写死 E: 盘那个绝对路径的话，
+# 别人克隆下来构建会指到不存在的目录。
+$ROOT      = Split-Path -Parent $PSScriptRoot
+# 工具链默认装在仓库下的 .toolchain（tools/setup-android-sdk.ps1 就装在那里）。
+if (-not $SdkRoot) { $SdkRoot = Join-Path (Join-Path $ROOT '.toolchain') 'sdk' }
 $APP       = Join-Path $ROOT 'app'
 $ANDROID   = Join-Path $ROOT 'android'
 $APPROOT   = Join-Path $ANDROID 'app'

@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class DesktopTest {
 
-    private static final String ASSET_ROOT = "E:\\ka_pai\\app";
+    private static final String ASSET_ROOT = System.getProperty("assets", new File(System.getProperty("user.dir"), "app").getAbsolutePath());
 
     private static int passed = 0;
     private static int failed = 0;

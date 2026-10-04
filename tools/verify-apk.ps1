@@ -18,8 +18,11 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-$ROOT = 'E:\ka_pai'
+$ROOT = Split-Path -Parent $PSScriptRoot
 $WORK = Join-Path $ROOT '.verify-apk'
+# 预览页要用 file:// 打开，所以得把工作目录拼成绝对 URL。
+# 不要写死 file:///E:/... ：换台机器或换个目录就会指向不存在的文件。
+$workUrl = 'file:///' + $WORK.Replace([string][char]92, '/')
 $SHOTS = Join-Path $ROOT 'shots'
 
 if (-not $Apk) {
@@ -211,24 +214,24 @@ if (-not (Test-Path $SHOTS)) { New-Item -ItemType Directory -Force -Path $SHOTS 
 $shot = Join-Path $ROOT 'tools\screenshot.ps1'
 
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html" `
+  -Url "$workUrl/_frame.html" `
   -Out (Join-Path $SHOTS '30-apk-home.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
 if (Test-Path (Join-Path $SHOTS '30-apk-home.png')) { Pass '首页已渲染' } else { Fail '首页渲染失败' }
 
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fturn%3D3" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fturn%3D3" `
   -Out (Join-Path $SHOTS '31-apk-midgame.png') -Width 460 -Height 900 -Budget 3000 | Out-Null
 if (Test-Path (Join-Path $SHOTS '31-apk-midgame.png')) { Pass '中局画面已渲染' } else { Fail '中局画面渲染失败' }
 
 # 浅色首页：一次性验证 screens.css 与主题变量都真的进了 APK
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fscreen%3Dhome%26theme%3Dlight" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fscreen%3Dhome%26theme%3Dlight" `
   -Out (Join-Path $SHOTS '32-apk-home-light.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
 if (Test-Path (Join-Path $SHOTS '32-apk-home-light.png')) { Pass '浅色首页已渲染（screens.css + 主题变量生效）' } else { Fail '浅色首页渲染失败' }
 
 # 玻璃首页：第三个外观选项（作者 2026-10），验证磨砂玻璃主题也真的进了 APK
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fscreen%3Dhome%26theme%3Dglass" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fscreen%3Dhome%26theme%3Dglass" `
   -Out (Join-Path $SHOTS '36-apk-home-glass.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
 if (Test-Path (Join-Path $SHOTS '36-apk-home-glass.png')) { Pass '玻璃首页已渲染（磨砂玻璃主题生效）' } else { Fail '玻璃首页渲染失败' }
 
@@ -256,7 +259,7 @@ function Get-ProbeTitle($url) {
 #      变量 `$base?demo`（不存在 → 空串），URL 退化成 `=nav`，Chrome 直接去搜索。
 #      所以必须写 `"${base}?demo=nav"`。
 #   2) 这里必须是真正的 `?`，不能写成 %3F —— %3F 只在 iframe 的 src 属性里才会被解码。
-$base = 'file:///E:/ka_pai/.verify-apk/_preview.html'
+$base = $workUrl + '/_preview.html'
 $probes = @(
   @{ name = '开始游戏 → AI 对决 → 开始对战（真的能开局）'
      url  = "${base}?demo=nav"
@@ -277,13 +280,13 @@ foreach ($pr in $probes) {
 
 # 顺手留下三张能看的图
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fscreen%3Ddifficulty" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fscreen%3Ddifficulty" `
   -Out (Join-Path $SHOTS '33-apk-difficulty.png') -Width 460 -Height 900 -Budget 2500 | Out-Null
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fdemo%3Dnav" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fdemo%3Dnav" `
   -Out (Join-Path $SHOTS '34-apk-ai-start.png') -Width 460 -Height 900 -Budget 3000 | Out-Null
 & powershell -ExecutionPolicy Bypass -File $shot `
-  -Url "file:///E:/ka_pai/.verify-apk/_frame.html?src=_preview.html%3Fdemo%3Dunitinfo" `
+  -Url "$workUrl/_frame.html?src=_preview.html%3Fdemo%3Dunitinfo" `
   -Out (Join-Path $SHOTS '35-apk-unitinfo.png') -Width 460 -Height 900 -Budget 4000 | Out-Null
 Pass '已输出 shots\33-apk-difficulty.png / 34-apk-ai-start.png / 35-apk-unitinfo.png'
 

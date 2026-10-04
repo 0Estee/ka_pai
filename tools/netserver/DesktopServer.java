@@ -28,14 +28,14 @@ import java.util.Map;
  *
  * 用法：
  *   java -cp &lt;classes&gt; netserver.DesktopServer [房间名] [主机名]
- *   java ... -Dassets=E:\ka_pai\app netserver.DesktopServer
+ *   java ... -Dassets=<仓库根>\app netserver.DesktopServer
  */
 public final class DesktopServer {
 
     public static void main(String[] args) throws Exception {
         String room = args.length > 0 ? args[0] : "卡牌对决";
         String host = args.length > 1 ? args[1] : "桌面主机";
-        String assetRoot = System.getProperty("assets", "E:\\ka_pai\\app");
+        String assetRoot = System.getProperty("assets", new File(System.getProperty("user.dir"), "app").getAbsolutePath());
 
         AssetSource assets = new FileAssetSource(new File(assetRoot));
         HttpGameServer server = new HttpGameServer(assets, room, host);
@@ -72,7 +72,7 @@ public final class DesktopServer {
     }
 
     /**
-     * 用文件系统当 AssetSource：把 {@code E:\ka_pai\app\} 映射成 APK 里的 {@code assets/}。
+     * 用文件系统当 AssetSource：把 {@code <仓库根>\app\} 映射成 APK 里的 {@code assets/}。
      * 这样桌面跑的就是真文件，改完网页资源不用重打包就能验证服务端行为。
      */
     public static final class FileAssetSource implements AssetSource {

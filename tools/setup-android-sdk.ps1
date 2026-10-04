@@ -10,7 +10,8 @@ $ErrorActionPreference = 'Continue'
 # PS 5.1 的 Invoke-WebRequest 对大文件极慢，这里统一用 curl.exe
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$root = 'E:\ka_pai\.toolchain'
+# 工具链装在仓库下的 .toolchain（按脚本位置推导，别人克隆下来也能用）。
+$root = Join-Path (Split-Path -Parent $PSScriptRoot) '.toolchain'
 $sdk  = Join-Path $root 'sdk'
 $dl   = Join-Path $root 'downloads'
 New-Item -ItemType Directory -Force -Path $sdk, $dl | Out-Null
