@@ -257,9 +257,11 @@ let boardTimer = null;
 /**
  * 屏幕切换 / 开局入场动画（作者 2026-10-05）。
  *
- * 前进时旧页面「先向右让一小步、再向左滑出」，新页面从右滑入；返回方向相反。
- * 旧页面的退场靠克隆一层 ghost 来做：舞台本身已经换成新页面，渲染依旧是同步的，
- * 门禁与截图读到的都是新屏幕。DOM 桩里没有 cloneNode，这段会被 try 跳过。
+ * 只动按钮，不动整页：前进时新页面的菜单按钮从右侧逐个滑入，返回时从左侧滑入
+ * （方向由 SCREEN_DEPTH 自动决定）。旧页面不再做整页退场  上一版整页退场与新页面
+ * 滑入同时进行，看起来就是两个画面重叠、动画播不完整（作者 2026-10-05 反馈）。
+ * 入场类只挂到动画播完为止（900ms），否则后续 refresh 重绘会把动画反复重播。
+ * DOM 桩里没有 querySelector，取手牌滚动位置那段会被 try 跳过。
  */
 function playNavFx(stage) {
   const changed = lastScreen !== null && lastScreen !== screen;
@@ -269,31 +271,35 @@ function playNavFx(stage) {
   if (navTimer) { clearTimeout(navTimer); navTimer = null; }
   if (boardTimer) { clearTimeout(boardTimer); boardTimer = null; }
   try {
-    if (typeof stage.cloneNode === 'function' && stage.parentNode) {
-      const ghost = stage.cloneNode(true);
-      ghost.id = '';
-      ghost.className = 'nav-ghost ' + (dir === 'forward' ? 'nav-out-left' : 'nav-out-right');
-      stage.parentNode.appendChild(ghost);
-      setTimeout(() => { try { ghost.remove(); } catch (e) { /* stub */ } }, 380);
-    }
-  } catch (e) { /* DOM 桩 */ }
-  try {
-    for (const c of ['nav-forward', 'nav-back', 'nav-in', 'board-enter']) stage.classList.remove(c);
+    stage.classList.remove('nav-forward', 'nav-back', 'board-enter');
     stage.classList.add(dir === 'forward' ? 'nav-forward' : 'nav-back');
-    stage.classList.add('nav-in');
     if (screen === 'game') stage.classList.add('board-enter');
     navTimer = setTimeout(() => {
-      try { stage.classList.remove('nav-in'); } catch (e) { /* stub */ }
+      try { stage.classList.remove('nav-forward', 'nav-back'); } catch (e) { /* stub */ }
       navTimer = null;
-    }, 320);
+    }, 900);
     if (screen === 'game') {
       boardTimer = setTimeout(() => {
         try { stage.classList.remove('board-enter'); } catch (e) { /* stub */ }
         boardTimer = null;
-      }, 760);
+      }, 900);
     }
   } catch (e) { /* DOM 桩 */ }
 }
+
+/**
+ * 手牌是横向滚动的（.hand overflow-x: auto）。refresh() 整块重绘 innerHTML 之后，
+ * 滚动位置会被弹回最前面  表现就是每小回合结束后手牌自己跳回去（作者 2026-10-05 报的）。
+ * 渲染前记下、渲染后写回。
+ */
+function handScrollOf(stage) {
+  try { const el = stage.querySelector && stage.querySelector('.hand'); return el ? el.scrollLeft || 0 : 0; } catch (e) { return 0; }
+}
+function restoreHandScroll(stage, x) {
+  if (!x) return;
+  try { const el = stage.querySelector && stage.querySelector('.hand'); if (el) el.scrollLeft = x; } catch (e) { /* stub */ }
+}
+
 const LANE_LABEL = { mountain: '山地', plainL: '平地左', plainR: '平地右', water: '水路' };
 
 // ══════════════════════════════════════════════════════════
@@ -409,6 +415,7 @@ function refresh() {
       infoUid: null,
       isReplay: true,
     };
+    const replayHandScroll = handScrollOf(stage);
     render(stage, replayCtx.player.state, replayView);
     // 拼字符串而不是 insertAdjacentHTML —— DOM stub 里没有那个方法
     stage.innerHTML += replayBarHTML({
@@ -419,12 +426,15 @@ function refresh() {
       speed: replayCtx.speed,
       error: replayCtx.player.error,
     });
+    restoreHandScroll(stage, replayHandScroll);
     return;
   }
 
   // ── 对局
+  const handScroll = handScrollOf(stage);
   computePlayable();
   render(stage, state, view);
+  restoreHandScroll(stage, handScroll);
 
   // 「打到一半反问玩家」的交互，统一走这一层面板。现在有两类请求：
   //   · chooseOption  「抉择」（卡牌「歼-10」）
