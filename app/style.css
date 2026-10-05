@@ -111,6 +111,9 @@
   /* ── 图例 ───────────────────────────────────────────── */
   --legend-me: #8fc0ef;
   --legend-foe: #e8a1a1;
+  /* 战报：谁 / 动作 / 目标 三段分色（深色主题，作者 2026-10） */
+  --lg-act: rgba(214, 226, 250, .68);
+  --lg-tgt: #ffd98a;
 
   --radius: 4px;
   --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
@@ -225,6 +228,9 @@
   /* ── 图例 ───────────────────────────────────────────── */
   --legend-me: #2a5f96;
   --legend-foe: #a63a2f;
+  /* 战报：谁 / 动作 / 目标 三段分色（浅色主题，作者 2026-10） */
+  --lg-act: rgba(38, 50, 74, .64);
+  --lg-tgt: #8a5312;
 
   --radius: 4px;              /* 圆角不随主题变化，重复声明一次让浅色块自包含 */
   --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
@@ -691,6 +697,10 @@ html, body {
 .lg-foe { color: var(--legend-foe); }
 .lg-king { color: var(--gold); font-weight: 600; }
 .lg-turn { color: var(--dim); margin: 8px 0 2px; border-top: 1px dashed var(--line); padding-top: 6px; }
+/* 战报行：谁 / 干了什么 / 目标 分开着色（谁继承敌我行色，动作次级色，目标强调色） */
+.lg-who { font-weight: 600; }
+.lg-act { color: var(--lg-act); }
+.lg-tgt { color: var(--lg-tgt); font-weight: 600; }
 
 /* 横屏 / 大屏时给点余地 */
 @media (min-height: 760px) {
@@ -849,6 +859,9 @@ html, body {
   --target-pulse-3: rgba(255, 212, 121, .45);
   --legend-me: #6ee7b7;
   --legend-foe: #ff9aa8;
+  /* 战报：谁 / 动作 / 目标 三段分色（玻璃主题，作者 2026-10） */
+  --lg-act: rgba(232, 240, 255, .74);
+  --lg-tgt: #ffe1a3;
   --radius: 12px;  /* 玻璃要圆一点，纸质那一版是 4px */
   --font-title: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;  /* 玻璃走现代无衬线，和纸质的衬线标题区分开 */
 }

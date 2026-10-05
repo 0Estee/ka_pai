@@ -188,22 +188,44 @@ function fillMenuLog() {
   const el = document.getElementById('menu');
   if (!el || !state) return;
 
+  // 卡名一律从卡库解析：老日志（消灭 / 中毒 / 疾病 / 落水）只带 cardId，
+  // 直接打到界面上就是 U401 这种内部编号（作者 2026-10 报的 bug）。
+  const nameOf = (e) => e.name || (state.cardLib && state.cardLib[e.cardId] && state.cardLib[e.cardId].name) || '';
+  // 消灭原因在引擎里是英文标识，翻一次再给人看；不认识的就不显示括号。
+  const REASON_LABEL = {
+    effect: '效果', sacrifice: '献祭', combat: '战斗', 'lethal-damage': '致命伤害',
+    'stat-loss': '属性归零', 'stat-set': '属性被设为 0', 'nimble-drown': '轻灵落水',
+    disease: '疾病', destroy: '被消灭',
+  };
+  // 谁 / 干了什么 / 目标：三段分开着色。
+  // 谁 —— 继承行色（.lg-me / .lg-foe 已按敌我上色），加粗即可；
+  // 动作 —— 次级色；目标（卡名、线路、数值） —— 强调色。
+  const W = (t) => '<span class="lg-who">' + t + '</span>';
+  const A = (t) => '<span class="lg-act">' + t + '</span>';
+  const T = (t) => '<span class="lg-tgt">' + t + '</span>';
+  const laneRow = (e) => T((LANE_LABEL[e.lane] || e.lane) + '-' + (e.row === 'front' ? '前排' : '后排'));
+
   const lines = state.log
     .filter((e) => ['deploy', 'cast', 'destroy', 'king-damage', 'turn-start', 'game-over', 'nimble-drown', 'poison-tick', 'disease-tick'].includes(e.type))
     .slice(-220)
     .map((e) => {
       // 联机时对手是真人，别叫他「AI」
       const who = e.side === undefined ? '' : (e.side === me() ? '你' : foeName());
+      const cls = e.side === undefined ? 'lg' : 'lg lg-' + (e.side === me() ? 'me' : 'foe');
+      const card = nameOf(e);
       switch (e.type) {
         case 'turn-start': return `<div class="lg-turn">── 第 ${e.turn} 回合 ──</div>`;
-        case 'deploy': return `<div class="lg lg-${e.side === me() ? 'me' : 'foe'}">${who} 放置 ${e.name} → ${LANE_LABEL[e.lane] || e.lane}-${e.row === 'front' ? '前排' : '后排'}</div>`;
-        case 'cast': return `<div class="lg lg-${e.side === me() ? 'me' : 'foe'}">${who} 打出锦囊 ${e.name}</div>`;
-        case 'destroy': return `<div class="lg lg-${e.side === me() ? 'me' : 'foe'}">${who} 的 ${e.cardId} 被消灭（${e.reason}）</div>`;
-        case 'king-damage': return `<div class="lg lg-king">${e.side === me() ? '你的' : 'AI 的'}国王受到 ${e.amount} 点伤害 → ${e.hp}</div>`;
-        case 'nimble-drown': return `<div class="lg">轻灵单位在水路失去两栖被消灭</div>`;
-        case 'poison-tick': return `<div class="lg">淬毒结算 ${e.x} 点</div>`;
-        case 'disease-tick': return `<div class="lg">疾病结算：目标被消灭</div>`;
-        case 'game-over': return `<div class="lg-turn">对局结束：${e.reason}</div>`;
+        case 'deploy': return '<div class="' + cls + '">' + W(who) + ' ' + A('放置') + ' ' + T(card) + ' ' + A('到') + ' ' + laneRow(e) + '</div>';
+        case 'cast': return '<div class="' + cls + '">' + W(who) + ' ' + A('打出锦囊') + ' ' + T(card) + '</div>';
+        case 'destroy': {
+          const why = REASON_LABEL[e.reason];
+          return '<div class="' + cls + '">' + W(who) + ' ' + A('的') + ' ' + T(card) + ' ' + A('被消灭') + (why ? ' ' + A('（' + why + '）') : '') + '</div>';
+        }
+        case 'king-damage': return '<div class="lg lg-king">' + W(e.side === me() ? '你的国王' : 'AI 的国王') + ' ' + A('受到') + ' ' + T(e.amount + ' 点伤害') + ' ' + A('，剩余') + ' ' + T(String(e.hp)) + '</div>';
+        case 'nimble-drown': return '<div class="' + cls + '">' + T(card) + ' ' + A('在水路失去两栖被消灭') + '</div>';
+        case 'poison-tick': return '<div class="' + cls + '">' + (e.kingSide !== undefined ? W(e.kingSide === me() ? '你的国王' : 'AI 的国王') + ' ' : (card ? T(card) + ' ' : '')) + A('中毒结算') + ' ' + T(e.x + ' 点') + '</div>';
+        case 'disease-tick': return '<div class="' + cls + '">' + (card ? T(card) + ' ' : '') + A('疾病发作被消灭') + '</div>';
+        case 'game-over': return '<div class="lg-turn">对局结束：' + T(e.reason) + '</div>';
         default: return '';
       }
     })

@@ -671,6 +671,13 @@ window.__demoChoice = () => {
   return info;
 };
 
+/** 自检钩子：打开战报菜单，把渲染出来的 HTML 交出去（门禁断言用） */
+window.__menuLog = (open = true) => {
+  toggleMenu(!!open);
+  const el = document.getElementById('menu');
+  return { hidden: el ? el.classList.contains('hidden') : null, html: el ? el.innerHTML : '' };
+};
+
 /** 自检钩子：替玩家点第 idx 个选项 */
 window.__resolveChoice = (idx) => {
   resolvePlayerChoice(idx);

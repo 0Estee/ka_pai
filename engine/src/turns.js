@@ -222,13 +222,13 @@ export function resolveMarks(state) {
     for (const mark of marks) {
       if (unit.removed) break;
       if (mark.type === 'poison') {
-        M.log(state, { type: 'poison-tick', uid: unit.uid, x: mark.x });
+        M.log(state, { type: 'poison-tick', uid: unit.uid, x: mark.x, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
         // 「无视任何机制」但「无敌」仍然生效（裁决 B7）
         M.dealDamage(state, null, { kind: 'unit', unit }, mark.x, {
           ignoreMechanisms: true, noKeywords: true,
         });
       } else if (mark.type === 'disease') {
-        M.log(state, { type: 'disease-tick', uid: unit.uid });
+        M.log(state, { type: 'disease-tick', uid: unit.uid, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
         M.destroyUnit(state, unit, 'disease');
       }
     }

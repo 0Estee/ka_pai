@@ -140,7 +140,9 @@ export function destroyUnit(state, unit, reason = 'destroy') {
   removeUnitFromBoard(state, unit);
   state.discard.push(unit.cardId);
   state.stats.unitsDestroyed++;   // 全局计数（卡牌「卫兵：4个单位被消灭后…」要读它）
-  log(state, { type: 'destroy', uid: unit.uid, cardId: unit.cardId, lane: unit.lane, row: unit.row, side: unit.side, reason });
+  // 带上卡名：战报要显示「哪张卡被消灭」。只给 cardId 的话界面上会出现 U401 这种内部编号。
+  const destroyName = (state.cardLib[unit.cardId] || {}).name || unit.cardId;
+  log(state, { type: 'destroy', uid: unit.uid, cardId: unit.cardId, name: destroyName, lane: unit.lane, row: unit.row, side: unit.side, reason });
   queueTrigger(state, unit, 'onDeath', { reason });
 
   // 国王附着的被动（「战略纵深」：友方单位被消灭时抽一张牌）

@@ -432,7 +432,7 @@ export function addDamageCap(state, side, value, turns = 1) {
 export function checkNimble(state, unit) {
   if (!unit || unit.removed) return;
   if (nimbleShouldDrown(unit)) {
-    log(state, { type: 'nimble-drown', uid: unit.uid });
+    log(state, { type: 'nimble-drown', uid: unit.uid, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
     destroyUnit(state, unit, 'nimble-drown');
   }
 }

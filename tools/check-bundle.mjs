@@ -46,6 +46,7 @@ import './checks/23-lan-choice.mjs';
 import './checks/24-faction.mjs';
 import './checks/25-summon-cell.mjs';
 import './checks/26-stat-badge.mjs';
+import './checks/27-battle-log.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {
