@@ -17,6 +17,7 @@ import { render } from './ui.js';
 import {
   homeHTML, settingsHTML, replayListHTML, replayBarHTML,
   playMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
+  setNavDir,
 } from './screens.js';
 
 /** 建立一份新的界面状态 */
@@ -252,7 +253,7 @@ function fillMenuLog() {
 const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
 let lastScreen = null;
 let navTimer = null;
-let boardTimer = null;
+let boardFxUntil = 0;
 
 /**
  * 屏幕切换 / 开局入场动画（作者 2026-10-05）。
@@ -262,28 +263,28 @@ let boardTimer = null;
  * 滑入同时进行，看起来就是两个画面重叠、动画播不完整（作者 2026-10-05 反馈）。
  * 入场类只挂到动画播完为止（900ms），否则后续 refresh 重绘会把动画反复重播。
  * DOM 桩里没有 querySelector，取手牌滚动位置那段会被 try 跳过。
+ *
+ * 开局入场（view.boardFx）只在进入对局后的 700ms 内生效：startNewGame 内部会连刷几次，
+ * 都还在窗口里，动画不会被掐掉；窗口一过就不再带入场标记，铺开动画也就不会再被重放。
+ * 入场标记由 data-in 属性带在元素上，
+ * 而不是挂在 #stage 的类上  挂在类上的话，每次 refresh 重绘都会把动画从头重放一遍，
+ * 看起来就是「卡一下、然后飞快闪过」（作者 2026-10-05 反馈）。
  */
 function playNavFx(stage) {
   const changed = lastScreen !== null && lastScreen !== screen;
   const dir = (SCREEN_DEPTH[screen] || 0) >= (SCREEN_DEPTH[lastScreen] || 0) ? 'forward' : 'back';
   lastScreen = screen;
+  setNavDir(changed ? dir : '');
   if (!changed) return;
   if (navTimer) { clearTimeout(navTimer); navTimer = null; }
-  if (boardTimer) { clearTimeout(boardTimer); boardTimer = null; }
   try {
-    stage.classList.remove('nav-forward', 'nav-back', 'board-enter');
+    stage.classList.remove('nav-forward', 'nav-back');
     stage.classList.add(dir === 'forward' ? 'nav-forward' : 'nav-back');
-    if (screen === 'game') stage.classList.add('board-enter');
+    if (screen === 'game') boardFxUntil = Date.now() + 700;
     navTimer = setTimeout(() => {
       try { stage.classList.remove('nav-forward', 'nav-back'); } catch (e) { /* stub */ }
       navTimer = null;
     }, 900);
-    if (screen === 'game') {
-      boardTimer = setTimeout(() => {
-        try { stage.classList.remove('board-enter'); } catch (e) { /* stub */ }
-        boardTimer = null;
-      }, 900);
-    }
   } catch (e) { /* DOM 桩 */ }
 }
 
@@ -433,6 +434,7 @@ function refresh() {
   // ── 对局
   const handScroll = handScrollOf(stage);
   computePlayable();
+  view.boardFx = Date.now() < boardFxUntil;
   render(stage, state, view);
   restoreHandScroll(stage, handScroll);
 

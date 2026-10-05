@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.48.0';
+export const APP_VERSION = '0.49.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -39,10 +39,21 @@ function fmtSize(bytes) {
 // 开始游戏：二级菜单（AI 对决 / 局域网对决）
 // ══════════════════════════════════════════════════════════
 
+//  菜单入场动画的方向标记 
+// 由 render.js 在屏幕切换时设置：'forward'（前进，从右侧滑入）/ 'back'（返回，从左侧滑入）/ ''（同屏刷新，不做动画）。
+// 标记是渲染时写在容器上的 data-nav 属性，而不是挂在 #stage 的类上：
+// 同一屏幕的后续刷新会重新生成 HTML，挂在类上的话动画会从头重放一遍
+// （作者 2026-10-05 反馈的「卡一下、动画过快」）。属性只在切换那一次渲染里出现，所以只播一次。
+let NAV_DIR = '';
+export function setNavDir(dir) {
+  NAV_DIR = dir === 'back' ? 'in-left' : dir === 'forward' ? 'in-right' : '';
+}
+const navAttr = () => (NAV_DIR ? ' data-nav="' + NAV_DIR + '"' : '');
+
 /** 通用：带返回按钮的二级页面外壳 */
 function subScreen(title, body) {
   return `
-  <div class="screen">
+  <div class="screen"${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="back-home">‹ 返回</button>
       <h2>${escHtml(title)}</h2>
@@ -236,7 +247,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
     : '<div class="set-tip">等待主机开始对战…</div>';
 
   return `
-  <div class="screen">
+  <div class="screen"${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="lan-quit">‹ 退出房间</button>
       <h2>联机大厅</h2>
@@ -265,7 +276,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
 export function homeHTML({ profile, level, storageMode }) {
   const pct = Math.round(level.ratio * 100);
   return `
-  <div class="home">
+  <div class="home"${navAttr()}>
     <div class="home-top">
       <div class="hud">
         <div class="hud-gold" title="金币">
@@ -409,7 +420,7 @@ export function replayListHTML({ records, cardLib, editingNoteId, confirmDelId, 
   }).join('');
 
   return `
-  <div class="screen">
+  <div class="screen"${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="back-home">‹ 返回</button>
       <h2>回放对局</h2>

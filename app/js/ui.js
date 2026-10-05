@@ -274,6 +274,7 @@ function statusBarHTML(state, side, view) {
 }
 
 function handHTML(state, view) {
+  const boardIn = view && view.boardFx ? ' data-in="1"' : '';
   const p = state.players[view.humanSide];
   if (!p.hand.length) return '<div class="hand-empty">手牌已空</div>';
 
@@ -313,7 +314,7 @@ function handHTML(state, view) {
       : (def.type === 'spell' ? `<div class="c-desc">${esc(spellDescription(def))}</div>` : '');
 
     return `
-      <div class="${classes}" data-iid="${hc.iid}" style="--i:${hi}">
+      <div class="${classes}" data-iid="${hc.iid}"${boardIn} style="--i:${hi}">
         <div class="c-cost">${cost}${hc.costDelta ? '<i class="c-cost-mod">*</i>' : ''}</div>
         <div class="c-name">${esc(def.name)}</div>
         ${isSuperpower ? '<div class="c-sp">超能力</div>' : ''}
@@ -367,6 +368,7 @@ export function render(root, state, view) {
     { side: view.humanSide, row: 'back', label: '我后排', cls: 'r-my-back' },
   ];
 
+  const boardIn = view && view.boardFx ? ' data-in="1"' : '';
   const boardHTML = rows.map((r, ri) => {
     const cells = LANES.map((lane) => {
       if (r.side === null) {
@@ -374,7 +376,7 @@ export function render(root, state, view) {
       }
       return slotHTML(state, view, lane, r.side, r.row);
     }).join('');
-    return `<div class="board-row ${r.cls}" style="--i:${ri}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
+    return `<div class="board-row ${r.cls}"${boardIn} style="--i:${ri}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
   }).join('');
 
   const laneHead = `<div class="board-row lane-head"><div class="row-label"></div><div class="row-cells">${
