@@ -204,7 +204,6 @@ function slotHTML(state, view, lane, side, row) {
 
   /**
    * 战斗可视化的特效（见 game-flow.js 的 pumpCombatFx）：
-   *    fx-lane  ：这一路正在交战（整路闪一下）
    *    fx-lunge ：这个单位正在出手（朝敌方前冲一下）
    *    fx-hit   ：这个格子挨了这一下（抖动 + 掉字）
    * 掉字挂在**格子**上而不是单位上  单位被打死之后就已经不在棋盘上了。
@@ -215,7 +214,7 @@ function slotHTML(state, view, lane, side, row) {
     && ((fx.lane !== undefined && fx.lane === lane && fx.side === side && fx.row === row)
       || (fx.uid !== undefined && unit && unit.uid === fx.uid)));
   const lunge = !!(laneHot && unit && (fx.uids || []).includes(unit.uid));
-  const fxClasses = [laneHot ? 'fx-lane' : '', lunge ? 'fx-lunge' : '', here ? 'fx-hit' : ''].filter(Boolean);
+  const fxClasses = [lunge ? 'fx-lunge' : '', here ? 'fx-hit' : ''].filter(Boolean);
   const fxRest = (fx && fx.animateFloat === false) ? ' fx-float-rest' : '';
   const fxHTML = (here && fx.text) ? `<span class="fx-float${fxRest}">${fx.text}</span>` : '';
   // 「单位被消灭」要等它所在线路的动画演完才结算（作者 2026-10 要求）。
@@ -278,7 +277,7 @@ function handHTML(state, view) {
   const p = state.players[view.humanSide];
   if (!p.hand.length) return '<div class="hand-empty">手牌已空</div>';
 
-  return p.hand.map((hc) => {
+  return p.hand.map((hc, hi) => {
     const def = state.cardLib[hc.cardId];
     if (!def) return '';
     // 手牌实例上可能带费用修正（「-1 花费」）—— 显示与实际扣费都必须读实例值，
@@ -314,7 +313,7 @@ function handHTML(state, view) {
       : (def.type === 'spell' ? `<div class="c-desc">${esc(spellDescription(def))}</div>` : '');
 
     return `
-      <div class="${classes}" data-iid="${hc.iid}">
+      <div class="${classes}" data-iid="${hc.iid}" style="--i:${hi}">
         <div class="c-cost">${cost}${hc.costDelta ? '<i class="c-cost-mod">*</i>' : ''}</div>
         <div class="c-name">${esc(def.name)}</div>
         ${isSuperpower ? '<div class="c-sp">超能力</div>' : ''}
@@ -368,14 +367,14 @@ export function render(root, state, view) {
     { side: view.humanSide, row: 'back', label: '我后排', cls: 'r-my-back' },
   ];
 
-  const boardHTML = rows.map((r) => {
+  const boardHTML = rows.map((r, ri) => {
     const cells = LANES.map((lane) => {
       if (r.side === null) {
         return trapSlotHTML(state, view, lane);
       }
       return slotHTML(state, view, lane, r.side, r.row);
     }).join('');
-    return `<div class="board-row ${r.cls}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
+    return `<div class="board-row ${r.cls}" style="--i:${ri}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
   }).join('');
 
   const laneHead = `<div class="board-row lane-head"><div class="row-label"></div><div class="row-cells">${

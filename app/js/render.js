@@ -245,6 +245,55 @@ function fillMenuLog() {
     </div>`;
 }
 
+/**
+ * 屏幕层级：数字变大 = 前进（进二级 / 三级菜单、进对局），变小 = 返回。
+ * 切换时用它决定滑动方向，于是「返回动画与进入相反」是自动成立的。
+ */
+const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
+let lastScreen = null;
+let navTimer = null;
+let boardTimer = null;
+
+/**
+ * 屏幕切换 / 开局入场动画（作者 2026-10-05）。
+ *
+ * 前进时旧页面「先向右让一小步、再向左滑出」，新页面从右滑入；返回方向相反。
+ * 旧页面的退场靠克隆一层 ghost 来做：舞台本身已经换成新页面，渲染依旧是同步的，
+ * 门禁与截图读到的都是新屏幕。DOM 桩里没有 cloneNode，这段会被 try 跳过。
+ */
+function playNavFx(stage) {
+  const changed = lastScreen !== null && lastScreen !== screen;
+  const dir = (SCREEN_DEPTH[screen] || 0) >= (SCREEN_DEPTH[lastScreen] || 0) ? 'forward' : 'back';
+  lastScreen = screen;
+  if (!changed) return;
+  if (navTimer) { clearTimeout(navTimer); navTimer = null; }
+  if (boardTimer) { clearTimeout(boardTimer); boardTimer = null; }
+  try {
+    if (typeof stage.cloneNode === 'function' && stage.parentNode) {
+      const ghost = stage.cloneNode(true);
+      ghost.id = '';
+      ghost.className = 'nav-ghost ' + (dir === 'forward' ? 'nav-out-left' : 'nav-out-right');
+      stage.parentNode.appendChild(ghost);
+      setTimeout(() => { try { ghost.remove(); } catch (e) { /* stub */ } }, 380);
+    }
+  } catch (e) { /* DOM 桩 */ }
+  try {
+    for (const c of ['nav-forward', 'nav-back', 'nav-in', 'board-enter']) stage.classList.remove(c);
+    stage.classList.add(dir === 'forward' ? 'nav-forward' : 'nav-back');
+    stage.classList.add('nav-in');
+    if (screen === 'game') stage.classList.add('board-enter');
+    navTimer = setTimeout(() => {
+      try { stage.classList.remove('nav-in'); } catch (e) { /* stub */ }
+      navTimer = null;
+    }, 320);
+    if (screen === 'game') {
+      boardTimer = setTimeout(() => {
+        try { stage.classList.remove('board-enter'); } catch (e) { /* stub */ }
+        boardTimer = null;
+      }, 760);
+    }
+  } catch (e) { /* DOM 桩 */ }
+}
 const LANE_LABEL = { mountain: '山地', plainL: '平地左', plainR: '平地右', water: '水路' };
 
 // ══════════════════════════════════════════════════════════
@@ -257,6 +306,8 @@ function refresh() {
 
   // 回放时底部有一条固定的控制条，给内容留出高度，别盖住手牌
   try { stage.classList.toggle('stage-replay', screen === 'replay'); } catch { /* stub */ }
+
+  playNavFx(stage);
 
   if (screen === 'home') {
     stage.innerHTML = homeHTML({

@@ -872,3 +872,31 @@
 :root[data-theme="glass"] .ui-label { border-radius: 10px; }
 :root[data-theme="glass"] .choice-box { border-radius: 16px; }
 :root[data-theme="glass"] .unit-info .ui-card { border-radius: 16px; }
+
+/*  屏幕切换与开局入场动画（作者 2026-10-05） 
+   前进：旧页面先向右让一小步、再向左滑出，新页面从右滑入；返回方向相反。
+   退场的旧页面是 refresh() 克隆出来的 .nav-ghost 层（舞台内容本身立刻换成新页面）。 */
+@keyframes nav-out-left {
+  0% { transform: translateX(0); }
+  22% { transform: translateX(26px); }
+  100% { transform: translateX(-110%); }
+}
+@keyframes nav-out-right {
+  0% { transform: translateX(0); }
+  22% { transform: translateX(-26px); }
+  100% { transform: translateX(110%); }
+}
+@keyframes nav-in-right { from { transform: translateX(100%); opacity: .45; } to { transform: translateX(0); opacity: 1; } }
+@keyframes nav-in-left { from { transform: translateX(-100%); opacity: .45; } to { transform: translateX(0); opacity: 1; } }
+@keyframes board-in { from { transform: translateY(-14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes hand-in { from { transform: translateY(28px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.nav-ghost { position: fixed; left: 0; top: 0; right: 0; height: 100%; pointer-events: none; z-index: 5; }
+.nav-ghost.nav-out-left { animation: nav-out-left .34s ease-in forwards; }
+.nav-ghost.nav-out-right { animation: nav-out-right .34s ease-in forwards; }
+#stage.nav-in.nav-forward > * { animation: nav-in-right .30s ease-out both; }
+#stage.nav-in.nav-back > * { animation: nav-in-left .30s ease-out both; }
+
+/* 开局：棋盘从上往下一行行铺开，手牌从下滑入（序号 --i 由 ui.js 写在元素上） */
+#stage.board-enter .board-row { animation: board-in .26s ease-out both; animation-delay: calc(var(--i, 0) * 40ms); }
+#stage.board-enter .hand .card { animation: hand-in .26s ease-out both; animation-delay: calc(var(--i, 0) * 45ms); }
