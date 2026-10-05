@@ -483,7 +483,8 @@ function handleAction(act, el) {
 
   // ── 对局内
   // 联机时不能再「重开一局」—— 那会让两端跑不同的对局，直接退出房间更安全
-  if (act === 'restart') { if (session) { quitRoom(); return; } startNewGame(); return; }
+  // 回放是只读的：重开会把 screen 拉回对局、把正在看的这条回放踢掉（作者 2026-10-05）
+  if (act === 'restart') { if (screen === 'replay') return; if (session) { quitRoom(); return; } startNewGame(); return; }
   if (act === 'menu') { toggleMenu(); return; }
   if (act === 'close-menu') { toggleMenu(false); return; }
   if (act === 'close-info') { view.infoUid = null; refresh(); return; }
@@ -515,6 +516,7 @@ function handleAction(act, el) {
   }
 
   if (act === 'surrender') {
+    if (screen === 'replay') return;
     if (!state || state.winner !== null) return;
     /**
      * 认输也是一条**操作**（作者 2026-10-05：联机时一方认输，另一方看不到终局）。

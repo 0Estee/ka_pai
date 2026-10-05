@@ -47,6 +47,7 @@ import './checks/24-faction.mjs';
 import './checks/25-summon-cell.mjs';
 import './checks/26-stat-badge.mjs';
 import './checks/27-battle-log.mjs';
+import './checks/28-ui-fixes.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

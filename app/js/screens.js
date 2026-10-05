@@ -19,7 +19,7 @@ import { incompatibleReason } from './replay.js';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.45.0';
+export const APP_VERSION = '0.46.0';
 
 function fmtDate(ts) {
   if (!ts) return '';
@@ -126,7 +126,7 @@ export function difficultyHTML({ current, difficulties, faction, factions }) {
 export function lanMenuHTML({ lanSupported, localIp }) {
   if (!lanSupported) {
     return subScreen('局域网对决', `
-      <div class="rp-empty">当前环境不支持局域网<br><span>需要在手机上安装 PPK 后使用</span></div>
+      <div class="rp-empty">当前环境不支持局域网<br><span>需要在手机上安装 APK 后使用</span></div>
     `);
   }
   return subScreen('局域网对决', `

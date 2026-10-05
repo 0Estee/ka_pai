@@ -238,10 +238,10 @@ function fillMenuLog() {
         <button class="btn-close" data-act="close-menu">关闭</button>
       </div>
       <div class="menu-body">${lines || '<div class="lg">暂无记录</div>'}</div>
-      <div class="menu-foot">
+      ${screen === 'replay' ? '' : `<div class="menu-foot">
         <button class="btn-restart" data-act="restart">重新开局</button>
         <button class="btn-surrender" data-act="surrender">认输</button>
-      </div>
+      </div>`}
     </div>`;
 }
 

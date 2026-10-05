@@ -196,6 +196,20 @@ function tick() {
   if (paused) { refresh(); return; }
 
   /**
+   * 【终局优先于下面那条演出闸】作者 2026-10-05：「每局结束后不会立刻结算金币」。
+   * 打死国王那一下通常带着伤害演出，先等演出播完再结算的话，金币入账与结算面板都要晚好几秒。
+   * settleIfNeeded() 是幂等的（recording.settled 当闸门），演出收尾回调再调一次 tick() 不会重复发钱。
+   */
+  if (state.winner !== null) {
+    view.busy = false;
+    view.hint = '';
+    settleIfNeeded();
+    refresh();
+    fillMenuLog();
+    return;
+  }
+
+  /**
    * 「开战演出没播完，不要进下一回合」（作者 2026-10 要求）。
    * 开战一瞬间可能产生十几条特效，不等它播完就推进，玩家根本看不清发生了什么。
    * 播完由 stepCombatFx 的收尾回调重新调 tick() 接回来。
@@ -205,14 +219,6 @@ function tick() {
     return;
   }
 
-  if (state.winner !== null) {
-    view.busy = false;
-    view.hint = '';
-    settleIfNeeded();
-    refresh();
-    fillMenuLog();
-    return;
-  }
 
   const actor = G.getActor(state);
 
