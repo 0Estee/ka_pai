@@ -67,6 +67,7 @@ const FACTION_TAGLINE = {
   music: '用光环与音波削弱全场：全体 -1/-1，越打越弱',
   science: '攒钱拍科技：费用越滚越多，锦囊还能再放一次',
   divine: '守护国王：替伤、治疗，并把敌人的攻击力永久清零',
+  alchemy: '炼药：每抽一张牌得一份原料，把原料组成药水与令牌',
 };
 
 function factionOptions() {

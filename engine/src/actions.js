@@ -19,7 +19,7 @@ import {
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
 import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
-import { queueDelayedSummon } from './factions.js';
+import { queueDelayedSummon, RAW_MATERIAL_IDS, takeRawMaterial } from './factions.js';
 import { nextInt } from './rng.js';
 
 /**
@@ -804,6 +804,62 @@ export function* execAction(state, ctx, action) {
       break;
     }
 
+
+    /**
+     * 炼金：解禁（U432） 友方国王获「可在自己的单位回合打出超能力锦囊牌」。
+     * 整局有效，所以写玩家级标记（play.js 的阶段校验读它）。
+     */
+    case 'unlockAlchemySpells': {
+      const side = resolveSide(action.side, me);
+      state.players[side].alchemyUnlock = true;
+      log(state, { type: 'alchemy-unlock', side });
+      break;
+    }
+
+    /**
+     * 炼金：炼金潮（U433） 本回合友方打出非原料锦囊时抽一张牌。
+     * 这里只记本回合的标记，真正的抽牌在 play.js 的 runSpellWithWatchers 里结算。
+     */
+    case 'alchemyTide': {
+      const side = resolveSide(action.side, me);
+      state.players[side].alchemyTideTurn = state.turn;
+      log(state, { type: 'alchemy-tide-start', side, turn: state.turn });
+      break;
+    }
+
+    /**
+     * 炼金：未收录粉尘（U431） 选择 2 张原料加入手牌，使其花费为 0。
+     * 作者 2026-10-07 口径：被选中的原料不管打出还是参与组合都是零费，
+     * 所以直接把 costDelta 压到 -cost（costOf 求和时会算成 0）。
+     * 原料堆里没有这种原料就跳过（作者 Q3：堆会抽空）。
+     */
+    case 'addRawMaterials': {
+      const side = resolveSide(action.side, me);
+      const n = action.amount || 2;
+      for (let i = 0; i < n; i++) {
+        const pile = state.players[side].rawPile || [];
+        const kinds = RAW_MATERIAL_IDS.filter((id) => pile.indexOf(id) >= 0);
+        if (!kinds.length) {
+          log(state, { type: 'raw-material-empty', side });
+          break;
+        }
+        let picked = kinds[0];
+        if (kinds.length > 1) {
+          const answer = yield {
+            type: 'chooseRawMaterial',
+            side,
+            prompt: action.prompt || '选择一张原料',
+            options: kinds.map((id) => ({
+              cardId: id,
+              label: ((state.cardLib[id] && state.cardLib[id].name) || id) + ' x' + pile.filter((x) => x === id).length,
+            })),
+          };
+          picked = (answer && answer.cardId) || kinds[0];
+        }
+        takeRawMaterial(state, side, picked, { free: action.free !== false });
+      }
+      break;
+    }
     default:
       throw new Error(`未知的效果 op: ${action.op}`);
   }
@@ -820,6 +876,7 @@ export function evalCondition(state, ctx, cond) {  if (!cond) return false;
     case 'enemiesLTAllies': return foe < own;
     case 'enemiesGEAllies': return foe >= own;
     case 'enemiesGTAllies': return foe > own;
+    case 'handCountLE': return state.players[me].hand.length <= (cond.n === undefined ? 7 : cond.n);
     default: throw new Error(`未知的 conditional 条件: ${JSON.stringify(cond)}`);
   }
 }

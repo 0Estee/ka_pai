@@ -1751,6 +1751,190 @@ test('AI 补刀：pickFragileTarget 挑生命最低的敌人，没有单位时�
   assert.equal(kingOnly.king, true, '没有单位可选时退回国王');
 });
 
+//
+group('19 炼金阵营（作者 2026-10-07：原料 / 炼药 / 令牌）');
+//
+
+/** 炼金开局：双方都选炼金（autoResolveChoices 已由 game() 打开） */
+function alchemyGame(cfg = {}) {
+  return game(Object.assign({ factions: ['alchemy', 'alchemy'] }, cfg));
+}
+
+/** 往手里塞几张原料（绕过抽牌），返回手牌实例 */
+function rawHand(state, side, ids) {
+  return ids.map((cardId) => give(state, side, cardId));
+}
+
+test('原料堆 14 张：起手抽的牌不产原料（作者口径），第 1 回合开始的抽牌才产', () => {
+  const s = alchemyGame();
+  assert.equal(s.players[0].faction, 'alchemy', '阵营应当写进对局');
+  // 14 张的原料堆，减去第 1 回合开始时「每回合开始各抽 1 张」带出来的那 1 张
+  assert.equal(G.rawPileOf(s, 0).length, 13, '先手原料堆 13');
+  assert.equal(G.rawPileOf(s, 1).length, 13, '后手原料堆 13');
+  assert.equal(s.players[0].hand.filter((h) => s.cardLib[h.cardId].rawMaterial).length, 1, '先手手里 1 张原料');
+  assert.equal(s.players[1].hand.filter((h) => s.cardLib[h.cardId].rawMaterial).length, 1, '后手手里 1 张原料');
+});
+
+test('每抽一张牌就飞一张原料；抽干不补、也不洗回（作者口径 Q3）', () => {
+  const s = alchemyGame();
+  const p = s.players[0];
+  const pile = G.rawPileOf(s, 0).length;
+  M.drawCards(s, 0, 3);
+  assert.equal(G.rawPileOf(s, 0).length, pile - 3, '抽 3 张就飞 3 张原料');
+  let guard = 0;
+  while (G.rawPileOf(s, 0).length > 0 && guard++ < 40) M.drawCards(s, 0, 1);
+  const rawNow = p.hand.filter((h) => s.cardLib[h.cardId].rawMaterial).length;
+  M.drawCards(s, 0, 2);
+  assert.equal(G.rawPileOf(s, 0).length, 0, '原料堆会被抽干');
+  assert.equal(p.hand.filter((h) => s.cardLib[h.cardId].rawMaterial).length, rawNow, '抽干之后不再产原料');
+});
+
+test('原料不能直接打出：引擎拒绝，也不在合法出牌里', () => {
+  const s = alchemyGame();
+  const m = give(s, 0, 'U426');
+  forcePhase(s, 0, 'spell');
+  assert.throws(() => G.playCard(s, 0, m.iid, {}), '直接打原料应当被拒绝');
+  assert.ok(!G.getLegalPlays(s, 0).some((pl) => pl.iid === m.iid), '合法出牌里不该有原料');
+});
+
+test('炼药：按消耗原料的组合给令牌，原料回堆，费用是各自费用之和（作者口径 Q2.a）', () => {
+  const s = alchemyGame();
+  const mats = rawHand(s, 0, ['U428', 'U428', 'U426']);
+  forcePhase(s, 0, 'spell');
+  const hand0 = s.players[0].hand.length;
+  const pile0 = G.rawPileOf(s, 0).length;
+  const mana0 = s.players[0].mana;
+  G.brew(s, 0, [mats[0].iid, mats[1].iid]);
+  const hand = s.players[0].hand;
+  assert.ok(hand.some((h) => h.cardId === 'U434'), '两张陨铁应当炼出玄剑 U434');
+  assert.ok(!hand.some((h) => h.iid === mats[0].iid || h.iid === mats[1].iid), '被消耗的原料应当离开手牌');
+  assert.equal(hand.length, hand0 - 1, '两张换一张令牌');
+  assert.equal(G.rawPileOf(s, 0).length, pile0 + 2, '原料回到原料堆');
+  assert.equal(s.players[0].mana, mana0 - 2, '陨铁 1 + 陨铁 1 = 2 费');
+  const ev = s.log.filter((e) => e.type === 'brew').pop();
+  assert.equal(ev.cost, 2, '日志里的花费');
+  assert.equal(ev.token, 'U434', '日志里的令牌');
+});
+
+test('炼药组合表 11 条逐条兑现；组合对不上就不给令牌（原料照样回堆、费用照付）', () => {
+  const CASES = [
+    [['U426', 'U426'], 'U435'],
+    [['U427', 'U427'], 'U437'],
+    [['U428', 'U428'], 'U434'],
+    [['U429', 'U429'], 'U439'],
+    [['U426', 'U427'], 'U442'],
+    [['U426', 'U428'], 'U441'],
+    [['U426', 'U429'], 'U440'],
+    [['U427', 'U428'], 'U438'],
+    [['U427', 'U429'], 'U443'],
+    [['U428', 'U429'], 'U444'],
+    [['U426', 'U427', 'U428', 'U429'], 'U436'],
+  ];
+  for (const [ids, token] of CASES) assert.equal(G.comboTokenFor(ids), token, ids.join(' + '));
+  assert.equal(G.comboTokenFor(['U426', 'U428', 'U428']), null, '没有对应组合就不给令牌');
+
+  const s = alchemyGame();
+  const mats = rawHand(s, 0, ['U426', 'U428', 'U428']);
+  forcePhase(s, 0, 'spell');
+  const hand0 = s.players[0].hand.length;
+  const pile0 = G.rawPileOf(s, 0).length;
+  const mana0 = s.players[0].mana;
+  G.brew(s, 0, mats.map((m) => m.iid));
+  assert.equal(s.players[0].hand.length, hand0 - 3, '凑不出组合就不给令牌');
+  assert.equal(G.rawPileOf(s, 0).length, pile0 + 3, '原料照样回堆');
+  assert.equal(s.players[0].mana, mana0 - 2, '费用照付（金沙 0 + 陨铁 1 + 陨铁 1）');
+  assert.equal(s.log.filter((e) => e.type === 'brew').pop().token, null, '日志里记的是没出令牌');
+});
+
+test('炼药的合法性：至少两张、必须是手里的原料、费用不足拒绝、非炼金阵营不能炼', () => {
+  const s = alchemyGame();
+  const mats = rawHand(s, 0, ['U428', 'U428']);
+  const other = give(s, 0, 'U05');
+  forcePhase(s, 0, 'spell');
+  s.players[0].mana = 1;
+  assert.throws(() => G.brew(s, 0, [mats[0].iid, mats[1].iid]), '费用不足应当拒绝');
+  assert.throws(() => G.brew(s, 0, [mats[0].iid]), '只给一张原料应当拒绝');
+  assert.throws(() => G.brew(s, 0, [mats[0].iid, 999999]), '不在手里的 iid 应当拒绝');
+  assert.throws(() => G.brew(s, 0, [mats[0].iid, other.iid]), '非原料手牌应当拒绝');
+  s.players[0].mana = 5;
+  G.brew(s, 0, [mats[0].iid, mats[1].iid]);
+
+  const plain = game();
+  const pm = rawHand(plain, 0, ['U426', 'U426']);
+  forcePhase(plain, 0, 'spell');
+  assert.equal(G.rawPileOf(plain, 0).length, 0, '非炼金阵营没有原料堆');
+  assert.throws(() => G.brew(plain, 0, [pm[0].iid, pm[1].iid]), '非炼金阵营不能炼药');
+});
+
+test('U444 事故：加入手牌时自动使用（对所有单位 3 点，也打自己人）并结束当前出牌回合', () => {
+  const s = alchemyGame();
+  deploy(s, 0, 'U242', 'mountain', 'front');
+  const foeU = deploy(s, 1, 'W04', 'mountain', 'front');
+  const foeHp = foeU.hp;
+  const mats = rawHand(s, 0, ['U428', 'U429']);
+  forcePhase(s, 0, 'spell');
+  G.brew(s, 0, mats.map((m) => m.iid));
+  assert.ok(!s.players[0].hand.some((h) => h.cardId === 'U444'), '事故不该留在手里');
+  assert.ok(s.log.some((e) => e.type === 'cast' && e.cardId === 'U444' && e.auto), '事故应当被自动打出');
+  assert.ok(!at(s, 'mountain', 0, 'front'), '我方单位也被打（作者口径：事故也打自己的单位）');
+  assert.equal(at(s, 'mountain', 1, 'front').hp, foeHp - 3, '敌方单位吃 3 点');
+  assert.notEqual(s.phase, 'SPELL_FIRST', '打完事故要结束当前出牌回合');
+});
+
+test('U433 炼金潮：本回合打出非原料锦囊时抽一张牌（打它自己也触发）', () => {
+  const s = alchemyGame();
+  forcePhase(s, 0, 'spell');
+  const tide = give(s, 0, 'U433');
+  const deck0 = s.deck.length;
+  const pile0 = G.rawPileOf(s, 0).length;
+  G.playCard(s, 0, tide.iid, {});
+  assert.equal(s.players[0].alchemyTideTurn, s.turn, '本回合挂着炼金潮');
+  assert.equal(s.deck.length, deck0 - 1, '打出炼金潮自己就该抽一张');
+  assert.equal(G.rawPileOf(s, 0).length, pile0 - 1, '抽的这张也会带一张原料');
+});
+
+test('U431 未收录粉尘：选 2 张原料进手牌，且它们的花费为 0（作者口径）', () => {
+  const s = alchemyGame();
+  forcePhase(s, 0, 'spell');
+  const dust = give(s, 0, 'U431');
+  const pile0 = G.rawPileOf(s, 0).length;
+  const before = s.players[0].hand.map((h) => h.iid);
+  G.playCard(s, 0, dust.iid, {});
+  const news = s.players[0].hand.filter((h) => before.indexOf(h.iid) < 0 && s.cardLib[h.cardId].rawMaterial);
+  assert.equal(news.length, 2, '应当多两张原料');
+  assert.equal(G.rawPileOf(s, 0).length, pile0 - 2, '原料从原料堆里取');
+  for (const h of news) assert.equal(G.costOf(s, h), 0, '选中的原料花费为 0');
+});
+
+test('U432 解禁：国王获「可在自己的单位回合打出超能力锦囊」', () => {
+  const s = alchemyGame();
+  forcePhase(s, 0, 'spell');
+  const unlock = give(s, 0, 'U432');
+  G.playCard(s, 0, unlock.iid, {});
+  assert.ok(G.alchemyUnlock(s, 0), '国王应当拿到解禁');
+
+  const plain = alchemyGame();
+  forcePhase(plain, 0, 'deploy');
+  const d0 = give(plain, 0, 'U431');
+  assert.throws(() => G.playCard(plain, 0, d0.iid, {}), '没解禁时单位回合不能打锦囊');
+
+  forcePhase(s, 0, 'deploy');
+  const d1 = give(s, 0, 'U431');
+  G.playCard(s, 0, d1.iid, {});
+});
+
+test('U430 巫毒娃娃：每回合友方国王首次受到的伤害整笔改由敌方国王承受', () => {
+  const s = alchemyGame();
+  deploy(s, 0, 'U430', 'mountain', 'front');
+  const mine0 = king(s, 0);
+  const foe0 = king(s, 1);
+  dealDamage(s, null, { kind: 'king', side: 0 }, 3);
+  assert.equal(king(s, 0), mine0, '我方国王一点没掉');
+  assert.equal(king(s, 1), foe0 - 3, '整笔转给敌方国王');
+  dealDamage(s, null, { kind: 'king', side: 0 }, 2);
+  assert.equal(king(s, 0), mine0 - 2, '同一回合第二次不再转移');
+});
+
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

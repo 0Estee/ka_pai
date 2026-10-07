@@ -169,6 +169,8 @@ function applyLocalAction(action, fromRemote) {
     else if (action.k === 'x') G.sacrificeUnit(state, action.s, action.u);
     // 认输（作者 2026-10-05）：也是一条操作，联机才会广播给对手
     else if (action.k === 's') G.surrender(state, action.s);
+    // 炼药（炼金阵营，界面上的「炼药」按钮）：消耗选中的原料，按组合产出一张令牌
+    else if (action.k === 'b') G.brew(state, action.s, action.i);
   } catch (err) {
     console.error('执行操作失败', action, err);
     return false;
@@ -309,9 +311,8 @@ function tick() {
       try {
         const r = aiTakeTurn(state, foe(), { difficulty });
         // AI 已经把牌打出去了，这里只补记账（回放），不能再 apply 一次
-        for (const a of (r && r.actions) || []) {
-          RP.recAction(recording, { k: 'p', s: foe(), i: a.iid, o: a.opts });
-        }
+        // 出牌与炼药都要记账（RP.recAiActions 负责分派）
+        RP.recAiActions(recording, foe(), r && r.actions);
         // AI 打出的锦囊也要放大展示（作者 2026-10 报的「敌方使用锦囊时没有提示」）
         presentCasts();
       } catch (err) {

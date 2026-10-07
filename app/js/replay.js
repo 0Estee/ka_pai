@@ -137,6 +137,19 @@ export function recAdvance(rec) {
   rec.actions.push({ k: 'a' });
 }
 
+/**
+ * 把 aiTakeTurn 交回来的整批动作记进回放。
+ * 出牌走 recPlay；炼药（ai.js 里带 brew 标记的那条）走 {k:'b'} 
+ * 两者都是回放 / 锁步要逐条重放的条目，不能只记出牌。
+ */
+export function recAiActions(rec, side, list) {
+  for (const a of list || []) {
+    if (!a) continue;
+    if (a.brew) recAction(rec, { k: 'b', s: side, i: a.brew });
+    else recPlay(rec, side, a.iid, a.opts);
+  }
+}
+
 export function recChoice(rec, choice) {
   if (!rec || rec.actions.length >= MAX_ACTIONS) return;
   rec.actions.push({ k: 'c', v: choice });
@@ -161,6 +174,10 @@ export function recAction(rec, action) {
   } else if (action.k === 's') {
     // 认输：谁认的（唯一一条会让对局立刻终局的操作）
     rec.actions.push({ k: 's', s: action.s });
+  } else if (action.k === 'b') {
+    // 炼药（炼金阵营）：记下「这次消耗了手里哪几张原料」。
+    // 它是锁步 / 回放里的一条普通操作，不记的话重放时原料与令牌就对不上了。
+    rec.actions.push({ k: 'b', s: action.s, i: (action.i || []).slice() });
   } else if (action.k === 'c') {
     rec.actions.push({ k: 'c', v: action.v });
     /**
@@ -601,6 +618,8 @@ export function createReplayPlayer(record, cardLib) {
         G.sacrificeUnit(state, a.s, a.u);
       } else if (a.k === 's') {
         G.surrender(state, a.s);
+      } else if (a.k === 'b') {
+        G.brew(state, a.s, a.i);
       } else {
         error = `第 ${before + 1} 步重放失败：未知操作 ${a.k}`;
         return false;

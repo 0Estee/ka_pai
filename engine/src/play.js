@@ -20,9 +20,10 @@ import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncSt
 import { execActions } from './effects.js';
 import { instantiateUnit, probeFromDef } from './setup.js';
 import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
-import { isOver, getActor, checkGameOver, triggerInHandEffects, applyHandStatDelta } from './turns.js';
+import { isOver, getActor, checkGameOver, triggerInHandEffects, applyHandStatDelta, advance } from './turns.js';
 import { apiFor, applySummonModify } from './combat.js';
 import { flushTriggers, driveGenerator } from './choices.js';
+import { isRawMaterial, comboTokenFor, returnRawMaterials, alchemyUnlock, alchemyTideOn } from './factions.js';
 
 // ══════════════════════════════════════════════════════════
 // 合法性
@@ -67,7 +68,11 @@ export function getLegalPlays(state, side) {
   for (const handCard of p.hand) {
     const def = state.cardLib[handCard.cardId];
     if (!def) continue;
-    if (def.type !== allowedType) continue;
+    // 原料（金沙/厄毒之尘/陨铁/硫磺）不能直接打出：只能通过「炼药」消耗。
+    if (isRawMaterial(def)) continue;
+    // 「解禁」：炼金阵营的锦囊在放置阶段也能打出。
+    const unlockedSpell = def.faction === 'alchemy' && alchemyUnlock(state, side);
+    if (def.type !== allowedType && !unlockedSpell) continue;
     const cost = costOf(state, handCard);
     if (cost > p.mana) continue;
 
@@ -140,13 +145,17 @@ export function playCard(state, side, iid, opts = {}) {
   const allowedType = PHASE_ALLOWED_CARD_TYPE[state.phase];
   const p = state.players[side];
   const idx = p.hand.findIndex((c) => c.iid === iid);
+  // 炼金：原料只能通过炼药消耗，当普通锦囊打出会立刻退回去（作者 2026-10-07 规格）
+  if (idx >= 0 && isRawMaterial(state.cardLib[p.hand[idx].cardId])) throw new Error('原料牌只能用炼药消耗，不能直接打出');
+  // 解禁：国王挂着许可时，超能力锦囊可以在自己的单位回合打出（只对超能力锦囊放宽）
+  const unlockedSpell = idx >= 0 && alchemyUnlock(state, side) && (state.cardLib[p.hand[idx].cardId] || {}).faction === 'alchemy';
   if (idx < 0) throw new Error(`手牌中没有 iid=${iid}`);
 
   const handCard = p.hand[idx];
   const def = state.cardLib[handCard.cardId];
   if (!def) throw new Error(`卡牌库缺少卡牌定义: ${handCard.cardId}`);
   // 陷阱是例外：作者口径「单位回合或锦囊回合都能打出」，所以不受阶段类型限制
-  if (def.type !== allowedType && !isTrapCard(def)) throw new Error(`本阶段只能打出「${allowedType}」，不能打出「${def.type}」`);
+  if (def.type !== allowedType && !isTrapCard(def) && !unlockedSpell) throw new Error(`本阶段只能打出「${allowedType}」，不能打出「${def.type}」`);
   const cost = costOf(state, handCard);
   if (cost > p.mana) throw new Error(`费用不足：需要 ${cost}，剩余 ${p.mana}`);
 
@@ -290,6 +299,13 @@ function* runSpellWithWatchers(state, ctx, def) {
   ctx.spellTargets = [];
   yield* execActions(state, ctx, def.actions || []);
   yield* applyInHandSpellWatchers(state, ctx);
+  // 炼金潮：本回合友方打出非原料锦囊时抽一张牌。
+  // 作者 2026-10-07 口径：打出炼金潮自己也算（它自身这时已经生效）。
+  const tideOwner = state.players[ctx.controller];
+  if (tideOwner && alchemyTideOn(state, ctx.controller) && !isRawMaterial(def)) {
+    M.log(state, { type: 'alchemy-tide', side: ctx.controller, cardId: def.id });
+    M.drawCards(state, ctx.controller, 1);
+  }
 }
 
 /**
@@ -364,4 +380,107 @@ export function resolveHunt(state, deployed) {
     if (hunter.removed) continue;
     M.moveUnitToLane(state, hunter, deployed.lane, { isRooted: (u) => hasRooted(state, u) });
   }
+}
+
+/**
+ * 炼药（炼金阵营，作者 2026-10-07 规格）。
+ *
+ * 打出原料时再选手里其它原料，按「这一次消耗掉的原料」的组合把令牌加进手里：
+ *   费用 = 消耗掉的原料各自费用的和（作者 Q2.A，所以被未收录粉尘压到 0 费的原料，
+ *          不论打出还是参与组合都是 0 费）；
+ *   组合对不上就不给令牌（原料照样回堆、费用照付）。
+ *
+ * 多选由界面累积好一次交给这里（iids 里第一张就是被「打出」的那张），
+ * 这样联机/回放的锁步流水里只多一条动作。
+ */
+export function brew(state, side, iids) {
+  if (isOver(state)) throw new Error('对局已经结束了');
+  if (state.pending) throw new Error('存在待处理的交互请求，请先 resolveChoice');
+  const actor = getActor(state);
+  if (actor !== side) throw new Error('现在不是你的出牌阶段');
+  const p = state.players[side];
+  // 炼药是炼金阵营的专属机制：别的阵营连原料都拿不到，更不该能炼
+  if (p.faction !== 'alchemy') throw new Error('只有炼金阵营能炼药');
+  const ids = Array.isArray(iids) ? iids.slice() : [iids];
+  const uniq = [];
+  for (const id of ids) if (uniq.indexOf(id) < 0) uniq.push(id);
+  if (uniq.length < 2) throw new Error('炼药至少要消耗两张原料');
+
+  const picked = [];
+  for (const id of uniq) {
+    const idx = p.hand.findIndex((c) => c.iid === id);
+    if (idx < 0) throw new Error('手牌里没有这张原料');
+    const hc = p.hand[idx];
+    if (!isRawMaterial(state.cardLib[hc.cardId])) throw new Error('只能消耗原料');
+    picked.push({ idx, hc });
+  }
+  let cost = 0;
+  for (const it of picked) cost += costOf(state, it.hc);
+  if (cost > p.mana) throw new Error('费用不足：需要 ' + cost + '，剩余 ' + p.mana);
+
+  const consumed = picked.map((it) => it.hc.cardId);
+  picked.sort((a, b) => b.idx - a.idx);
+  for (const it of picked) p.hand.splice(it.idx, 1);
+  p.mana -= cost;
+  returnRawMaterials(state, side, consumed);
+
+  const token = comboTokenFor(consumed);
+  M.log(state, { type: 'brew', side, cost, consumed: consumed.slice(), token: token || null });
+  if (!token) return { cost, consumed, token: null };
+
+  const card = { iid: state.nextIid++, cardId: token };
+  p.hand.push(card);
+  M.log(state, { type: 'brew-token', side, cardId: token });
+  const tdef = state.cardLib[token];
+  if (tdef && tdef.autoUseOnAdd) driveGenerator(state, autoUseTokenGen(state, side, card, tdef));
+  return { cost, consumed, token };
+}
+
+/**
+ * 「这张牌加入手中时：自动使用，然后结束当前出牌回合」（令牌「事故」U444）。
+ * 顺序照抄 playCard 的锦囊分支，最后推进阶段结束当前出牌回合。
+ */
+function* autoUseTokenGen(state, side, handCard, def) {
+  const p = state.players[side];
+  const idx = p.hand.findIndex((c) => c.iid === handCard.iid);
+  if (idx >= 0) p.hand.splice(idx, 1);
+  const ctx = {
+    state,
+    controller: side,
+    card: def,
+    source: null,
+    chosenLane: null,
+    chosenTargetUid: null,
+    chosenTargetIsKing: false,
+    api: apiFor(state),
+  };
+  if ((def.keywords || []).length > 0) {
+    ctx.source = {
+      uid: -(state.nextUid++),
+      cardId: def.id,
+      name: def.name,
+      side,
+      lane: null,
+      row: 'front',
+      atk: 0, hp: 0, maxHp: 0,
+      keywords: def.keywords.map(parseKeyword),
+      effects: [],
+      marks: [],
+      removed: false,
+      virtual: true,
+    };
+  }
+  M.log(state, { type: 'cast', cardId: def.id, name: def.name, side, lane: null, auto: true });
+  notifyEnemyCastSpell(state, def, side);
+  p.currentSpell = def.id;
+  yield* runSpellWithWatchers(state, ctx, def);
+  p.lastSpell = def.id;
+  p.currentSpell = null;
+  flushTriggers(state);
+  if (def.type !== CARD_TYPE.UNIT) state.discard.push(def.id);
+  M.checkAllNimble(state);
+  flushTriggers(state);
+  syncStatAuras(state);
+  checkGameOver(state);
+  if (!state.pending && !isOver(state)) advance(state);
 }

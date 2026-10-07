@@ -23,6 +23,8 @@ export const FACTIONS = {
   music: { key: 'music', name: '音乐' },
   science: { key: 'science', name: '科学' },
   divine: { key: 'divine', name: '神佑' },
+  // 作者 2026-10-07：炼金阵营（原料堆 + 炼药 + 令牌）
+  alchemy: { key: 'alchemy', name: '炼金' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */
@@ -103,4 +105,162 @@ export function queueDelayedSummon(state, side, cardId, delay, spot) {
   const row = spot && spot.row ? spot.row : 'front';
   state.delayedSummons.push({ side, cardId, atTurn: state.turn + d, lane, row });
   log(state, { type: 'delayed-summon', side, cardId, atTurn: state.turn + d, lane, row });
+}
+
+/**
+ * 炼金阵营（作者 2026-10-07 规格，见 data/_transcribe/炼金阵营-规格.md）。
+ *
+ * 炼药：打出原料时再选手里其它原料，按「这一次消耗掉的原料」的组合把令牌加进手里。
+ * 费用 = 消耗掉的原料各自费用的和（作者 Q2.A）；组合对不上就不给令牌。
+ * 每抽一张牌就抽一张原料（起手不算）；原料堆 14 张，抽干不补（作者 Q3）。
+ */
+
+/** 四种原料的卡 id（金沙 / 厄毒之尘 / 陨铁 / 硫磺） */
+export const RAW_MATERIAL_IDS = ['U426', 'U427', 'U428', 'U429'];
+
+/** 原料堆构成：金沙 x3、厄毒之尘 x3、陨铁 x4、硫磺 x4（共 14 张） */
+export const RAW_PILE_MAKEUP = [
+  { cardId: 'U426', count: 3 },
+  { cardId: 'U427', count: 3 },
+  { cardId: 'U428', count: 4 },
+  { cardId: 'U429', count: 4 },
+];
+
+/**
+ * 组合表：键 = 消耗掉的原料卡 id 排序后加号连接，值 = 产出的令牌卡 id。
+ * 组合只看这一次消耗掉的原料（打出的那张 + 被选中的那些）。
+ */
+export const RAW_COMBOS = {
+  'U426+U426': 'U435',
+  'U427+U427': 'U437',
+  'U428+U428': 'U434',
+  'U429+U429': 'U439',
+  'U426+U427': 'U442',
+  'U426+U428': 'U441',
+  'U426+U429': 'U440',
+  'U427+U428': 'U438',
+  'U427+U429': 'U443',
+  'U428+U429': 'U444',
+  'U426+U427+U428+U429': 'U436',
+};
+
+/** 原料牌（进原料堆、不进牌库；只能通过炼药打出） */
+export function isRawMaterial(def) {
+  return !!(def && def.rawMaterial);
+}
+
+/** 一副新的原料堆 */
+export function makeRawPile() {
+  const pile = [];
+  for (const m of RAW_PILE_MAKEUP) for (let i = 0; i < m.count; i++) pile.push(m.cardId);
+  return pile;
+}
+
+/** 原料堆（缺了就补一副，保证老存档/测试里的 state 也能用） */
+export function ensureRawPile(state, side) {
+  const p = state.players && state.players[side];
+  if (!p) return [];
+  // 只有炼金阵营有原料堆：别的阵营不该因为界面要读一眼就被塞一副
+  if (p.faction !== 'alchemy') return [];
+  if (!Array.isArray(p.rawPile)) p.rawPile = makeRawPile();
+  return p.rawPile;
+}
+
+/** 只读原料堆（界面用，不写 state） */
+export function rawPileOf(state, side) {
+  const p = state.players && state.players[side];
+  if (!p || !Array.isArray(p.rawPile)) return [];
+  return p.rawPile;
+}
+
+/** 抽一张原料进手牌；堆空了返回 null */
+export function drawRawMaterial(state, side) {
+  const p = state.players[side];
+  if (!p || p.faction !== 'alchemy') return null;
+  const pile = ensureRawPile(state, side);
+  if (!pile.length) {
+    log(state, { type: 'raw-material-empty', side });
+    return null;
+  }
+  const idx = nextInt(state.rng, pile.length);
+  const cardId = pile.splice(idx, 1)[0];
+  p.hand.push({ iid: state.nextIid++, cardId });
+  log(state, { type: 'raw-material', side, cardId, left: pile.length });
+  return cardId;
+}
+
+/** 按类型从原料堆里指名取一张（未收录粉尘用），free 时花费压到 0 */
+export function takeRawMaterial(state, side, cardId, opts) {
+  const p = state.players[side];
+  if (!p) return null;
+  const pile = ensureRawPile(state, side);
+  const idx = pile.indexOf(cardId);
+  if (idx < 0) return null;
+  pile.splice(idx, 1);
+  const hc = { iid: state.nextIid++, cardId };
+  if (opts && opts.free) {
+    const def = state.cardLib[cardId];
+    hc.costDelta = -(def ? (def.cost || 0) : 0);
+  }
+  p.hand.push(hc);
+  log(state, { type: 'raw-material', side, cardId, left: pile.length });
+  return hc;
+}
+
+/** 把原料退回原料堆（炼药消耗掉的那些） */
+export function returnRawMaterials(state, side, cardIds) {
+  const pile = ensureRawPile(state, side);
+  for (const id of cardIds || []) pile.push(id);
+  return pile;
+}
+
+/** 每抽一张牌就抽一张原料（stats.js 的 drawCards 末尾调用） */
+export function alchemyOnDraw(state, side, n) {
+  const p = state.players[side];
+  if (!p || p.faction !== 'alchemy') return [];
+  const got = [];
+  for (let i = 0; i < n; i++) {
+    const id = drawRawMaterial(state, side);
+    if (!id) break;
+    got.push(id);
+  }
+  return got;
+}
+
+/** 这一次消耗掉的原料能凑出哪张令牌；凑不出返回 null */
+export function comboTokenFor(cardIds) {
+  const key = (cardIds || []).slice().sort().join('+');
+  return RAW_COMBOS[key] || null;
+}
+
+/** 解禁：国王身上挂着「可在自己的单位回合打出超能力锦囊牌」（整局有效） */
+export function alchemyUnlock(state, side) {
+  const p = state.players[side];
+  if (!p) return false;
+  if (p.alchemyUnlock === true) return true;
+  if (!Array.isArray(p.kingEffects)) return false;
+  return p.kingEffects.some((e) => e && e.kind === 'alchemyUnlock');
+}
+
+/** 炼金潮：本回合友方打出非原料锦囊时抽一张牌 */
+export function alchemyTideOn(state, side) {
+  const p = state.players[side];
+  if (!p) return false;
+  return p.alchemyTideTurn === state.turn;
+}
+
+/** 巫毒娃娃：每回合友方国王首次受到的伤害改为由敌方国王承受 */
+export function findVoodooDoll(state, side) {
+  const board = state.board || {};
+  for (const lane of Object.keys(board)) {
+    const units = board[lane] && board[lane].units;
+    if (!units) continue;
+    const row = units[side];
+    if (!row) continue;
+    for (const key of Object.keys(row)) {
+      const u = row[key];
+      if (u && u.voodooDoll) return u;
+    }
+  }
+  return null;
 }

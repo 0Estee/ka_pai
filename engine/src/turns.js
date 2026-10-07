@@ -20,7 +20,7 @@ import {
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
-import { giveStartingSuperpowers } from './factions.js';
+import { giveStartingSuperpowers, ensureRawPile } from './factions.js';
 import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { runCombat, apiFor } from './combat.js';
@@ -318,8 +318,15 @@ export function sacrificeUnit(state, side, uid) {
 export function startGame(state) {
   state.turn = 1;
   // 起手从共享牌库取：先手 5 张、后手 4 张（规则书 §2）
-  M.drawCards(state, state.firstPlayer, 5);
-  M.drawCards(state, 1 - state.firstPlayer, 4);
+
+  // 炼金的原料堆在开局就建好（双方各一副 14 张）。
+  // 必须在这里建，而不是等界面第一次读的时候懒建：两边客户端渲染时机不同，
+  // 谁先读谁就把 rawPile 写进 state，锁步对拍会因此分叉。
+  ensureRawPile(state, 0);
+  ensureRawPile(state, 1);
+  // 起手不算抽牌：炼金不因为起手产原料（作者 2026-10-07 口径）
+  M.drawCards(state, state.firstPlayer, 5, { raw: false });
+  M.drawCards(state, 1 - state.firstPlayer, 4, { raw: false });
   // 阵营超能力：对局开始时双方各抽一张（作者 2026-10-03）
   giveStartingSuperpowers(state);
   enterPhase(state, 'TURN_START');

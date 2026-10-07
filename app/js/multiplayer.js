@@ -323,6 +323,8 @@ export class Session {
     else if (a.k === 'c') G.resolveChoice(st, a.v);
     else if (a.k === 'x') G.sacrificeUnit(st, a.s, a.u);
     else if (a.k === 's') G.surrender(st, a.s);
+    // 炼药（炼金阵营）：两端都要能重放这条操作
+    else if (a.k === 'b') G.brew(st, a.s, a.i);
     else throw new Error(`未知操作 ${a.k}`);
   }
 

@@ -971,7 +971,7 @@ window.__playTurns = (n = 3) => {
       try { advanceGame(); } catch { break; }
       continue;
     }
-    try { const r = aiTakeTurn(state, actor); for (const a of (r && r.actions) || []) RP.recPlay(recording, actor, a.iid, a.opts); } catch { break; }
+    try { const r = aiTakeTurn(state, actor); RP.recAiActions(recording, actor, r && r.actions); } catch { break; }
     try { if (state.winner === null) advanceGame(); } catch { break; }
   }
   view.busy = false;
@@ -1007,7 +1007,7 @@ window.__autoPlay = (maxSteps = 4000) => {
     }
     try {
       const r = aiTakeTurn(state, actor);
-      for (const a of (r && r.actions) || []) RP.recPlay(recording, actor, a.iid, a.opts);
+      RP.recAiActions(recording, actor, r && r.actions);
     } catch (err) {
       return { error: `AI 出牌失败: ${err.message}` };
     }

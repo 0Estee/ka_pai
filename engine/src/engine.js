@@ -28,7 +28,7 @@ import {
   surrender,
 } from './turns.js';
 import {
-  costOf, getLegalPlays, legalPlacements, canPlaceUnit, playCard,
+  costOf, getLegalPlays, legalPlacements, canPlaceUnit, playCard, brew,
   notifyAllyPlayed, notifyEnemyCastSpell, resolveHunt,
 } from './play.js';
 import {
@@ -42,7 +42,10 @@ import {
 } from './combat.js';
 import { viewFor, describeUnit, renderBoard } from './view.js';
 import { instantiateUnit, attackPower, probeFromDef, PENDING } from './setup.js';
-import { FACTIONS } from './factions.js';
+import {
+  FACTIONS,
+  isRawMaterial, rawPileOf, RAW_MATERIAL_IDS, RAW_COMBOS, comboTokenFor, alchemyUnlock,
+} from './factions.js';
 
 export {
   createGame,
@@ -77,5 +80,13 @@ export {
   // 阵营与超能力（作者 2026-10-03）
   FACTIONS,
   sacrificeUnit,
+  // 炼金阵营（作者 2026-10-07）：炼药 + 原料堆
+  brew,
+  isRawMaterial,
+  rawPileOf,
+  RAW_MATERIAL_IDS,
+  RAW_COMBOS,
+  comboTokenFor,
+  alchemyUnlock,
   surrender,
 };

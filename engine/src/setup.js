@@ -195,6 +195,8 @@ export function instantiateUnit(state, def, side, lane, row) {
     bodyguard: !!def.bodyguard,
     // 「拟定目标攻击」（强化士兵）—— 开战时由玩家指定打谁
     choosesTarget: !!def.choosesTarget,
+    // 炼金：巫毒娃娃 (U430) - 每回合友方国王首次受到的伤害改由敌方国王承受
+    voodooDoll: !!def.voodooDoll,
   };
 }
 

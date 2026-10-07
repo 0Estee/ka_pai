@@ -1000,3 +1000,25 @@ html, body {
   from { transform: scale(1.05); }
   to { transform: scale(1); }
 }
+
+/* 炼金阵营（作者 2026-10-07）：原料角标 + 炼药按钮 + 原料堆张数 */
+.btn-brew {
+  height: 30px; padding: 0 12px; margin-left: 6px;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  background: var(--panel-2); color: var(--accent);
+  font-size: 13px; font-weight: 700;
+}
+.btn-brew + .btn-sac { margin-left: 6px; }
+.raw-left { margin-left: 8px; color: var(--dim); font-size: 11.5px; }
+.card.is-raw { border-color: var(--accent); }
+.card .c-raw {
+  position: absolute; top: 4px; right: 4px;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--accent); color: var(--panel);
+  font-size: 10px; font-weight: 700;
+}
+.card.brew-picked {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  transform: translateY(-10px);
+}

@@ -14,6 +14,7 @@ import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKey
 import { chance, shuffle } from './rng.js';
 import { log, findUnit, laneUnits, allUnitsInLane, allUnits, destroyUnit } from './board.js';
 import { queueTrigger, checkNimble } from './damage.js';
+import { alchemyOnDraw } from './factions.js';
 
 // ─────────────────────────────────────────────────────────
 // 词条的授予 / 剥夺
@@ -153,8 +154,11 @@ export function buffMaxHp(state, unit, amount) {
   checkNimble(state, unit);
 }
 
-/** 从共享牌库抽牌。牌库为空则返回抽到的数量（< n）。 */
-export function drawCards(state, side, n) {
+/**
+ * 从共享牌库抽牌。牌库为空则返回抽到的数量（< n）。
+ * opts.raw === false 时不发原料（开局起手用；作者口径：开局抽的牌不产原料）。
+ */
+export function drawCards(state, side, n, opts = {}) {
   const p = state.players[side];
   const drawnIds = [];
   for (let i = 0; i < n; i++) {
@@ -176,6 +180,8 @@ export function drawCards(state, side, n) {
       queueTrigger(state, watcher, 'onOpponentDraw', { drawerSide: side, cards: drawnIds });
     }
   }
+  // 炼金：每抽一张牌就从原料堆里抽一张原料（起手除外，见 opts.raw）
+  if (opts.raw !== false) alchemyOnDraw(state, side, drawnIds.length);
   return drawnIds.length;
 }
 

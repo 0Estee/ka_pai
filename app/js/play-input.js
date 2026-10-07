@@ -126,6 +126,7 @@ function computePlayable() {
 function clearSelection() {
   view.selectedIid = null;
   view.sacMode = false;
+  view.brewIids = [];
   view.legalSlots = [];
   view.legalUnitTargets = [];
   view.legalLanes = [];
@@ -133,6 +134,36 @@ function clearSelection() {
   view.legalSummonCells = [];
   view.infoUid = null;
   view.hint = '';
+}
+
+/**
+ * 炼金「炼药」多选（作者 2026-10-07）：点一张原料选中、再点同一张取消。
+ * 不足两张只看张数，够两张就把「花费 + 会出哪张令牌」写进提示行。
+ */
+function toggleBrewPick(iid) {
+  if (!Array.isArray(view.brewIids)) view.brewIids = [];
+  view.selectedIid = null;
+  view.sacMode = false;
+  const at = view.brewIids.indexOf(iid);
+  if (at >= 0) view.brewIids.splice(at, 1);
+  else view.brewIids.push(iid);
+  const p = state.players[me()];
+  const ids = [];
+  let cost = 0;
+  for (const each of view.brewIids) {
+    const hc = p.hand.find((c) => c.iid === each);
+    if (!hc) continue;
+    ids.push(hc.cardId);
+    cost += G.costOf(state, hc);
+  }
+  if (ids.length < 2) {
+    view.hint = '炼药：已选 ' + ids.length + ' 张原料，再选一张才能炼';
+  } else {
+    const token = G.comboTokenFor(ids);
+    view.hint = '炼药：已选 ' + ids.length + ' 张，花费 ' + cost + '，'
+      + (token ? ((state.cardLib[token] || {}).name || token) : '这个组合出不了令牌');
+  }
+  refresh();
 }
 
 function selectCard(iid) {
@@ -150,6 +181,12 @@ function selectCard(iid) {
   if (!hc) return;
   const def = state.cardLib[hc.cardId];
   const p = state.players[me()];
+
+  // 炼金原料不能直接打出（引擎会拒绝），点它就是「选中/取消选中，准备炼药」。
+  if (G.isRawMaterial(def)) {
+    toggleBrewPick(iid);
+    return;
+  }
 
   // 费用校验必须读**手牌实例**上的费用（「-1 花费」那种修正写在实例上），
   // 读卡面 def.cost 会出现「看着付不起、其实付得起」的误判。
@@ -505,6 +542,34 @@ function handleAction(act, el) {
     return;
   }
 
+  if (act === 'brew') {
+    if (view.busy || state.winner !== null) return;
+    if (G.getActor(state) !== me()) return;
+    const p = state.players[me()];
+    const iids = Array.isArray(view.brewIids) ? view.brewIids.slice() : [];
+    if (iids.length < 2) {
+      view.hint = '炼药至少要选两张原料';
+      refresh();
+      return;
+    }
+    let cost = 0;
+    for (const each of iids) {
+      const hc = p.hand.find((c) => c.iid === each);
+      if (hc) cost += G.costOf(state, hc);
+    }
+    if (cost > p.mana) {
+      view.hint = `费用不足：需要 ${cost}，剩余 ${p.mana}`;
+      refresh();
+      return;
+    }
+    clearTimeout(autoAdvanceTimer);
+    doAction({ k: 'b', s: me(), i: iids });
+    clearSelection();
+    refresh();
+    tick();
+    return;
+  }
+
   if (act === 'end') {
     if (view.busy || state.winner !== null) return;
     if (G.getActor(state) !== me()) return;
@@ -534,5 +599,5 @@ function handleAction(act, el) {
 export {
   NO_CHOICE_TARGET_KINDS, analyzeSpell, isPlayable, computePlayable, clearSelection,
   selectCard, resolvePlayerChoice, commitPlay,
-  handleSlotClick, handleUnitClick, handleKingClick, handleAction,
+  handleSlotClick, handleUnitClick, handleKingClick, handleAction, toggleBrewPick,
 };

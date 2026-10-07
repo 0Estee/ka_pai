@@ -9,7 +9,7 @@
  * 依赖方向：board ← damage ← stats
  */
 
-import { checkSuperpowerThresholds } from './factions.js';
+import { checkSuperpowerThresholds, findVoodooDoll } from './factions.js';
 import { LANES, ROWS, SIDE, KING_MAX_HP, REBIRTH_HP } from './constants.js';
 import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKeyword, isUntargetable } from './keywords.js';
 import { chance, shuffle } from './rng.js';
@@ -152,6 +152,18 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
 
   if (isKing) {
     const p = state.players[target.side];
+    /**
+     * 炼金：巫毒娃娃（U430） 每回合友方国王首次受到的伤害改为由敌方国王承受。
+     * 作者 2026-10-07 口径：整笔转移，而且不经过我方国王的减伤/护盾，
+     * 所以放在 kingDamageReduce 与国王护卫之前处理；noRedirect 防止两边娃娃对撞。
+     */
+    const doll = opts.noRedirect ? null : findVoodooDoll(state, target.side);
+    if (doll && doll.voodooTurn !== state.turn) {
+      doll.voodooTurn = state.turn;
+      log(state, { type: 'voodoo-redirect', side: target.side, uid: doll.uid, amount: finalAmount });
+      dealDamage(state, source, { kind: 'king', side: 1 - target.side }, finalAmount, { ...opts, noRedirect: true });
+      return 0;
+    }
     /**
      * 「友方国王本回合每次受伤-2」（神佑超能力「祈祷」U423）：先扣减。
      * 作者 2026-10 口径明确：祈祷的 -2 **先扣**，再看「神使」转不转移。

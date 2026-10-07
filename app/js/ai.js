@@ -542,6 +542,45 @@ export function installAiTargetPicker(state) {
  *   `actions` 是本阶段真正打出的每一张牌。回放录制需要它：把 AI 的每一步
  *   也照单记下来，重放时就不用再跑一遍 AI（既快，也不必依赖 AI 决策的稳定性）。
  */
+/**
+ * 炼金阵营的炼药：AI 自己找一组「能凑出令牌、且付得起」的原料。
+ *
+ * 返回这次真正消耗掉的 iid 列表（没炼就返回 null）。
+ * 找不到组合、付不起、或引擎拒绝，都当作「这一步不做」AI 绝不能因为
+ * 炼药抛错就卡死在自己的回合里。
+ */
+function tryAlchemyBrew(state, side) {
+  const p = state.players[side];
+  if (!p || p.faction !== 'alchemy') return null;
+  const mats = p.hand
+    .map((hc) => ({ hc, def: state.cardLib[hc.cardId] }))
+    .filter((it) => it.def && it.def.rawMaterial);
+  const n = mats.length;
+  if (n < 2 || n > 12) return null;
+
+  let best = null;
+  for (let mask = 1; mask < (1 << n); mask++) {
+    const picked = [];
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) picked.push(mats[i]);
+    if (picked.length < 2 || picked.length > 4) continue;
+    const token = G.comboTokenFor(picked.map((it) => it.hc.cardId));
+    if (!token) continue;
+    let cost = 0;
+    for (const it of picked) cost += G.costOf(state, it.hc);
+    if (cost > p.mana) continue;
+    const tdef = state.cardLib[token] || {};
+    const score = (tdef.cost || 0) * 2 + ((tdef.actions || []).length);
+    if (!best || score > best.score) best = { score, iids: picked.map((it) => it.hc.iid) };
+  }
+  if (!best) return null;
+  try {
+    G.brew(state, side, best.iids);
+  } catch (err) {
+    return null;
+  }
+  return best.iids;
+}
+
 export function aiTakeTurn(state, side, opts = {}) {
   const difficulty = typeof opts === 'string' ? opts : (opts.difficulty || DEFAULT_DIFFICULTY);
   const maxPlays = typeof opts === 'string' ? 8 : (opts.maxPlays || 8);
@@ -554,7 +593,18 @@ export function aiTakeTurn(state, side, opts = {}) {
   const seen = new Set();
   const actions = [];
 
+  let brews = 0;
   while (played < maxPlays) {
+    // 炼金阵营的节奏是「先炼药、再打令牌」：能凑出组合就先把原料炼掉。
+    // 一回合最多两次，免得把手牌耗空、也不会在炼药上打转。
+    if (brews < 2) {
+      const used = tryAlchemyBrew(state, side);
+      if (used) {
+        brews++;
+        actions.push({ brew: used });
+        continue;
+      }
+    }
     const plays = G.getLegalPlays(state, side);
     if (plays.length === 0) break;
 

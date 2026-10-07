@@ -293,10 +293,16 @@ function handHTML(state, view) {
     // 阵营超能力：高亮 + 角标。开局那一张没有「出牌」时刻，写提示行又会被
     // 后面的阶段提示顶掉，所以做成手牌上的持久标记（玩家一眼能看到自己有什么）。
     const isSuperpower = !!(p.superpowers || []).includes(hc.cardId);
+    // 炼金原料：不能直接打出（引擎会拒绝），只能通过「炼药」消耗（见 play-input.js 的炼药模式）。
+    // 手牌上单独标出来，玩家才知道哪些牌是能用来炼的料。
+    const isRaw = !!def.rawMaterial;
+    const brewPicked = isRaw && Array.isArray(view.brewIids) && view.brewIids.includes(hc.iid);
     const classes = [
       'card',
       def.type === 'unit' ? 'is-unit' : `is-spell ${def.spellKind === 'item' ? 'is-item' : 'is-attack'}`,
       isSuperpower ? 'is-superpower' : '',
+      isRaw ? 'is-raw' : '',
+      brewPicked ? 'brew-picked' : '',
       afford ? 'afford' : 'unafford',
       playable ? 'playable' : 'unplayable',
       selected ? 'selected' : '',
@@ -321,6 +327,7 @@ function handHTML(state, view) {
         <div class="c-cost">${cost}${hc.costDelta ? '<i class="c-cost-mod">*</i>' : ''}</div>
         <div class="c-name">${esc(def.name)}</div>
         ${isSuperpower ? '<div class="c-sp">超能力</div>' : ''}
+        ${isRaw ? '<div class="c-raw">原料</div>' : ''}
         ${stat}
         ${kws}
         ${desc}
@@ -409,10 +416,22 @@ export function render(root, state, view) {
   const canSac = canAct && !view.isReplay && !!myP && !!myP.faction && hasOwnUnit;
   const sacBtn = canSac ? '<button class="btn-sac" data-act="sac">献祭</button>' : '';
 
+  /**
+   * 炼金阵营的「炼药」按钮（作者 2026-10-07）：和献祭一样排在结束阶段左边。
+   * 用法 = 先在手里点原料（可多张，点一下选中、再点取消），再按这个按钮结算。
+   * 手里至少两张原料才出现  一张凑不出任何组合。
+   */
+  const rawInHand = myP && myP.faction === 'alchemy'
+    ? myP.hand.filter((c) => (state.cardLib[c.cardId] || {}).rawMaterial).length
+    : 0;
+  const canBrew = canAct && !view.isReplay && !!myP && myP.faction === 'alchemy' && rawInHand >= 2;
+  const brewBtn = canBrew ? '<button class="btn-brew" data-act="brew">炼药</button>' : '';
+
   root.innerHTML = `
     <div class="topbar">
       <span class="turn">第 ${state.turn} 回合</span>
       <span class="deck-left">牌库 ${state.deck.length}</span>
+      ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
 
@@ -423,7 +442,7 @@ export function render(root, state, view) {
     <div class="phasebar">
       <span class="phase-name">${phaseText}</span>
       <span class="phase-status">${statusText}</span>
-      ${sacBtn}
+      ${brewBtn}${sacBtn}
       <button class="btn-end" data-act="end" ${canAct ? '' : 'disabled'}>结束阶段</button>
     </div>
 
