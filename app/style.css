@@ -968,3 +968,35 @@ html, body {
   opacity: .92;
 }
 .choice-bar .choice-opt { padding: 6px 10px; border-radius: 8px; }
+
+/*  卡牌飞行（作者 2026-10-07）
+   增手牌：从屏幕正下方曲线划入卡槽；出牌：从卡槽滑向落点格子；AI：从屏幕正上方滑入。
+   覆盖层挂在 document.body（不在 #stage 里），所以 refresh() 整块重写 innerHTML 也冲不掉它；
+   手牌区 .hand 是 overflow: hidden，被 transform 移出卡槽的克隆卡必须躲到这一层来。
+   位置 / 尺寸 / 关键帧都由 render.js 算好，这里只管卡面观感。 */
+#fx-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  overflow: visible;
+}
+.fly-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  filter: drop-shadow(3px 4px 0 var(--shadow-2, rgba(0, 0, 0, .35)));
+}
+.fly-card .card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  flex: none;
+}
+.fly-card .c-desc { max-height: 44px; }
+.slot.fx-drop { animation: slotDrop .36s ease-out; }
+@keyframes slotDrop {
+  from { transform: scale(1.05); }
+  to { transform: scale(1); }
+}

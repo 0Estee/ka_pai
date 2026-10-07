@@ -49,6 +49,7 @@ import './checks/26-stat-badge.mjs';
 import './checks/27-battle-log.mjs';
 import './checks/28-ui-fixes.mjs';
 import './checks/29-motion.mjs';
+import './checks/30-card-fx.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

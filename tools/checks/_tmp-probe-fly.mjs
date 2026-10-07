@@ -1,0 +1,14 @@
+import { ROOT, api, elements } from './harness.mjs';
+import fs from 'node:fs';
+const lines = fs.readFileSync(ROOT + '/app/dist/modules/32-app-render.js', 'utf8').split('\n');
+const hits = [];
+lines.forEach((l, i) => { if (l.includes('flushCardFlights')) hits.push((i + 1) + ': ' + l); });
+console.log('render dist flushCardFlights 出现处:'); for (const h of hits) console.log('  ' + h);
+api.__newGame();
+console.log('after newGame flights = ' + JSON.stringify(api.__cardFlights().length));
+const s = api.__game();
+console.log('humanSide=' + s.humanSide + ' hand=' + JSON.stringify(s.players[0].hand.map((c) => c.iid)));
+api.__demoHand(['U05', 'U07', 'U10']);
+console.log('after demoHand flights = ' + JSON.stringify(api.__cardFlights()));
+const s2 = api.__game();
+console.log('hand now=' + JSON.stringify(s2.players[0].hand.map((c) => c.iid)));

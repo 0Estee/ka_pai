@@ -921,6 +921,19 @@ window.__pause = (on = true) => {
  * 截图 / 自检用：把手牌换成指定的一组卡，用来检查卡面文字排版。
  * 不传参数时放一批第二批手绘卡（单位牌现在也要显示异能文字）。
  */
+/**
+ * 自检钩子：卡牌飞行的意图记录（门禁用）。
+ * 每次该飞的卡都记一笔：{ kind, side, cardId, iid, lane, row, from, animated }。
+ * kind: 'draw' 是新抽到的手牌（从屏幕下方划入），'play' 是打出的牌
+ *       （我方从卡槽滑向落子格、对手从屏幕上方滑入）。
+ * 门禁的 DOM 桩没有 createElement / animate，所以那里 animated 恒为 false 
+ * 这正说明「少了浏览器能力时只记意图、不碰 DOM」，真机上才真的有动画。
+ */
+window.__cardFlights = () => cardFlightLog();
+
+/** 累计记过多少笔飞行（环形缓冲会截断，数增量用这个） */
+window.__cardFlightSeq = () => cardFlightSeq();
+
 window.__demoHand = (ids) => {
   if (!state) startNewGame();
   screen = 'game';

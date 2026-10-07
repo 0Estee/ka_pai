@@ -313,6 +313,288 @@ function boardRevealStep() {
 }
 
 /**
+ * 卡牌飞行（作者 2026-10-07）：
+ *   增手牌   -> 从屏幕正下方沿弧线划进手牌卡槽；
+ *   打出手牌 -> 从手牌卡槽滑向落点格子；
+ *   AI 出牌  -> 统一从屏幕正上方滑入。
+ *
+ * 为什么必须有覆盖层：
+ *   1) #stage 每次 refresh() 都整块重写 innerHTML，动画元素放在里面会被立刻冲掉；
+ *   2) 手牌区 .hand 是 overflow: hidden，被 transform 移出卡槽的克隆卡会被直接裁掉。
+ *   所以克隆卡挂在 document.body 的 #fx-layer 上（和 #menu 一样，独立于 stage 的重绘）。
+ *
+ * 门禁里的 DOM 桩没有 createElement / getBoundingClientRect / animate：
+ * 这种情况下只把「本该飞的卡」记进 flightLog（animated: false），一行 DOM 都不碰。
+ */
+const FLIGHT_MS = 460;
+const FLIGHT_LOG_MAX = 200;
+let flightLayer = null;
+let pendingFlights = [];
+let flightLog = [];
+let lastHandIids = null;   // 上一帧的手牌 iid，用来认「刚抽到的新牌」
+let playSources = [];      // 出牌前抓下来的源卡（按顺序配对给 deploy/cast 日志）
+let cardFxCursor = -1;     // state.log 的扫描游标；< 0 表示还没定基线
+let flightSeq = 0;         // 单调计数：环形缓冲被截断时，门禁靠它数「新增了几笔」
+
+function canFlyDom() {
+  try {
+    return typeof document !== 'undefined'
+      && typeof document.createElement === 'function'
+      && !!document.body
+      && typeof document.body.appendChild === 'function';
+  } catch (e) { return false; }
+}
+
+/** 新局：清空没播完的队列与抓拍（flightLog 留着给门禁和排查看） */
+function resetCardFlights() {
+  pendingFlights = [];
+  playSources = [];
+  lastHandIids = null;
+  cardFxCursor = -1;
+}
+
+/** 自检用：最近这些笔「该飞的卡」（main.js 的 window.__cardFlights 读它） */
+function cardFlightLog() { return flightLog.slice(); }
+
+/** 累计记过多少笔（不受环形缓冲截断影响，门禁数增量用） */
+function cardFlightSeq() { return flightSeq; }
+
+function enqueueCardFlight(f) {
+  if (!f) return;
+  pendingFlights.push(f);
+  if (pendingFlights.length > 24) pendingFlights.shift();
+}
+
+function noteFlight(f, animated) {
+  flightSeq += 1;
+  flightLog.push({
+    kind: f.kind,
+    side: f.side,
+    cardId: f.cardId || null,
+    iid: f.iid == null ? null : f.iid,
+    lane: f.lane == null ? null : f.lane,
+    row: f.row || null,
+    from: f.from || null,
+    animated: !!animated,
+  });
+  if (flightLog.length > FLIGHT_LOG_MAX) flightLog.shift();
+}
+
+/** 出牌前抓源卡：卡槽位置 + 卡面 HTML（打出去之后这张牌就不在手牌里了） */
+function captureHandCardSource(iid, cardId) {
+  const cap = { iid: iid == null ? null : iid, cardId: cardId || null, rect: null, html: '' };
+  try {
+    const stage = document.getElementById('stage');
+    if (stage && typeof stage.querySelector === 'function' && iid != null) {
+      const el = stage.querySelector('.hand .card[data-iid="' + iid + '"]');
+      if (el) {
+        cap.html = el.innerHTML || '';
+        if (typeof el.getBoundingClientRect === 'function') cap.rect = el.getBoundingClientRect();
+      }
+    }
+  } catch (e) { /* 拿不到就算了：飞行会退回默认轨迹 */ }
+  playSources.push(cap);
+  if (playSources.length > 8) playSources.shift();
+  return cap;
+}
+
+function rectCenterOf(r) {
+  if (!r || typeof r.left !== 'number') return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+}
+
+function queryRect(sel) {
+  try {
+    if (typeof document.querySelector !== 'function') return null;
+    const el = document.querySelector(sel);
+    if (el && typeof el.getBoundingClientRect === 'function') return el.getBoundingClientRect();
+  } catch (e) {}
+  return null;
+}
+
+function slotRectOf(lane, side, row) {
+  if (lane == null || side == null || !row) return null;
+  return queryRect('.slot[data-lane="' + lane + '"][data-side="' + side + '"][data-row="' + row + '"]');
+}
+
+function handRectOf(iid) {
+  if (iid == null) return null;
+  return queryRect('.hand .card[data-iid="' + iid + '"]');
+}
+
+function flightLayerEl() {
+  if (flightLayer) return flightLayer;
+  if (!canFlyDom()) return null;
+  try {
+    const el = document.createElement('div');
+    el.id = 'fx-layer';
+    document.body.appendChild(el);
+    flightLayer = el;
+    return el;
+  } catch (e) { return null; }
+}
+
+/** 起点 -> 控制点 -> 终点摊成 11 帧（二次贝塞尔），交给 Web Animations 播 */
+function arcFrames(from, to, bulge) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const ctrl = {
+    x: (from.x + to.x) / 2 + (-dy / len) * len * bulge,
+    y: (from.y + to.y) / 2 + (dx / len) * len * bulge,
+  };
+  const frames = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const u = 1 - t;
+    const x = u * u * from.x + 2 * u * t * ctrl.x + t * t * to.x;
+    const y = u * u * from.y + 2 * u * t * ctrl.y + t * t * to.y;
+    frames.push({
+      transform: 'translate(' + (x - from.x).toFixed(1) + 'px, ' + (y - from.y).toFixed(1) + 'px)'
+        + ' rotate(' + ((1 - t) * -7).toFixed(2) + 'deg) scale(' + (1 - t * 0.12).toFixed(3) + ')',
+      opacity: t > 0.82 ? String(Math.max(0, (1 - t) / 0.18)) : '1',
+    });
+  }
+  return frames;
+}
+
+/** 落点格子被砸一下（卡牌落地的反馈） */
+function dropSlotPulse(f) {
+  try {
+    const el = document.querySelector('.slot[data-lane="' + f.lane + '"][data-side="' + f.side + '"][data-row="' + f.row + '"]');
+    if (!el || !el.classList) return;
+    el.classList.add('fx-drop');
+    setTimeout(() => { try { el.classList.remove('fx-drop'); } catch (e) {} }, 380);
+  } catch (e) {}
+}
+
+/** 没有源卡面（AI 出牌 / 召唤）时，按卡牌定义拼一张 */
+function faceHTML(cardId) {
+  const def = (state && state.cardLib && state.cardLib[cardId]) || null;
+  if (!def) return '<div class="card fly-face"></div>';
+  const cls = def.type === 'unit' ? '' : (def.spellKind === 'item' ? ' is-item' : ' is-spell');
+  const stat = def.type === 'unit'
+    ? '<div class="c-stats"><span>' + (def.atk == null ? 0 : def.atk) + '</span>/<span>' + (def.hp == null ? 0 : def.hp) + '</span></div>'
+    : '';
+  return '<div class="card fly-face' + cls + '">'
+    + '<div class="c-cost">' + (def.cost == null ? 0 : def.cost) + '</div>'
+    + '<div class="c-name">' + escMain(def.name || '') + '</div>'
+    + stat
+    + '</div>';
+}
+
+/** 真的动手飞一张；没有 DOM 就返回 false（只记意图） */
+function spawnFlight(f) {
+  if (!canFlyDom()) return false;
+  const layer = flightLayerEl();
+  if (!layer) return false;
+  const vw = (typeof window !== 'undefined' && window.innerWidth) || 390;
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 844;
+
+  const toRect = f.kind === 'draw' ? handRectOf(f.iid) : slotRectOf(f.lane, f.side, f.row);
+  const to = rectCenterOf(toRect);
+  if (!to) return false;
+  const w = Math.round(Math.min(to.w || 84, 96));
+  const h = Math.round(Math.min(to.h || 112, 128));
+
+  let from;
+  let bulge;
+  if (f.kind === 'draw') {
+    from = { x: Math.max(w / 2 + 6, Math.min(vw - w / 2 - 6, to.x + w * 0.45)), y: vh + h * 0.8 };
+    bulge = -0.24;
+  } else if (f.from === 'hand' && f.srcRect) {
+    const c = rectCenterOf(f.srcRect);
+    from = { x: c.x, y: c.y };
+    bulge = to.x >= from.x ? -0.26 : 0.26;
+  } else if (f.from === 'above') {
+    from = { x: Math.max(w / 2 + 6, Math.min(vw - w / 2 - 6, to.x + 12)), y: -h * 0.7 };
+    bulge = 0.26;
+  } else {
+    from = { x: Math.max(w / 2 + 6, Math.min(vw - w / 2 - 6, to.x + 8)), y: vh + h * 0.8 };
+    bulge = -0.24;
+  }
+
+  const el = document.createElement('div');
+  el.className = 'fly-card';
+  el.style.width = w + 'px';
+  el.style.height = h + 'px';
+  el.style.left = Math.round(from.x - w / 2) + 'px';
+  el.style.top = Math.round(from.y - h / 2) + 'px';
+  el.innerHTML = f.srcHTML ? '<div class="card fly-face">' + f.srcHTML + '</div>' : faceHTML(f.cardId);
+  layer.appendChild(el);
+
+  if (typeof el.animate !== 'function') { try { el.remove(); } catch (e) {} return false; }
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (f.kind === 'play') dropSlotPulse(f);
+    try { el.remove(); } catch (e) {}
+  };
+  try {
+    const anim = el.animate(arcFrames(from, to, bulge), { duration: FLIGHT_MS, easing: 'ease-out', fill: 'forwards' });
+    if (anim) anim.onfinish = finish;
+  } catch (e) {}
+  setTimeout(finish, FLIGHT_MS + 180);
+  return true;
+}
+
+function flyCard(f) {
+  let animated = false;
+  try { animated = spawnFlight(f); } catch (e) { animated = false; }
+  noteFlight(f, animated);
+}
+
+/**
+ * 每次对局渲染后调用：把「该飞的卡」找出来（新手牌 + 新增的 deploy/cast 日志），
+ * 逐张交给 flyCard。游标保证同一条出牌只飞一次（重绘不会重放）。
+ */
+function flushCardFlights() {
+  if (!state || !view || view.isReplay) { pendingFlights = []; return; }
+  const logs = state.log || [];
+  if (cardFxCursor < 0 || cardFxCursor > logs.length) cardFxCursor = logs.length;
+
+  // 新抽到的手牌：从屏幕正下方划入。首帧只记基线（开局发牌交给铺开动画，不叠加）。
+  const p = state.players && state.players[view.humanSide];
+  if (p && Array.isArray(p.hand)) {
+    if (lastHandIids) {
+      for (const c of p.hand) {
+        if (!lastHandIids.includes(c.iid)) {
+          enqueueCardFlight({ kind: 'draw', side: view.humanSide, iid: c.iid, cardId: c.cardId, from: 'below' });
+        }
+      }
+    }
+    lastHandIids = p.hand.map((c) => c.iid);
+  }
+
+  // 新增的出牌日志：deploy / cast 都带 side + lane（deploy 还有 row）
+  for (let i = cardFxCursor; i < logs.length; i++) {
+    const e = logs[i];
+    if (!e || (e.type !== 'deploy' && e.type !== 'cast')) continue;
+    const mine = e.side === view.humanSide;
+    let cap = null;
+    // 只把「同一张牌」的抓拍配给它：召唤出来的单位没有抓拍，别把后面那张牌的抓拍吃掉
+    if (mine && playSources.length && playSources[0].cardId === (e.cardId || null)) cap = playSources.shift();
+    enqueueCardFlight({
+      kind: 'play',
+      side: e.side,
+      cardId: e.cardId || null,
+      lane: e.lane == null ? null : e.lane,
+      row: e.type === 'deploy' ? (e.row || 'front') : 'front',
+      from: mine ? (cap && cap.rect ? 'hand' : 'below') : 'above',
+      srcHTML: cap ? cap.html : '',
+      srcRect: cap ? cap.rect : null,
+    });
+  }
+  cardFxCursor = logs.length;
+
+  const queued = pendingFlights;
+  pendingFlights = [];
+  for (const f of queued) flyCard(f);
+}
+
+/**
  * 屏幕切换动画：只动按钮，不动整页。
  * 前进时新页面的菜单按钮从右往左滑入，返回时相反（方向由 SCREEN_DEPTH 自动决定）。
  * 旧页面不做整页退场  上一版整页退场与新页面滑入同时进行，看起来就是两个画面重叠。
@@ -489,6 +771,8 @@ function refresh() {
   view.revealShown = boardReveal ? boardReveal.shown : null;
   render(stage, state, view);
   restoreHandScroll(stage, handScroll);
+  // 卡牌飞行：这一帧该飞的卡（新抽的手牌 / 刚打出的牌）在这里起飞
+  flushCardFlights();
 
   // 「打到一半反问玩家」的交互，统一走这一层面板。现在有两类请求：
   //   · chooseOption  「抉择」（卡牌「歼-10」）
@@ -546,4 +830,5 @@ function escMain(s) {
 export {
   makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
   showBanner, refresh, escMain, LANE_LABEL, toggleMenu, fillMenuLog,
+  resetCardFlights, captureHandCardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
 };

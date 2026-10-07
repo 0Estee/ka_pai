@@ -90,6 +90,8 @@ function newGame() {
   state.autoResolveChoices = true; // AI 与自动结算用；玩家侧由我们显式传目标
   // 战斗可视化的游标/队列是跨局保留的，开新局必须清一次（否则会带着上一局的残留）
   resetCombatFx();
+  // 卡牌飞行：清掉上一局没播完的队列与抓拍（flightLog 留给门禁和排查看）
+  resetCardFlights();
 
   // ── 告诉引擎「本地玩家是哪一方」
   //    开战结算到「拟定目标攻击」（强化士兵）出手时会中途停下来问目标：
@@ -155,6 +157,11 @@ function applyLocalAction(action, fromRemote) {
   const playedDef = action.k === 'p'
     ? state.cardLib[((state.players[action.s].hand.find((c) => c.iid === action.i)) || {}).cardId]
     : null;
+  // 卡牌飞行（作者 2026-10-07）：出牌前把「源卡槽的位置 + 卡面」抓下来 
+  // 打出去之后这张牌就不在手牌里了，那时再想拿它的位置已经拿不到（见 render.js 的 spawnFlight）。
+  if (action.k === 'p' && action.s === me()) {
+    captureHandCardSource(action.i, playedDef ? playedDef.id : null);
+  }
   try {
     if (action.k === 'a') G.advance(state);
     else if (action.k === 'p') G.playCard(state, action.s, action.i, action.o || {});
