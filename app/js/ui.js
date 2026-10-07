@@ -194,10 +194,17 @@ function slotHTML(state, view, lane, side, row) {
   const isSummonCell = mine && (view.legalSummonCells || []).some((c) => c.lane === lane && c.row === row);
   const isLaneTarget = mine && row === 'front' && view.legalLanes.includes(lane) && !unit;
   const interactive = isLegal || isLaneTarget || isSummonCell;
+  /**
+   * 手牌正飞向这一格：飞行播完之前先不画格子里的牌（作者 2026-10-07）。
+   * 标记存在 render.js 的 view.flyPending 里，所以飞行途中重绘也不会提前露出。
+   */
+  const flyPendingKey = lane + '-' + side + '-' + row;
+  const flyHidden = !!(view.flyPending && view.flyPending[flyPendingKey]);
   const classes = [
     'slot',
     mine ? 'mine' : 'foe',
     `row-${row}`,
+    flyHidden ? 'fly-pending' : '',
     interactive ? 'legal' : '',
     unit ? 'occupied' : 'empty',
   ].filter(Boolean).join(' ');

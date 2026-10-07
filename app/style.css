@@ -1001,6 +1001,9 @@ html, body {
   to { transform: scale(1); }
 }
 
+/* 手牌还在飞向这一格：格子里的牌先不显示（HTML 照常渲染，只藏视觉），飞完摘掉标记再出现 */
+.slot.fly-pending .unit { visibility: hidden; }
+
 /* 炼金阵营（作者 2026-10-07）：原料角标 + 炼药按钮 + 原料堆张数 */
 .btn-brew {
   height: 30px; padding: 0 12px; margin-left: 6px;

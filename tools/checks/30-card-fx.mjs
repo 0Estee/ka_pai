@@ -9,7 +9,7 @@
  * 动画本身只能在真机上看；这里保证渲染链路会算出该飞的卡、配对正确，
  * 而且缺这些能力时一行 DOM 都不碰（animated 恒为 false）。
  */
-import { ROOT, api, elements, check } from './harness.mjs';
+import { ROOT, api, elements, timers, check } from './harness.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -18,6 +18,7 @@ const renderSrc = read('app/js/render.js');
 const flowSrc = read('app/js/game-flow.js');
 const cssSrc = read('app/style.css');
 const mainSrc = read('app/js/main.js');
+const uiSrc = read('app/js/ui.js');
 
 check('源码：render.js 有完整的飞行引擎（覆盖层 / 弧线 / 落点脉冲 / 日志）', () => {
   const need = ['function flushCardFlights(', 'function spawnFlight(', 'function arcFrames(', 'function resetCardFlights(', 'function captureHandCardSource(', 'function cardFlightLog(', 'function canFlyDom('];
@@ -69,4 +70,50 @@ check('飞行记录有上限，不会无限增长', () => {
   if (all.length > 200) throw new Error('飞行记录应截断在 200 条内，实际 ' + all.length);
   const seq = api.__cardFlightSeq();
   if (seq < all.length) throw new Error('累计计数不应小于当前条数：seq=' + seq + ' len=' + all.length);
+});
+
+/**
+ * 落点等飞完再露牌（作者 2026-10-07）：
+ *   手牌从卡槽飞向落点的那段动画播完之前，落点格子里的牌不能先出现。
+ * 隐藏状态放在 JS 里（view.flyPending），所以渲染只是照当前状态画一遍：
+ * 飞行途中重绘不会提前露出，飞完（或动画没播成）再摘掉标记。
+ */
+const pump = (rounds = 60) => {
+  for (let i = 0; i < rounds; i++) {
+    const list = [...timers.entries()];
+    if (!list.length) break;
+    for (const [id, t] of list) { timers.delete(id); try { t.fn(); } catch (e) { /* 忽略 */ } }
+  }
+};
+
+check('源码：落点先藏住、飞完再露牌（渲染前扫描 / 渲染后起飞）', () => {
+  for (const n of ['function scanCardFlights(', 'function hideSlotForFlight(', 'function revealFlightSlot(', 'view.flyPending', "hides: e.type === 'deploy'"]) {
+    if (!renderSrc.includes(n)) throw new Error('render.js 缺少 ' + n);
+  }
+  const at = renderSrc.indexOf('view.revealShown = boardReveal');
+  const seg = renderSrc.slice(at, at + 500);
+  const scan = seg.indexOf('scanCardFlights();');
+  const draw = seg.indexOf('render(stage, state, view);');
+  if (scan < 0) throw new Error('refresh() 没有在渲染前扫描飞行');
+  if (draw < 0 || scan > draw) throw new Error('扫描必须在 render() 之前，否则牌会先在格子里露出来');
+  if (!uiSrc.includes('fly-pending')) throw new Error('ui.js 没有给落点格子打 fly-pending');
+  if (!uiSrc.includes('view.flyPending')) throw new Error('ui.js 没有读 view.flyPending');
+  if (!cssSrc.includes('.slot.fly-pending')) throw new Error('style.css 缺少 .slot.fly-pending 规则');
+});
+
+check('落点格子先藏住牌，飞行计时器跑完才露出来', () => {
+  api.__newGame();
+  api.__pause(true);
+  const st = api.__game();
+  if (!st || !Array.isArray(st.log)) throw new Error('没有拿到对局 state.log');
+  // 伪一条刚刚打出的单位日志：落点是 mountain 路 / 我方前排
+  st.log.push({ type: 'deploy', uid: 900001, cardId: 'U05', name: '吸血鬼', side: 0, lane: 'mountain', row: 'front' });
+  api.refresh();
+  const html = elements.get('stage').innerHTML;
+  const spot = new RegExp('class="[^"]*fly-pending[^"]*" data-lane="mountain" data-side="0" data-row="front"');
+  if (!spot.test(html)) throw new Error('打出单位后，落点格子没有先藏住牌');
+  pump(60);
+  const after = elements.get('stage').innerHTML;
+  if (after.includes('fly-pending')) throw new Error('飞行结束后落点格子还藏着牌');
+  if (!after.includes('data-lane="mountain"')) throw new Error('揭开之后棋盘没有渲染回来');
 });

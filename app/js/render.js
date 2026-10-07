@@ -337,6 +337,60 @@ let playSources = [];      // 出牌前抓下来的源卡（按顺序配对给 d
 let cardFxCursor = -1;     // state.log 的扫描游标；< 0 表示还没定基线
 let flightSeq = 0;         // 单调计数：环形缓冲被截断时，门禁靠它数「新增了几笔」
 
+/**
+ * 落点等飞完再露牌（作者 2026-10-07）：
+ *   手牌从卡槽飞向落点时，格子里的那张牌要等飞行播完才出现。
+ * 隐藏状态存在 JS 里（view.flyPending，键 = 「路-阵营-行」，和 .slot 的 data-* 一致），
+ * 于是每次重绘只是照当前状态画一遍：飞行途中重绘不会提前露出，飞完摘掉标记就显示。
+ * 兜底：动画没播成（拿不到落点 / DOM 桩）或计时器到点，都会把牌子放出来，绝不永久藏住。
+ */
+let flyPendingSlots = [];
+const flightHideTimers = {};
+
+function slotKeyOf(lane, side, row) {
+  if (lane == null || side == null || !row) return null;
+  return lane + '-' + side + '-' + row;
+}
+
+function hideSlotForFlight(f) {
+  const key = slotKeyOf(f.lane, f.side, f.row);
+  if (!key || !view) return;
+  if (!view.flyPending) view.flyPending = {};
+  view.flyPending[key] = true;
+  if (!flyPendingSlots.includes(key)) flyPendingSlots.push(key);
+  clearTimeout(flightHideTimers[key]);
+  flightHideTimers[key] = setTimeout(() => {
+    delete flightHideTimers[key];
+    revealFlightSlot(key);
+  }, FLIGHT_MS + 600);
+}
+
+function revealFlightSlot(key, defer) {
+  if (!key) return;
+  flyPendingSlots = flyPendingSlots.filter((k) => k !== key);
+  if (!view || !view.flyPending || !view.flyPending[key]) return;
+  delete view.flyPending[key];
+  if (defer) {
+    try { setTimeout(() => { try { refresh(); } catch (e) {} }, 0); } catch (e) {}
+    return;
+  }
+  try { refresh(); } catch (e) {}
+}
+
+function revealFlightSlotOf(f, defer) {
+  return revealFlightSlot(slotKeyOf(f.lane, f.side, f.row), defer);
+}
+
+/** 新局 / 重开：把还藏着的格子立刻放出来（别把新对局的牌也藏了） */
+function clearFlightHides() {
+  for (const key of Object.keys(flightHideTimers)) {
+    clearTimeout(flightHideTimers[key]);
+    delete flightHideTimers[key];
+  }
+  flyPendingSlots = [];
+  for (const key of Object.keys((view && view.flyPending) || {})) delete view.flyPending[key];
+}
+
 function canFlyDom() {
   try {
     return typeof document !== 'undefined'
@@ -352,6 +406,7 @@ function resetCardFlights() {
   playSources = [];
   lastHandIids = null;
   cardFxCursor = -1;
+  clearFlightHides();
 }
 
 /** 自检用：最近这些笔「该飞的卡」（main.js 的 window.__cardFlights 读它） */
@@ -532,6 +587,7 @@ function spawnFlight(f) {
     done = true;
     if (f.kind === 'play') dropSlotPulse(f);
     try { el.remove(); } catch (e) {}
+    if (f.hides) revealFlightSlotOf(f, false);
   };
   try {
     const anim = el.animate(arcFrames(from, to, bulge), { duration: FLIGHT_MS, easing: 'ease-out', fill: 'forwards' });
@@ -545,13 +601,15 @@ function flyCard(f) {
   let animated = false;
   try { animated = spawnFlight(f); } catch (e) { animated = false; }
   noteFlight(f, animated);
+  // 动画没播成（没有 DOM / 拿不到落点）就别把牌藏着了，直接显示出来
+  if (!animated && f.hides) revealFlightSlotOf(f, true);
 }
 
 /**
  * 每次对局渲染后调用：把「该飞的卡」找出来（新手牌 + 新增的 deploy/cast 日志），
  * 逐张交给 flyCard。游标保证同一条出牌只飞一次（重绘不会重放）。
  */
-function flushCardFlights() {
+function scanCardFlights() {
   if (!state || !view || view.isReplay) { pendingFlights = []; return; }
   const logs = state.log || [];
   if (cardFxCursor < 0 || cardFxCursor > logs.length) cardFxCursor = logs.length;
@@ -577,7 +635,7 @@ function flushCardFlights() {
     let cap = null;
     // 只把「同一张牌」的抓拍配给它：召唤出来的单位没有抓拍，别把后面那张牌的抓拍吃掉
     if (mine && playSources.length && playSources[0].cardId === (e.cardId || null)) cap = playSources.shift();
-    enqueueCardFlight({
+    const flight = {
       kind: 'play',
       side: e.side,
       cardId: e.cardId || null,
@@ -586,10 +644,17 @@ function flushCardFlights() {
       from: mine ? (cap && cap.rect ? 'hand' : 'below') : 'above',
       srcHTML: cap ? cap.html : '',
       srcRect: cap ? cap.rect : null,
-    });
+      hides: e.type === 'deploy',
+    };
+    // 真的往格子里落一张牌：这一格先藏起来，等飞行播完再显示
+    if (flight.hides) hideSlotForFlight(flight);
+    enqueueCardFlight(flight);
   }
   cardFxCursor = logs.length;
+}
 
+/** 渲染之后调用：这时 DOM 已经就位（拿得到落点坐标），让这一帧攒下的卡起飞 */
+function flushCardFlights() {
   const queued = pendingFlights;
   pendingFlights = [];
   for (const f of queued) flyCard(f);
@@ -770,6 +835,8 @@ function refresh() {
   // 开局铺开：进度存在模块状态里（不是 CSS 的 animation-delay 排队），
   // 于是任何一次重绘都只是「照当前进度画一遍」已出现的行不重放，没轮到的行保持不可见。
   view.revealShown = boardReveal ? boardReveal.shown : null;
+  // 先扫出这一帧要飞的卡：出牌的落点必须在渲染前就藏好，否则牌会先在格子里露出来
+  scanCardFlights();
   render(stage, state, view);
   restoreHandScroll(stage, handScroll);
   // 卡牌飞行：这一帧该飞的卡（新抽的手牌 / 刚打出的牌）在这里起飞
