@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, api, elements, check } from './harness.mjs';
+import { ROOT, api, elements, timers, check } from './harness.mjs';
 
 console.log('\n 0.49.0 动画（只动菜单项 / 只播一次 / 手牌滚动位置）');
 
@@ -54,28 +54,43 @@ check('同一屏幕再刷新一次不会重放动画（卡一下的根因）', (
   api.__go('home');
 });
 
-check('开局入场：进入对局的那次渲染带 data-in，开场窗口过后不再带（不会重放）', () => {
-  const realNow = api.Date.now;
-  let fake = 1000;
-  api.Date.now = () => fake;
-  try {
-    api.__go('home');
-    api.__go('game');
-    const first = stageHTML();
-    if (!first.includes('data-in="1"')) throw new Error('进入对局没有带上摊开动画标记');
-    if (!/class="board-row[^"]*" data-in="1"/.test(first)) throw new Error('棋盘行没有带 data-in');
-    if (!/data-iid="[^"]+" data-in="1"/.test(first)) throw new Error('手牌没有带 data-in');
-    if (!/class="board-row[^"]*" data-in="1" style="--i:[0-9]+"/.test(first)) throw new Error('棋盘行没有写 --i 序号');
-    if (!/data-iid="[^"]+" data-in="1" style="--i:[0-9]+"/.test(first)) throw new Error('手牌没有写 --i 序号');
-    fake = 1200;
-    api.__go('game');
-    if (!stageHTML().includes('data-in="1"')) throw new Error('开场窗口内的刷新丢掉了 data-in（动画会被掐掉）');
-    fake = 4000;
-    api.__go('game');
-    if (stageHTML().includes('data-in="1"')) throw new Error('开场窗口过后还带 data-in，铺开动画会被重放');
-  } finally {
-    api.Date.now = realNow;
-  }
+check('开局铺开：从上往下一行一行出现，重绘既不重放也不掐掉', () => {
+  const STEP_MS = 90;
+  const revealTimers = () => [...timers.entries()].filter(([, t]) => t.ms === STEP_MS);
+  const stepReveal = () => {
+    const hit = revealTimers()[0];
+    if (!hit) throw new Error('没有铺开计时器在排队');
+    timers.delete(hit[0]);
+    hit[1].fn();
+  };
+  const hiddenRows = (html) => (html.match(/class="board-row[^"]*" data-in="0"/g) || []).length;
+
+  api.__go('home');
+  // 清掉前面分组可能留下的铺开计时器，免得抢到别人的
+  for (const [id, t] of [...timers.entries()]) if (t.ms === STEP_MS) timers.delete(id);
+  api.__newGame();
+  const first = stageHTML();
+  if (hiddenRows(first) !== 5) throw new Error('刚开局时五行都应还没出现，实际 ' + hiddenRows(first));
+  if (first.includes('data-in="1"')) throw new Error('渲染出来的 HTML 不该带入場动画标记（重绘会重放）');
+  if (!/class="board-row[^"]*" data-in="0" style="--i:[0-9]+"/.test(first)) throw new Error('棋盘行没有写 --i 序号');
+  if (!/data-iid="[^"]+" data-in="0"/.test(first)) throw new Error('手牌在铺开完成前也应不可见');
+
+  stepReveal();
+  let html = stageHTML();
+  if (hiddenRows(html) !== 4) throw new Error('铺开一步后应该只露出第一行，还没出现的行数 ' + hiddenRows(html));
+  if (!/class="board-row r-foe-back"(?![^>]*data-in)/.test(html)) throw new Error('第一行（敌后排）没有出现');
+
+  // 铺开中途来一次同屏重绘：进度要保持，且不能出现重放标记
+  api.__go('game');
+  html = stageHTML();
+  if (hiddenRows(html) !== 4) throw new Error('同屏重绘把铺开进度弄丢了');
+  if (html.includes('data-in="1"')) throw new Error('同屏重绘把入场动画重放了');
+
+  for (let i = 0; i < 5; i++) stepReveal();
+  html = stageHTML();
+  if (hiddenRows(html) !== 0) throw new Error('铺开结束后还有行不可见');
+  if (html.includes('data-in="0"')) throw new Error('铺开结束后还有不可见的格子');
+  if (revealTimers().length) throw new Error('铺开结束后计时器没有停');
   api.__go('home');
 });
 
@@ -84,7 +99,7 @@ check('CSS：动画只挂在渲染时的属性上，且不再有整页移动', (
   for (const bad of ['.nav-ghost', '#stage.nav-in', 'nav-out-left', 'nav-out-right', 'board-enter']) {
     if (css.includes(bad)) throw new Error('screens.css 里还有旧动画：' + bad);
   }
-  for (const need of ['[data-nav="in-right"] .hm-btn', '[data-nav="in-left"] .hm-btn', '.board-row[data-in="1"]', '.hand .card[data-in="1"]', '.50s']) {
+  for (const need of ['[data-nav="in-right"] .hm-btn', '[data-nav="in-left"] .hm-btn', '.board-row[data-in="1"]', '.hand .card[data-in="1"]', '.board-row[data-in="0"], .hand .card[data-in="0"]', '.50s']) {
     if (!css.includes(need)) throw new Error('screens.css 里缺动画规则：' + need);
   }
   for (const k of ['menu-in-right', 'menu-in-left', 'board-in', 'hand-in']) {
@@ -105,4 +120,19 @@ check('不再整行闪：ui.js / style.css 里都没有 fx-lane', () => {
   for (const rel of ['app/js/ui.js', 'app/style.css']) {
     if (read(rel).includes('fx-lane')) throw new Error(rel + ' 里还留着 fx-lane（整行闪光）');
   }
+});
+
+
+check('铺开由 JS 推进：动画只能来自属性翻转，渲染出的 HTML 不带 data-in="1"', () => {
+  const js = read('app/js/render.js');
+  if (!js.includes('function startBoardReveal(')) throw new Error('render.js 里没有 startBoardReveal');
+  if (!js.includes('function boardRevealStep(')) throw new Error('render.js 里没有 boardRevealStep');
+  if (js.includes('boardFxUntil')) throw new Error('render.js 里还留着 700ms 窗口的 boardFxUntil');
+  const ui = read('app/js/ui.js');
+  // 只看代码：注释里可以出现这个字面量，不算渲染出来的 HTML
+  const uiCode = ui.split('\n').filter((l) => { const s = l.trim(); return !s.startsWith('//') && !s.startsWith('*') && !s.startsWith('/*'); }).join('\n');
+  if (uiCode.includes('data-in="1"')) throw new Error('ui.js 渲染出的 HTML 不该带 data-in="1"（动画只由属性翻转产生）');
+  if (!uiCode.includes('data-in="0"')) throw new Error('ui.js 没有把未铺开的行渲染成不可见（data-in="0"）');
+  const gf = read('app/js/game-flow.js');
+  if (!gf.includes('startBoardReveal();')) throw new Error('startNewGame 里没有启动铺开');
 });

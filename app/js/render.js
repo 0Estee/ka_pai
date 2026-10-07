@@ -253,22 +253,71 @@ function fillMenuLog() {
 const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
 let lastScreen = null;
 let navTimer = null;
-let boardFxUntil = 0;
 
 /**
- * 屏幕切换 / 开局入场动画（作者 2026-10-05）。
+ * 开局铺开：进入对局后「从上往下一行一行出现」（作者 2026-10-07 反馈）。
  *
- * 只动按钮，不动整页：前进时新页面的菜单按钮从右侧逐个滑入，返回时从左侧滑入
- * （方向由 SCREEN_DEPTH 自动决定）。旧页面不再做整页退场  上一版整页退场与新页面
- * 滑入同时进行，看起来就是两个画面重叠、动画播不完整（作者 2026-10-05 反馈）。
+ * 上一版把入场动画整个交给 CSS（所有行同时带 data-in="1"，靠 animation-delay * --i 排队），
+ * 但 refresh() 每次都整块重建 #stage 的 innerHTML，重建就会让 CSS 动画从头重放；
+ * 而开局后 260ms / 420ms 就有自动阶段与 AI 回合的刷新，于是玩家看到的是
+ * 「卡一下、像重新渲染了一遍」。把入场窗口改小、或改成「一次性标记」都治不了：
+ * 只要动画还在播，任何一次重绘都会把它重放。
+ *
+ * 现在改成 JS 推进 + 直接翻属性：
+ *    进度（已经露出几格）存在模块变量里，重绘只是「照当前进度画一遍」，
+ *     所以刷新既不重放、也不会把正在进行的铺开掐掉；
+ *    每格出场是把活节点上的 data-in 从 "0" 改成 "1"（不重建 DOM），
+ *     浏览器只对这一行播一次入场动画，其它行连重新光栅化都没有；
+ *    还没轮到的行照常渲染在 HTML 里，只是不可见（data-in="0"），
+ *     行数 / 格子数 / 布局都不受铺开影响；
+ *    重绘出来的 HTML 永远不带 data-in="1"：入场动画只能由这一次属性翻转产生，
+ *     从根上杜绝「重绘把动画重放一遍」。
+ */
+const REVEAL_STEP_MS = 90;   // 每格之间的间隔；一共 5 行棋盘 + 1 步手牌
+const REVEAL_TOTAL = 6;      // 铺开槽位：0..4 是棋盘行（从上到下），5 是手牌
+
+let boardReveal = null;      // { shown, total, timer }；null = 不在铺开（渲染成全部可见）
+
+function stopBoardReveal() {
+  if (boardReveal && boardReveal.timer) clearTimeout(boardReveal.timer);
+  boardReveal = null;
+}
+
+/** 开始铺开：进度从 0（全部不可见）开始；调用方紧接着会渲染一次 */
+function startBoardReveal() {
+  stopBoardReveal();
+  boardReveal = { shown: 0, total: REVEAL_TOTAL, timer: null };
+  boardReveal.timer = setTimeout(boardRevealStep, REVEAL_STEP_MS);
+}
+
+function boardRevealStep() {
+  if (!boardReveal) return;
+  boardReveal.timer = null;
+  if (screen !== 'game') { stopBoardReveal(); return; }
+  const slot = boardReveal.shown;      // 这一步要露出的格子
+  boardReveal.shown += 1;
+  let flipped = false;
+  try {
+    const stage = document.getElementById('stage');
+    if (stage && typeof stage.querySelectorAll === 'function') {
+      const rows = stage.querySelectorAll('.board-row');
+      if (slot < rows.length) rows[slot].setAttribute('data-in', '1');
+      else for (const c of stage.querySelectorAll('.hand .card')) c.setAttribute('data-in', '1');
+      flipped = true;
+    }
+  } catch (e) { flipped = false; }
+  // DOM 桩（门禁里）没有 querySelectorAll：退回整块重绘，进度照样推进、断言照样可查
+  if (!flipped) refresh();
+  if (boardReveal && boardReveal.shown >= boardReveal.total) stopBoardReveal();
+  else if (boardReveal) boardReveal.timer = setTimeout(boardRevealStep, REVEAL_STEP_MS);
+}
+
+/**
+ * 屏幕切换动画：只动按钮，不动整页。
+ * 前进时新页面的菜单按钮从右往左滑入，返回时相反（方向由 SCREEN_DEPTH 自动决定）。
+ * 旧页面不做整页退场  上一版整页退场与新页面滑入同时进行，看起来就是两个画面重叠。
  * 入场类只挂到动画播完为止（900ms），否则后续 refresh 重绘会把动画反复重播。
  * DOM 桩里没有 querySelector，取手牌滚动位置那段会被 try 跳过。
- *
- * 开局入场（view.boardFx）只在进入对局后的 700ms 内生效：startNewGame 内部会连刷几次，
- * 都还在窗口里，动画不会被掐掉；窗口一过就不再带入场标记，铺开动画也就不会再被重放。
- * 入场标记由 data-in 属性带在元素上，
- * 而不是挂在 #stage 的类上  挂在类上的话，每次 refresh 重绘都会把动画从头重放一遍，
- * 看起来就是「卡一下、然后飞快闪过」（作者 2026-10-05 反馈）。
  */
 function playNavFx(stage) {
   const changed = lastScreen !== null && lastScreen !== screen;
@@ -280,7 +329,6 @@ function playNavFx(stage) {
   try {
     stage.classList.remove('nav-forward', 'nav-back');
     stage.classList.add(dir === 'forward' ? 'nav-forward' : 'nav-back');
-    if (screen === 'game') boardFxUntil = Date.now() + 700;
     navTimer = setTimeout(() => {
       try { stage.classList.remove('nav-forward', 'nav-back'); } catch (e) { /* stub */ }
       navTimer = null;
@@ -315,6 +363,7 @@ function refresh() {
   try { stage.classList.toggle('stage-replay', screen === 'replay'); } catch { /* stub */ }
 
   playNavFx(stage);
+  if (screen !== 'game') stopBoardReveal();   // 离开对局就别再推铺开
 
   if (screen === 'home') {
     stage.innerHTML = homeHTML({
@@ -414,6 +463,7 @@ function refresh() {
       banner: '',
       busy: false,
       infoUid: null,
+      revealShown: null,
       isReplay: true,
     };
     const replayHandScroll = handScrollOf(stage);
@@ -434,7 +484,9 @@ function refresh() {
   // ── 对局
   const handScroll = handScrollOf(stage);
   computePlayable();
-  view.boardFx = Date.now() < boardFxUntil;
+  // 开局铺开：进度存在模块状态里（不是 CSS 的 animation-delay 排队），
+  // 于是任何一次重绘都只是「照当前进度画一遍」已出现的行不重放，没轮到的行保持不可见。
+  view.revealShown = boardReveal ? boardReveal.shown : null;
   render(stage, state, view);
   restoreHandScroll(stage, handScroll);
 

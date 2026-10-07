@@ -274,7 +274,10 @@ function statusBarHTML(state, side, view) {
 }
 
 function handHTML(state, view) {
-  const boardIn = view && view.boardFx ? ' data-in="1"' : '';
+  // 开局铺开：手牌是最后一个槽位（0..4 是五行棋盘，见 render() 的 rows）。
+  // 铺到之前渲染成不可见（data-in="0"），出场时由 render.js 直接把属性翻成 "1"。
+  const reveal = view && typeof view.revealShown === 'number' ? view.revealShown : null;
+  const handIn = reveal === null || reveal >= REVEAL_TOTAL ? '' : ' data-in="0"';
   const p = state.players[view.humanSide];
   if (!p.hand.length) return '<div class="hand-empty">手牌已空</div>';
 
@@ -314,7 +317,7 @@ function handHTML(state, view) {
       : (def.type === 'spell' ? `<div class="c-desc">${esc(spellDescription(def))}</div>` : '');
 
     return `
-      <div class="${classes}" data-iid="${hc.iid}"${boardIn} style="--i:${hi}">
+      <div class="${classes}" data-iid="${hc.iid}"${handIn} style="--i:${hi}">
         <div class="c-cost">${cost}${hc.costDelta ? '<i class="c-cost-mod">*</i>' : ''}</div>
         <div class="c-name">${esc(def.name)}</div>
         ${isSuperpower ? '<div class="c-sp">超能力</div>' : ''}
@@ -368,15 +371,18 @@ export function render(root, state, view) {
     { side: view.humanSide, row: 'back', label: '我后排', cls: 'r-my-back' },
   ];
 
-  const boardIn = view && view.boardFx ? ' data-in="1"' : '';
+  // 开局铺开：进度来自 render.js 的 boardReveal；没轮到的行渲染成 data-in="0"（不可见）。
+  // 渲染出来的 HTML 永远不带 data-in="1"  出场动画只由属性翻转产生，重绘不会重放。
+  const reveal = view && typeof view.revealShown === 'number' ? view.revealShown : null;
   const boardHTML = rows.map((r, ri) => {
+    const rowIn = reveal !== null && ri >= reveal ? ' data-in="0"' : '';
     const cells = LANES.map((lane) => {
       if (r.side === null) {
         return trapSlotHTML(state, view, lane);
       }
       return slotHTML(state, view, lane, r.side, r.row);
     }).join('');
-    return `<div class="board-row ${r.cls}"${boardIn} style="--i:${ri}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
+    return `<div class="board-row ${r.cls}"${rowIn} style="--i:${ri}"><div class="row-label">${r.label}</div><div class="row-cells">${cells}</div></div>`;
   }).join('');
 
   const laneHead = `<div class="board-row lane-head"><div class="row-label"></div><div class="row-cells">${

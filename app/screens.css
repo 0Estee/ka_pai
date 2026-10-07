@@ -892,19 +892,22 @@
 [data-nav="in-right"] :nth-child(4), [data-nav="in-left"] :nth-child(4) { animation-delay: .24s; }
 [data-nav="in-right"] :nth-child(n+5), [data-nav="in-left"] :nth-child(n+5) { animation-delay: .30s; }
 
-/* 开局入场：只有「刚进入对局」那一次渲染的棋盘行与手牌会带 data-in="1"，
-   所以之后的每次画面刷新都不会把铺开动画重放一遍。
-   from 的 opacity 不全透明（.25），避免延迟期间整行看不见  那看起来就是「卡一下」。
+/* 开局铺开（作者 2026-10-07）：进度由 JS 一行行推进（见 app/js/render.js 的 startBoardReveal），
+   出场动画只由「把活节点的 data-in 从 0 翻成 1」触发  渲染出来的 HTML 从不带该标记，
+   所以任何一次整块重绘都不会把动画重放（上一版就是被重绘重放成「卡一下、像重新渲染了一遍」）。
+   未轮到的格子是 data-in="0"（占位不可见）。from 的 opacity 不全透明，避免延迟期间整行看不见。
    will-change 让动画走合成层，玻璃主题下 backdrop-filter 才不会让动画掉帧。 */
 @keyframes board-in { from { transform: translateY(-18px); opacity: .25; } to { transform: translateY(0); opacity: 1; } }
 @keyframes hand-in { from { transform: translateY(34px); opacity: .25; } to { transform: translateY(0); opacity: 1; } }
 .board-row[data-in="1"] {
   will-change: transform, opacity;
   animation: board-in .50s cubic-bezier(.2, .8, .3, 1) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
 }
 .hand .card[data-in="1"] {
   will-change: transform, opacity;
   animation: hand-in .50s cubic-bezier(.2, .8, .3, 1) both;
   animation-delay: calc(var(--i, 0) * 40ms);
 }
+
+/* 还没轮到出场的格子：占着位置但不可见，所以铺开不会改变布局、也不会让棋盘跳一下 */
+.board-row[data-in="0"], .hand .card[data-in="0"] { opacity: 0; visibility: hidden; }

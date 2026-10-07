@@ -30,6 +30,9 @@ function startNewGame() {
   // 「不是你的阶段、AI 也不动」：既出不了牌也结束不了回合。
   // （这个 bug「有时」才出现，因为先手是随机的。）
   screen = 'game';
+  // 开局铺开：先把进度归零（全部不可见），newGame() 里第一次渲染就按它画；
+  // 之后由 render.js 的定时器一行行把 data-in 翻成 "1"。重绘只照进度画，不会重放。
+  startBoardReveal();
   newGame();
   // 开场提示：棋盘格子放不下卡面文字，得让玩家知道能点开看
   view.hint = '点场上的卡牌可以查看它的效果';
