@@ -117,3 +117,48 @@ check('落点格子先藏住牌，飞行计时器跑完才露出来', () => {
   if (after.includes('fly-pending')) throw new Error('飞行结束后落点格子还藏着牌');
   if (!after.includes('data-lane="mountain"')) throw new Error('揭开之后棋盘没有渲染回来');
 });
+
+/**
+ * 弃置的慢速飞离（作者 2026-10-10）：
+ *   卡牌被弃置时要缓慢从手牌中飞出  引擎的 discard 日志带 iid，
+ *   界面靠它把「飞出去的是哪一张」配对到答问之前抓下的卡面。
+ */
+check('源码：弃置动画的抓拍 / 慢速时长 / 配对都对上了', () => {
+  for (const n of ['function captureDiscardSource(', 'function takeDiscardSource(', 'const FLIGHT_MS_SLOW', "kind: 'discard'", "slow: true"]) {
+    if (!renderSrc.includes(n)) throw new Error('render.js 缺少 ' + n);
+  }
+  if (!renderSrc.includes('iid: e.iid == null ? null : e.iid')) throw new Error('弃置飞行没有带上日志里的 iid');
+  const inputSrc = read('app/js/play-input.js');
+  if (!inputSrc.includes('captureDiscardSource(answer.iid')) throw new Error('play-input.js 答「选择弃置」之前没有抓源卡');
+  if (!inputSrc.includes("rq.type === 'chooseHandCard'")) throw new Error('抓源卡没有限定在 chooseHandCard 上');
+});
+
+check('弃置：自己的牌从手牌飞出、对手的牌从屏幕上方飞出，都带上 iid', () => {
+  api.__newGame();
+  api.__pause(true);
+  const st = api.__game();
+  const hc = st.players[0].hand[0];
+  if (!hc) throw new Error('开局手牌是空的，这条检查没有意义');
+  const before = api.__cardFlightSeq();
+  st.log.push({ type: 'discard', side: 0, cardId: hc.cardId, iid: hc.iid });
+  st.log.push({ type: 'discard', side: 1, cardId: 'U05', iid: 987654, stolen: true });
+  api.refresh();
+  const added = api.__cardFlightSeq() - before;
+  if (added !== 2) throw new Error('两条弃置日志应各记一笔飞行，实际 ' + added);
+  const tail = api.__cardFlights().slice(-2);
+  if (tail[0].kind !== 'discard') throw new Error('弃置应记成 discard，实际 ' + tail[0].kind);
+  if (tail[0].from !== 'hand') throw new Error('自己的弃牌应从手牌飞出去，实际 from=' + tail[0].from);
+  if (tail[0].iid !== hc.iid) throw new Error('弃置飞行要带 iid（界面靠它认是哪一张），实际 ' + tail[0].iid);
+  if (tail[0].side !== 0) throw new Error('弃置飞行的 side 记错了：' + tail[0].side);
+  if (tail[1].from !== 'above') throw new Error('对手的弃牌应从屏幕上方飞出，实际 from=' + tail[1].from);
+  if (tail[1].cardId !== 'U05') throw new Error('对手的弃牌要带上 cardId，实际 ' + tail[1].cardId);
+  if (tail.some((f) => f.animated)) throw new Error('门禁没有 DOM，不应有已播动画的记录');
+});
+
+check('弃置：同一张牌只飞一次（重绘不重放）', () => {
+  const before = api.__cardFlightSeq();
+  api.refresh();
+  api.refresh();
+  const added = api.__cardFlightSeq() - before;
+  if (added !== 0) throw new Error('重绘又记了 ' + added + ' 笔弃置飞行，游标没推进');
+});

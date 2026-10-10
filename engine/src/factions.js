@@ -25,6 +25,10 @@ export const FACTIONS = {
   divine: { key: 'divine', name: '神佑' },
   // 作者 2026-10-07：炼金阵营（原料堆 + 炼药 + 令牌）
   alchemy: { key: 'alchemy', name: '炼金' },
+  // 作者 2026-10-10：超能力第三批三阵营（炼狱 / 极寒 / 罪恶，卡 id U445~U461）
+  inferno: { key: 'inferno', name: '炼狱' },
+  frost: { key: 'frost', name: '极寒' },
+  sin: { key: 'sin', name: '罪恶' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */

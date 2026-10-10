@@ -30,6 +30,11 @@ const NO_CHOICE_TARGET_KINDS = new Set([
   'allUnitsInLane',
   // 「生命最低的敌方单位」由引擎自己挑（鲸鲨），不需要点选
   'lowestHpEnemyUnit',
+  // 极寒 / 罪恶新增的批量与择优选择器（引擎自己挑，不需要点选）
+  'allFrozenEnemyUnits',
+  'highestAtkEnemyUnit',
+  // 选线由 chooseLanes 动作在前一步问过，这里不再点选
+  'chosenLanesEnemyUnits',
   // ?????????compound op??????????????????
   'compoundTarget',
   // ??????????payloadUnit???????????????????? payload
@@ -285,6 +290,13 @@ function resolvePlayerChoice(idx) {
   }
   const answer = { ...opt };
   delete answer.label;
+  // 弃置的飞行动画要在牌离开手牌**之前**抓源卡：答完这一问，它就没了。
+  // 只有真人自己的手牌才在界面上有卡槽（对手的牌是暗的，从屏幕上方飞）。
+  if (rq.type === 'chooseHandCard' && answer.iid != null && rq.side === view.humanSide) {
+    const hand = ((state.players[view.humanSide] || {}).hand) || [];
+    const hc = hand.find((c) => c.iid === answer.iid) || null;
+    captureDiscardSource(answer.iid, hc ? hc.cardId : null);
+  }
   if (globalThis.__dbg) console.log(`[resolvePlayerChoice] ${rq.type} idx=${idx} answer=${JSON.stringify(answer)}`);
   try {
     // 走统一入口：单机直接应用并记回放；联机交给会话广播给对方

@@ -51,6 +51,7 @@ import './checks/28-ui-fixes.mjs';
 import './checks/29-motion.mjs';
 import './checks/30-card-fx.mjs';
 import './checks/31-alchemy.mjs';
+import './checks/32-new-factions.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

@@ -8,7 +8,7 @@
  */
 
 import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
-import { matchesTargetFilter } from './keywords.js';
+import { matchesTargetFilter, isFrozen } from './keywords.js';
 import { filterCtx, hasRooted, getKeyword } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
@@ -609,7 +609,8 @@ export function* execAction(state, ctx, action) {
         if (idx < 0) idx = 0;
         const [gone] = p.hand.splice(idx, 1);
         state.discard.push(gone.cardId);
-        log(state, { type: 'discard', side, cardId: gone.cardId });
+        // iid 一并记进日志：界面靠它定位「飞出去的是哪一张」（手牌里的 iid 是唯一的）
+        log(state, { type: 'discard', side, cardId: gone.cardId, iid: gone.iid });
       }
       break;
     }
@@ -618,6 +619,89 @@ export function* execAction(state, ctx, action) {
      * 永久授予一个词条（卡牌「狂犬病：一名队友获得疾病」）。
      * 与光环不同：写进单位本身，来源离场也不会消失。
      */
+    /**
+     * 选 N 条线路（极寒「冰刃出击」的两条相邻线路、「冰轮旋舞」的一条线）。
+     *
+     * 复用已有的 chooseLane 交互（与 move 选目的地同一条请求），界面侧零改动：
+     * 逐次提问，第 2 条起在相邻模式下按已选线路过滤候选。
+     * 结果写进 ctx.chosenLanes，供紧随其后的 chosenLanesEnemyUnits 取用。
+     */
+    case 'chooseLanes': {
+      const count = Math.max(1, action.count || 1);
+      const picked = [];
+      for (let i = 0; i < count; i++) {
+        let cands = LANES.filter((l) => picked.indexOf(l) < 0);
+        if (action.adjacent && picked.length > 0) {
+          // 「两条相邻线路」= 与已选的每一条都相邻（四线成链，只有三组相邻对）
+          cands = cands.filter((l) => picked.every((p) => ADJACENT_LANES[p].indexOf(l) >= 0));
+        }
+        if (cands.length === 0) break;
+        if (cands.length === 1) { picked.push(cands[0]); continue; }
+        const answer = yield {
+          type: 'chooseLane',
+          side: me,
+          prompt: action.prompt || '选择一条线路',
+          options: cands.map((l) => ({ lane: l, label: LANE_NAME[l] })),
+        };
+        if (!answer || !answer.lane) break;
+        picked.push(answer.lane);
+      }
+      ctx.chosenLanes = picked;
+      break;
+    }
+
+    /**
+     * 解除**所有**单位的冻结（极寒「寒星追」）。
+     * 冻结是状态标记（keywords.js 的 isFrozen），这里直接把 marker 摘掉。
+     */
+    case 'clearFreeze': {
+      let n = 0;
+      for (const u of allUnits(state)) {
+        if (!isFrozen(u)) continue;
+        u.marks = (u.marks || []).filter((m) => m.type !== 'freeze');
+        n++;
+      }
+      if (n > 0) log(state, { type: 'clear-freeze', count: n });
+      break;
+    }
+
+    /**
+     * 给单位附着一个永久异能（炼狱「黑曜石」、罪恶「色欲」）。
+     * 与 attachKingEffect 同族：写进 unit.effects，来源离场不影响。
+     * 目标默认 compoundTarget：调用方（compound）已经选好的那名队友。
+     */
+    case 'attachEffect': {
+      const targets = yield* resolveTargets(state, ctx, action.target || { kind: 'compoundTarget' });
+      for (const t of targets) {
+        if (t.kind !== 'unit' || t.unit.removed) continue;
+        if (!Array.isArray(t.unit.effects)) t.unit.effects = [];
+        t.unit.effects.push(...(action.effects || []));
+        log(state, { type: 'effect-attached', uid: t.unit.uid, effects: (action.effects || []).map((e) => e.trigger) });
+      }
+      break;
+    }
+
+    /**
+     * 随机弃置敌方一张手牌，并把那张牌的**复制**加入我方手牌（罪恶「恶意」）。
+     *
+     * 随机走 state.rng（回放 / 联机锁步一致）。复制按卡面原值：
+     * 只把 cardId 放进手牌，不带原牌身上的临时费用修正。
+     */
+    case 'stealRandomHand': {
+      const from = action.from !== undefined ? resolveSide(action.from, me) : 1 - me;
+      const to = action.to !== undefined ? resolveSide(action.to, me) : me;
+      const src = state.players[from];
+      if (!src || !src.hand.length) break;
+      const idx = nextInt(state.rng, src.hand.length);
+      const [gone] = src.hand.splice(idx, 1);
+      state.discard.push(gone.cardId);
+      // 与 discard 同形（带 iid），界面才能把被抢走的那张也播出飞行动画
+      log(state, { type: 'discard', side: from, cardId: gone.cardId, iid: gone.iid, stolen: true });
+      state.players[to].hand.push({ iid: state.nextIid++, cardId: gone.cardId });
+      log(state, { type: 'steal-hand', side: to, from, cardId: gone.cardId });
+      break;
+    }
+
     case 'grantKeyword': {
       const targets = yield* resolveTargets(state, ctx, action.target);
       for (const t of targets) {

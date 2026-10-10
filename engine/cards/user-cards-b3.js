@@ -4302,4 +4302,522 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U445",
+    "name": "燥热难忍",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "inferno",
+    "text": "一名队友获得狂热并+2生命，召唤一张怒火。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "grantKeyword",
+            "keyword": "frenzy",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "modifyStats",
+            "maxHp": 2,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U449"
+      }
+    ]
+  },
+  {
+    "id": "U446",
+    "name": "活火山",
+    "type": "unit",
+    "cost": 1,
+    "atk": 1,
+    "hp": 4,
+    "faction": "inferno",
+    "keywords": [
+      "doubleStrike"
+    ],
+    "sweepAllEnemies": true,
+    "text": "双重打击。同时攻击所有敌人和敌方国王。"
+  },
+  {
+    "id": "U447",
+    "name": "黑曜石",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "inferno",
+    "text": "一名队友获得+3生命，并在每回合开始时+1攻击力，抽一张牌。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "modifyStats",
+            "maxHp": 3,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "attachEffect",
+            "target": {
+              "kind": "compoundTarget"
+            },
+            "effects": [
+              {
+                "trigger": "onTurnStart",
+                "actions": [
+                  {
+                    "op": "modifyStats",
+                    "atk": 1,
+                    "target": {
+                      "kind": "self"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U448",
+    "name": "炽热岩浆",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "inferno",
+    "text": "一名队友获得+3攻击力+1生命，召唤一张余温。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "modifyStats",
+            "atk": 3,
+            "maxHp": 1,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U450"
+      }
+    ]
+  },
+  {
+    "id": "U449",
+    "name": "怒火",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "inferno",
+    "token": true,
+    "text": "造成3点伤害。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 3,
+        "target": {
+          "kind": "chosenEnemyTarget"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U450",
+    "name": "余温",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "inferno",
+    "token": true,
+    "text": "移动一名队友，使其获得溅射2。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "move",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "grantKeyword",
+            "keyword": "splash",
+            "x": 2,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U451",
+    "name": "寒星·霜",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "frost",
+    "text": "冻结一名敌人，使其获得-2攻击力，召唤一张寒星·追。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "prompt": "选择一名敌人"
+        },
+        "actions": [
+          {
+            "op": "freeze",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "modifyStats",
+            "atk": -2,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U455"
+      }
+    ]
+  },
+  {
+    "id": "U452",
+    "name": "冰刃出击",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "frost",
+    "text": "选择两条相邻的线路，冻结那里的所有敌人，并对其造成2点伤害。",
+    "actions": [
+      {
+        "op": "chooseLanes",
+        "count": 2,
+        "adjacent": true,
+        "prompt": "选择两条相邻的线路"
+      },
+      {
+        "op": "freeze",
+        "target": {
+          "kind": "chosenLanesEnemyUnits"
+        }
+      },
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "chosenLanesEnemyUnits"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U453",
+    "name": "冰轮·旋舞",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "frost",
+    "text": "冻结一条线上的敌人，召唤一张冰轮·狂舞，抽一张牌。",
+    "actions": [
+      {
+        "op": "chooseLanes",
+        "count": 1,
+        "prompt": "选择一条线路"
+      },
+      {
+        "op": "freeze",
+        "target": {
+          "kind": "chosenLanesEnemyUnits"
+        }
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U454"
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U454",
+    "name": "冰轮·狂舞",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "frost",
+    "token": true,
+    "keywords": [
+      "splash:2"
+    ],
+    "text": "溅射2。对所有被冻结的敌人造成2点伤害。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "allFrozenEnemyUnits"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U455",
+    "name": "寒星·追",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "frost",
+    "token": true,
+    "text": "对所有被冻结的敌人造成4点伤害，解除所有单位的冻结效果。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 4,
+        "target": {
+          "kind": "allFrozenEnemyUnits"
+        }
+      },
+      {
+        "op": "clearFreeze"
+      }
+    ]
+  },
+  {
+    "id": "U456",
+    "name": "雪人",
+    "type": "unit",
+    "cost": 1,
+    "atk": 1,
+    "hp": 3,
+    "faction": "frost",
+    "keywords": [
+      "fuse"
+    ],
+    "text": "有敌人被冻结时:获得+2攻击力+1生命。融合进化:冻结1个敌方单位。",
+    "effects": [
+      {
+        "trigger": "onEnemyFrozen",
+        "actions": [
+          {
+            "op": "modifyStats",
+            "atk": 2,
+            "maxHp": 1,
+            "target": {
+              "kind": "self"
+            }
+          }
+        ]
+      },
+      {
+        "trigger": "onPlay",
+        "when": "fused",
+        "actions": [
+          {
+            "op": "freeze",
+            "target": {
+              "kind": "chosenEnemyUnit",
+              "prompt": "冻结一个敌方单位"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U457",
+    "name": "色欲",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "sin",
+    "text": "一名队友获得捕猎和「攻击时:对敌方国王造成等同于本单位攻击力的伤害」。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "grantKeyword",
+            "keyword": "hunt",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "attachEffect",
+            "target": {
+              "kind": "compoundTarget"
+            },
+            "effects": [
+              {
+                "trigger": "onAttack",
+                "actions": [
+                  {
+                    "op": "damage",
+                    "amount": {
+                      "perSelfAtk": 1
+                    },
+                    "target": {
+                      "kind": "enemyKing"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U458",
+    "name": "妒忌",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "sin",
+    "text": "对敌方1个攻击力最高的单位造成5点伤害，召唤一张恶意。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 5,
+        "target": {
+          "kind": "highestAtkEnemyUnit"
+        }
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U459"
+      }
+    ]
+  },
+  {
+    "id": "U459",
+    "name": "恶意",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "sin",
+    "token": true,
+    "text": "随机弃置敌方一张牌，将那张卡牌的复制加入手中，抽一张牌。",
+    "actions": [
+      {
+        "op": "stealRandomHand"
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U460",
+    "name": "暴食",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "sin",
+    "text": "消灭一名生命最低的敌人，友方国王回复5点生命，抽一张牌。",
+    "actions": [
+      {
+        "op": "destroy",
+        "target": {
+          "kind": "lowestHpEnemyUnit"
+        },
+        "reason": "spell"
+      },
+      {
+        "op": "heal",
+        "amount": 5,
+        "target": {
+          "kind": "ownKing"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U461",
+    "name": "贪婪",
+    "type": "unit",
+    "cost": 1,
+    "atk": 3,
+    "hp": 2,
+    "faction": "sin",
+    "keywords": [
+      "hunt",
+      "combo"
+    ],
+    "text": "捕猎 组合。被消灭:友方国王回复4点生命。",
+    "effects": [
+      {
+        "trigger": "onDeath",
+        "actions": [
+          {
+            "op": "heal",
+            "amount": 4,
+            "target": {
+              "kind": "ownKing"
+            }
+          }
+        ]
+      }
+    ]
+  },
 ];

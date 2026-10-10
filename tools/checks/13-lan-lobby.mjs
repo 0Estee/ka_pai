@@ -19,7 +19,8 @@ check('没有对手时，按钮保持不可点（对照）', () => {
 check('大厅里也能选阵营（以前只有难度页有，联机只能被主机安排）', () => {
   const r = api.__demoLobby('张三');
   if (!r.factionRows) throw new Error('大厅里没有阵营选项（联机阵营选不了）');
-  if (r.factionRows !== 7) throw new Error('阵营选项应当是 7 个（含炼金），实际 ' + r.factionRows);
+  // 阵营数量跟着引擎 FACTIONS 走：7 个旧阵营 + 炼金 + 炼狱 / 极寒 / 罪恶 = 10
+  if (r.factionRows !== 10) throw new Error('阵营选项应当是 10 个（7 旧阵营 + 炼金 + 炼狱/极寒/罪恶），实际 ' + r.factionRows);
 });
 
 check('联机认输会作为一条操作交给会话发出去（对手那边要跟着结算）', () => {

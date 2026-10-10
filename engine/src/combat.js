@@ -269,6 +269,10 @@ export function applyAttackBatch(state, lane, attackers) {
   const events = [];
   for (const u of attackers) collectAttackEvents(state, lane, u, events);
 
+  // 「攻击时:」（罪恶「色欲」）：这次真的出手了才广播。
+  // 排在收伤害之前入队，实际执行仍在批末的 flushTriggers（伤害与触发一起结算）。
+  for (const u of attackers) M.queueTrigger(state, u, 'onAttack', { lane });
+
   for (const ev of events) {
     if (ev.target.kind === 'unit' && ev.target.unit.removed) continue;
     M.dealDamage(state, ev.source, ev.target, ev.amount, {
@@ -309,6 +313,22 @@ export function collectAttackEvents(state, lane, unit, events) {
   const foe = 1 - unit.side;
   // 伤害基数：平时是有效攻击力（含光环修正，如拷问官的 -3），ttackWithHp 的单位用当前生命
   const atk = attackPower(state, unit);
+
+  /**
+   * 「同时攻击所有敌人和敌方国王」（炼狱「活火山」的卡级旗标 sweepAllEnemies）。
+   *
+   * 出手时把攻击力打到**全场**敌方单位（所有线路、前后排）与敌方国王各一次，
+   * 覆盖常规的交战目标 / 溅射 / 穿透分支（与「必中」同族的整体改写）。
+   */
+  const sweepDef = state.cardLib && state.cardLib[unit.cardId];
+  if (sweepDef && sweepDef.sweepAllEnemies) {
+    for (const enemy of M.allUnits(state)) {
+      if (enemy.side !== foe) continue;
+      events.push({ source: unit, target: { kind: 'unit', unit: enemy }, amount: atk, tag: 'sweep' });
+    }
+    events.push({ source: unit, target: { kind: 'king', side: foe }, amount: atk, tag: 'sweep' });
+    return;
+  }
 
   /**
    * 「必中」：攻击时忽略敌方单位的阻挡，**仅攻击国王**，且伤害不可被免疫

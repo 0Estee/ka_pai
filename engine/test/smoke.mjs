@@ -1935,6 +1935,263 @@ test('U430 巫毒娃娃：每回合友方国王首次受到的伤害整笔改由
   assert.equal(king(s, 0), mine0 - 2, '同一回合第二次不再转移');
 });
 
+//
+group('T 三阵营：炼狱 / 极寒 / 罪恶');
+//
+
+/** 三阵营对局：双方同阵营（autoResolveChoices 已由 game() 打开） */
+function factionGame(faction, cfg = {}) {
+  return game(Object.assign({ factions: [faction, faction] }, cfg));
+}
+
+/** 取某单位某个词条的层数（没有这个词条返回 -1） */
+function kwX(unit, id) {
+  const hit = (unit.keywords || []).find((k) => (typeof k === 'string' ? k : k.id) === id);
+  if (!hit) return -1;
+  return typeof hit === 'string' ? 0 : (hit.x || 0);
+}
+
+function hasKw(unit, id) {
+  return kwX(unit, id) >= 0;
+}
+
+test('三阵营已注册：FACTIONS 有炼狱/极寒/罪恶，T 组 17 张进卡库（含 5 张令牌）', () => {
+  assert.ok(G.FACTIONS.inferno && G.FACTIONS.frost && G.FACTIONS.sin, '三个阵营都在 FACTIONS 里');
+  const s = factionGame('inferno');
+  assert.equal(s.players[0].faction, 'inferno', '阵营写进对局');
+  const ids = Object.keys(s.cardLib).filter((id) => {
+    const f = s.cardLib[id].faction;
+    return f === 'inferno' || f === 'frost' || f === 'sin';
+  });
+  assert.equal(ids.length, 17, '三阵营合计 17 张');
+  assert.equal(ids.filter((id) => s.cardLib[id].token).length, 5, '其中 5 张是令牌');
+});
+
+test('U445 燥热难忍：一名队友获得狂热并+2生命，召唤一张怒火', () => {
+  const s = factionGame('inferno');
+  const ally = deploy(s, 0, 'U461', 'mountain', 'front');
+  const hp0 = ally.maxHp;
+  cast(s, 0, 'U445', { targetUid: ally.uid });
+  assert.ok(hasKw(ally, 'frenzy'), '队友应当获得狂热');
+  assert.equal(ally.maxHp, hp0 + 2, '生命上限 +2');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === 'U449'), '召唤的怒火应当进手牌');
+});
+
+test('U446 活火山：双重打击，出手时同时打全场敌方单位与敌方国王', () => {
+  const s = factionGame('inferno');
+  playUnit(s, 0, 'U446', 'mountain', 'front');
+  const v = at(s, 'mountain', 0, 'front');
+  assert.ok(hasKw(v, 'doubleStrike'), '活火山带双重打击');
+  // 隔壁线路的高血敌人：撑住两轮，用来数「双重打击 = 出手两次」
+  const tank = deploy(s, 1, 'U446', 'plainR', 'front');
+  tank.maxHp = 20;
+  tank.hp = 20;
+  const k0 = king(s, 1);
+  combat(s);
+  assert.equal(tank.hp, 18, '隔壁线路的敌人也吃两次 1 点');
+  assert.equal(king(s, 1), k0 - 2, '敌方国王同样吃两次 1 点');
+});
+
+test('U447 黑曜石：一名队友+3生命，并在每回合开始时+1攻击力（还抽一张牌）', () => {
+  const s = factionGame('inferno');
+  const ally = deploy(s, 0, 'U461', 'mountain', 'front');
+  const hp0 = ally.maxHp;
+  const deck0 = s.deck.length;
+  cast(s, 0, 'U447', { targetUid: ally.uid });
+  assert.equal(ally.maxHp, hp0 + 3, '生命上限 +3');
+  assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
+  assert.ok((ally.effects || []).some((e) => e.trigger === 'onTurnStart'), '挂上每回合开始的异能');
+  const atk0 = ally.atk;
+  nextTurn(s);
+  nextTurn(s);
+  assert.ok(ally.atk >= atk0 + 1, '回合开始后攻击力增加（' + atk0 + ' -> ' + ally.atk + '）');
+});
+
+test('U448 炽热岩浆：一名队友+3攻击力+1生命，召唤一张余温', () => {
+  const s = factionGame('inferno');
+  const ally = deploy(s, 0, 'U461', 'mountain', 'front');
+  const atk0 = ally.atk;
+  const hp0 = ally.maxHp;
+  cast(s, 0, 'U448', { targetUid: ally.uid });
+  assert.equal(ally.atk, atk0 + 3, '攻击力 +3');
+  assert.equal(ally.maxHp, hp0 + 1, '生命上限 +1');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === 'U450'), '召唤的余温应当进手牌');
+});
+
+test('U449 怒火（令牌）：造成 3 点伤害', () => {
+  const s = factionGame('inferno');
+  const foe = deploy(s, 1, 'U446', 'mountain', 'front');
+  assert.ok(s.cardLib.U449.token, '怒火是令牌');
+  cast(s, 0, 'U449', { targetUid: foe.uid });
+  assert.equal(foe.hp, 1, '4 生命吃 3 点');
+});
+
+test('U450 余温（令牌）：移动一名队友并使其获得溅射2', () => {
+  const s = factionGame('inferno');
+  const ally = deploy(s, 0, 'U461', 'mountain', 'front');
+  cast(s, 0, 'U450', { targetUid: ally.uid });
+  assert.ok(!at(s, 'mountain', 0, 'front'), '应当被移出原来的格子');
+  assert.equal(kwX(ally, 'splash'), 2, '获得溅射2');
+});
+
+test('U451 寒星霜：冻结一名敌人并-2攻击力，召唤一张寒星追', () => {
+  const s = factionGame('frost');
+  const foe = deploy(s, 1, 'U461', 'mountain', 'front');
+  const atk0 = foe.atk;
+  cast(s, 0, 'U451', { targetUid: foe.uid });
+  assert.ok(isFrozen(foe), '目标应当被冻结');
+  assert.equal(foe.atk, atk0 - 2, '攻击力 -2');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === 'U455'), '召唤的寒星追应当进手牌');
+});
+
+test('U452 冰刃出击：冻结两条相邻线路的敌人并造成 2 点伤害', () => {
+  const s = factionGame('frost');
+  const a = deploy(s, 1, 'U461', 'mountain', 'front');
+  const b = deploy(s, 1, 'U461', 'plainL', 'front');
+  const c = deploy(s, 1, 'U461', 'plainR', 'front');
+  for (const u of [a, b, c]) { u.maxHp = 10; u.hp = 10; }
+  cast(s, 0, 'U452');
+  const frozen = [a, b, c].filter((u) => isFrozen(u));
+  assert.equal(frozen.length, 2, '正好冻住两条线路上的敌人');
+  for (const u of frozen) assert.equal(u.hp, 8, '被冻住的敌人各吃 2 点');
+  assert.ok([a, b, c].some((u) => !isFrozen(u) && u.hp === 10), '没被选中的线路不受影响');
+});
+
+test('U453 冰轮旋舞：冻结一条线路的敌人，召唤冰轮狂舞并抽一张牌', () => {
+  const s = factionGame('frost');
+  const a = deploy(s, 1, 'U461', 'mountain', 'front');
+  const b = deploy(s, 1, 'U461', 'plainL', 'front');
+  for (const u of [a, b]) { u.maxHp = 10; u.hp = 10; }
+  const deck0 = s.deck.length;
+  cast(s, 0, 'U453');
+  assert.equal([a, b].filter((u) => isFrozen(u)).length, 1, '只冻住一条线路');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === 'U454'), '召唤的冰轮狂舞应当进手牌');
+  assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
+});
+
+test('U454 冰轮狂舞（令牌）：对所有被冻结的敌人造成 2 点伤害', () => {
+  const s = factionGame('frost');
+  const a = deploy(s, 1, 'U461', 'mountain', 'front');
+  const b = deploy(s, 1, 'U461', 'plainR', 'front');
+  const c = deploy(s, 1, 'U461', 'water', 'front');
+  for (const u of [a, b, c]) { u.maxHp = 10; u.hp = 10; }
+  cast(s, 0, 'U451', { targetUid: a.uid });
+  cast(s, 0, 'U451', { targetUid: b.uid });
+  cast(s, 0, 'U454');
+  assert.equal(a.hp, 8, '被冻住的敌人吃 2 点（10 - 2）');
+  assert.equal(b.hp, 8, '另一条线路被冻住的敌人也吃 2 点（10 - 2）');
+  assert.equal(c.hp, 10, '没被冻住的不受影响');
+});
+
+test('U455 寒星追（令牌）：对被冻结的敌人造成 4 点伤害，然后解除所有冻结', () => {
+  const s = factionGame('frost');
+  const a = deploy(s, 1, 'U461', 'mountain', 'front');
+  const b = deploy(s, 1, 'U461', 'plainL', 'front');
+  for (const u of [a, b]) { u.maxHp = 12; u.hp = 12; }
+  cast(s, 0, 'U451', { targetUid: a.uid });
+  cast(s, 0, 'U451', { targetUid: b.uid });
+  cast(s, 0, 'U455');
+  assert.equal(a.hp, 8, '被冻住的敌人吃 4 点');
+  assert.equal(b.hp, 8, '另一名被冻住的敌人也吃 4 点');
+  assert.ok(!isFrozen(a) && !isFrozen(b), '解除所有单位的冻结');
+  assert.ok(s.log.some((e) => e.type === 'clear-freeze' && e.count === 2), '记录了解冻数量');
+});
+
+test('U456 雪人：有敌人被冻结时获得+2攻击力+1生命', () => {
+  const s = factionGame('frost');
+  const snow = deploy(s, 0, 'U456', 'water', 'front');
+  const foe = deploy(s, 1, 'U461', 'mountain', 'front');
+  const atk0 = snow.atk;
+  const hp0 = snow.maxHp;
+  cast(s, 0, 'U451', { targetUid: foe.uid });
+  assert.ok(isFrozen(foe), '敌人被冻住');
+  assert.equal(snow.atk, atk0 + 2, '攻击力 +2');
+  assert.equal(snow.maxHp, hp0 + 1, '生命上限 +1');
+});
+
+test('U456 雪人：融合进化打出时冻结一个敌方单位', () => {
+  const s = factionGame('frost');
+  deploy(s, 0, 'U456', 'mountain', 'front');
+  const foe = deploy(s, 1, 'U461', 'plainL', 'front');
+  playUnit(s, 0, 'U456', 'mountain', 'front');
+  assert.ok(isFrozen(foe), '融合进化时冻结一个敌方单位');
+});
+
+test('U457 色欲：队友获得捕猎与「攻击时:对敌方国王造成等同攻击力的伤害」', () => {
+  const s = factionGame('sin');
+  const ally = deploy(s, 0, 'U461', 'mountain', 'front');
+  cast(s, 0, 'U457', { targetUid: ally.uid });
+  assert.ok(hasKw(ally, 'hunt'), '获得捕猎');
+  assert.ok((ally.effects || []).some((e) => e.trigger === 'onAttack'), '挂上攻击时异能');
+  const k0 = king(s, 1);
+  const foe = deploy(s, 1, 'U446', 'mountain', 'front');
+  foe.maxHp = 20;
+  foe.hp = 20;
+  const atk = ally.atk;
+  combat(s);
+  assert.equal(king(s, 1), k0 - atk, '敌方国王吃到等同攻击力的伤害');
+});
+
+test('U458 妒忌：对攻击力最高的敌人造成 5 点伤害，召唤一张恶意', () => {
+  const s = factionGame('sin');
+  const weak = deploy(s, 1, 'U461', 'mountain', 'front');
+  const strong = deploy(s, 1, 'U461', 'plainL', 'front');
+  for (const u of [weak, strong]) { u.maxHp = 10; u.hp = 10; }
+  strong.atk = 7;
+  cast(s, 0, 'U458');
+  assert.equal(strong.hp, 5, '攻击力最高的那个吃 5 点');
+  assert.equal(weak.hp, 10, '另一个不受影响');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === 'U459'), '召唤的恶意应当进手牌');
+});
+
+test('U459 恶意（令牌）：随机弃置敌方一张牌并复制进手牌，再抽一张', () => {
+  const s = factionGame('sin');
+  forcePhase(s, 1, 'spell');
+  s.players[1].hand[0].cardId;
+  const foeHand0 = s.players[1].hand.length;
+  const myHand0 = s.players[0].hand.length;
+  const deck0 = s.deck.length;
+  const discard0 = s.discard.length;
+  const stolenId = s.players[1].hand.map((h) => h.cardId);
+  cast(s, 0, 'U459');
+  assert.equal(s.players[1].hand.length, foeHand0 - 1, '敌方少一张手牌');
+  assert.equal(s.players[0].hand.length, myHand0 + 2, '复制一张 + 抽一张');
+  const ev = s.log.filter((e) => e.type === 'discard' && e.stolen).pop();
+  assert.ok(ev, '应当记一条 stolen 弃牌日志');
+  assert.ok(ev.iid !== undefined, '弃牌日志要带 iid，界面才能播出飞行动画');
+  assert.ok(stolenId.indexOf(ev.cardId) >= 0, '被抢的是敌方原本的手牌');
+  assert.ok(s.players[0].hand.some((h) => h.cardId === ev.cardId), '复制的那张进了我方手牌');
+  assert.equal(s.discard.length, discard0 + 2, '被弃置的牌进弃牌堆（打出的令牌自己也会进弃牌堆）');
+  assert.ok(s.discard.indexOf(ev.cardId) >= 0, '被弃置的那张牌确实在弃牌堆里');
+  assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
+});
+
+test('U460 暴食：消灭生命最低的敌人，友方国王回复 5 点，抽一张牌', () => {
+  const s = factionGame('sin');
+  const low = deploy(s, 1, 'U446', 'mountain', 'front');
+  const high = deploy(s, 1, 'U446', 'plainL', 'front');
+  low.hp = 1;
+  s.players[0].kingHp = 10;
+  const deck0 = s.deck.length;
+  cast(s, 0, 'U460');
+  assert.ok(low.removed, '生命最低的被消灭');
+  assert.equal(high.hp, 4, '另一个不受影响');
+  assert.equal(king(s, 0), 15, '友方国王回复 5 点');
+  assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
+});
+
+test('U461 贪婪：捕猎+组合；被消灭时友方国王回复 4 点', () => {
+  const s = factionGame('sin');
+  const greedy = deploy(s, 0, 'U461', 'mountain', 'front');
+  assert.ok(hasKw(greedy, 'hunt') && hasKw(greedy, 'combo'), '捕猎 + 组合');
+  s.players[0].kingHp = 10;
+  const foe = deploy(s, 1, 'U461', 'mountain', 'front');
+  foe.atk = 5;
+  combat(s);
+  assert.ok(greedy.removed, '贪婪应当被消灭');
+  assert.equal(king(s, 0), 14, '被消灭时友方国王回复 4 点');
+});
+
 //  汇总 
 console.log('\n' + BAR);
 if (failures.length === 0) {

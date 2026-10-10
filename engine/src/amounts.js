@@ -83,6 +83,11 @@ function resolveAmountBase(state, ctx, amount, target) {
     const src = ctx.source;
     return src ? (src.paidCostDelta || 0) : 0;
   }
+  /** 来源单位当前的攻击力（罪恶「色欲」的攻击时伤害 = 自己的攻击力） */
+  if (amount.perSelfAtk !== undefined) {
+    const src = ctx.source;
+    return amount.perSelfAtk * (src ? (src.atk || 0) : 0);
+  }
   if (amount.fixed !== undefined) return amount.fixed;
   /**
    * 被献祭单位的攻击力（卡牌「鲜血祭典」的回复量）。

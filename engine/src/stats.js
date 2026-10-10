@@ -240,7 +240,8 @@ export function transformUnit(state, unit, newCardId) {
   unit.maxHp = def.hp;
   // 词条与异能整块换掉（兔子两者都没有 → 变成一张白板）
   unit.keywords = (def.keywords || []).map(parseKeyword);
-  unit.effects = def.effects || [];
+  // 同上：按实例复制，别把卡库的数组挂到单位身上
+  unit.effects = (def.effects || []).map((e) => Object.assign({}, e));
   // 这些「不是词条、但写在卡面定义里」的攻击口径也要跟着换
   unit.attackWithHp = !!def.attackWithHp;
   unit.bypassInCombat = !!def.bypassInCombat;

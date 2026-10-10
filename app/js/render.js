@@ -68,6 +68,9 @@ const FACTION_TAGLINE = {
   science: '攒钱拍科技：费用越滚越多，锦囊还能再放一次',
   divine: '守护国王：替伤、治疗，并把敌人的攻击力永久清零',
   alchemy: '炼药：每抽一张牌得一份原料，把原料组成药水与令牌',
+  inferno: '越烧越旺：狂热、溅射与全场横扫的火焰',
+  frost: '冻结敌人的下一次攻击，再对被冻住的目标追加伤害',
+  sin: '捕猎与掠夺：抢走对手的手牌，用生命换生命',
 };
 
 function factionOptions() {
@@ -328,12 +331,16 @@ function boardRevealStep() {
  * 这种情况下只把「本该飞的卡」记进 flightLog（animated: false），一行 DOM 都不碰。
  */
 const FLIGHT_MS = 460;
+// 「弃置」的慢速飞离（作者 2026-10-10）：卡片被弃置时要慢慢从手牌里飞出去，
+// 比抽牌 / 出牌慢得多，让玩家看清是哪一张被丢了。
+const FLIGHT_MS_SLOW = 900;
 const FLIGHT_LOG_MAX = 200;
 let flightLayer = null;
 let pendingFlights = [];
 let flightLog = [];
 let lastHandIids = null;   // 上一帧的手牌 iid，用来认「刚抽到的新牌」
 let playSources = [];      // 出牌前抓下来的源卡（按顺序配对给 deploy/cast 日志）
+let discardSources = [];   // 被弃置的牌：答「选择弃置」之前抓下的卡面位置（按 iid 认）
 let cardFxCursor = -1;     // state.log 的扫描游标；< 0 表示还没定基线
 let flightSeq = 0;         // 单调计数：环形缓冲被截断时，门禁靠它数「新增了几笔」
 
@@ -404,6 +411,7 @@ function canFlyDom() {
 function resetCardFlights() {
   pendingFlights = [];
   playSources = [];
+  discardSources = [];
   lastHandIids = null;
   cardFxCursor = -1;
   clearFlightHides();
@@ -452,6 +460,39 @@ function captureHandCardSource(iid, cardId) {
   playSources.push(cap);
   if (playSources.length > 8) playSources.shift();
   return cap;
+}
+
+/**
+ * 弃置前抓源卡（作者 2026-10-10：卡牌被弃置时要缓慢从手牌中飞出）。
+ *
+ * 和出牌不同，弃置发生在引擎内部（`discard` 动作 / `stealRandomHand`），
+ * 等看到日志时牌已经离开手牌、DOM 里也没有它了  所以在玩家点「选择弃置」的
+ * 那一瞬间先抓下卡面与位置，日志到了再按 iid 取回来配对。
+ */
+function captureDiscardSource(iid, cardId) {
+  const cap = { iid: iid == null ? null : iid, cardId: cardId || null, rect: null, html: '' };
+  try {
+    const stage = document.getElementById('stage');
+    if (stage && typeof stage.querySelector === 'function' && iid != null) {
+      const el = stage.querySelector('.hand .card[data-iid="' + iid + '"]');
+      if (el) {
+        cap.html = el.innerHTML || '';
+        if (typeof el.getBoundingClientRect === 'function') cap.rect = el.getBoundingClientRect();
+      }
+    }
+  } catch (e) { /* 拿不到就算了：飞行会退回手牌区的默认轨迹 */ }
+  discardSources = discardSources.filter((c) => c.iid !== cap.iid);
+  discardSources.push(cap);
+  if (discardSources.length > 8) discardSources.shift();
+  return cap;
+}
+
+/** 取走某张弃置牌的抓拍（取过一次就丢掉，免得下一张同 iid 复用旧位置） */
+function takeDiscardSource(iid) {
+  if (iid == null) return null;
+  const hit = discardSources.find((c) => c.iid === iid) || null;
+  if (hit) discardSources = discardSources.filter((c) => c !== hit);
+  return hit;
 }
 
 function rectCenterOf(r) {
@@ -547,11 +588,23 @@ function spawnFlight(f) {
   const vw = (typeof window !== 'undefined' && window.innerWidth) || 390;
   const vh = (typeof window !== 'undefined' && window.innerHeight) || 844;
 
-  const toRect = f.kind === 'draw' ? handRectOf(f.iid) : slotRectOf(f.lane, f.side, f.row);
-  const to = rectCenterOf(toRect);
-  if (!to) return false;
-  const w = Math.round(Math.min(to.w || 84, 96));
-  const h = Math.round(Math.min(to.h || 112, 128));
+  // 弃置没有落点格子：从手牌位置慢悠悠掉出屏幕下沿（落到看不见的弃牌堆里）
+  let to = null;
+  let w = 84;
+  let h = 112;
+  if (f.kind === 'discard') {
+    const srcC = rectCenterOf(f.srcRect) || rectCenterOf(queryRect('.hand'));
+    w = Math.round(Math.min((srcC && srcC.w) || 84, 96));
+    h = Math.round(Math.min((srcC && srcC.h) || 112, 128));
+    to = { x: srcC ? srcC.x : vw / 2, y: vh + h * 0.75 };
+  } else {
+    const toRect = f.kind === 'draw' ? handRectOf(f.iid) : slotRectOf(f.lane, f.side, f.row);
+    to = rectCenterOf(toRect);
+    if (!to) return false;
+    w = Math.round(Math.min(to.w || 84, 96));
+    h = Math.round(Math.min(to.h || 112, 128));
+  }
+  const dur = f.slow ? FLIGHT_MS_SLOW : FLIGHT_MS;
 
   let from;
   let bulge;
@@ -562,6 +615,11 @@ function spawnFlight(f) {
     const c = rectCenterOf(f.srcRect);
     from = { x: c.x, y: c.y };
     bulge = to.x >= from.x ? -0.26 : 0.26;
+  } else if (f.kind === 'discard') {
+    // 自己的弃牌：抓不到具体卡槽就用整条手牌区的中心当起点
+    const handC = rectCenterOf(queryRect('.hand'));
+    from = handC ? { x: handC.x, y: handC.y } : { x: vw / 2, y: vh * 0.78 };
+    bulge = 0.18;
   } else if (f.from === 'above') {
     from = { x: Math.max(w / 2 + 6, Math.min(vw - w / 2 - 6, to.x + 12)), y: -h * 0.7 };
     bulge = 0.26;
@@ -590,10 +648,10 @@ function spawnFlight(f) {
     if (f.hides) revealFlightSlotOf(f, false);
   };
   try {
-    const anim = el.animate(arcFrames(from, to, bulge), { duration: FLIGHT_MS, easing: 'ease-out', fill: 'forwards' });
+    const anim = el.animate(arcFrames(from, to, bulge), { duration: dur, easing: 'ease-out', fill: 'forwards' });
     if (anim) anim.onfinish = finish;
   } catch (e) {}
-  setTimeout(finish, FLIGHT_MS + 180);
+  setTimeout(finish, dur + 180);
   return true;
 }
 
@@ -630,7 +688,28 @@ function scanCardFlights() {
   // 新增的出牌日志：deploy / cast 都带 side + lane（deploy 还有 row）
   for (let i = cardFxCursor; i < logs.length; i++) {
     const e = logs[i];
-    if (!e || (e.type !== 'deploy' && e.type !== 'cast')) continue;
+    if (!e) continue;
+    // 弃置（`discard` 动作 / 「恶意」抢牌）：从手牌里慢慢飞出去。
+    // 日志带 iid，所以能精确配对到抓拍的那一张，不会张冠李戴。
+    if (e.type === 'discard') {
+      const isMine = e.side === view.humanSide;
+      const dcap = isMine ? takeDiscardSource(e.iid) : null;
+      enqueueCardFlight({
+        kind: 'discard',
+        slow: true,
+        side: e.side,
+        cardId: e.cardId || null,
+        iid: e.iid == null ? null : e.iid,
+        lane: null,
+        row: null,
+        from: isMine ? 'hand' : 'above',
+        srcHTML: dcap ? dcap.html : '',
+        srcRect: dcap ? dcap.rect : null,
+        hides: false,
+      });
+      continue;
+    }
+    if (e.type !== 'deploy' && e.type !== 'cast') continue;
     const mine = e.side === view.humanSide;
     let cap = null;
     // 只把「同一张牌」的抓拍配给它：召唤出来的单位没有抓拍，别把后面那张牌的抓拍吃掉
@@ -898,5 +977,5 @@ function escMain(s) {
 export {
   makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
   showBanner, refresh, escMain, LANE_LABEL, toggleMenu, fillMenuLog,
-  resetCardFlights, captureHandCardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
+  resetCardFlights, captureHandCardSource, captureDiscardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
 };

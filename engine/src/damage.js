@@ -35,6 +35,7 @@ export function freezeUnit(state, unit) {
   if (isFrozen(unit)) return false;
   unit.marks.push({ type: 'freeze', appliedTurn: state.turn });
   log(state, { type: 'freeze', uid: unit.uid });
+  notifyFreezeWatchers(state, unit);
   return true;
 }
 
@@ -45,6 +46,21 @@ export function freezeUnit(state, unit) {
  * 只对「本来会攻击」的单位结算 —— 攻击力 0 的单位永远不攻击，
  * 冻它没有意义，标记留着（作者原文是「下一次攻击时」）。
  */
+/**
+ * 「有敌人被冻结时:」（极寒「雪人」）。
+ *
+ * 冻结是 freezeUnit 落的**状态标记**，没有统一的伤害 watcher 通道，
+ * 所以在这里直接广播一次：只看「被冻那一方以外」的单位身上的异能。
+ * 触发只是入队，真正的执行由调用方之后的 flushTriggers 完成。
+ */
+export function notifyFreezeWatchers(state, frozen) {
+  for (const u of allUnits(state)) {
+    if (u.side === frozen.side || u.removed) continue;
+    if (!(u.effects || []).some((e) => e.trigger === 'onEnemyFrozen')) continue;
+    queueTrigger(state, u, 'onEnemyFrozen', { victim: frozen });
+  }
+}
+
 export function consumeFreeze(state, units) {
   const ready = [];
   for (const u of units) {

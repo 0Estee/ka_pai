@@ -8,7 +8,7 @@
  */
 
 import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
-import { matchesTargetFilter } from './keywords.js';
+import { matchesTargetFilter, isFrozen } from './keywords.js';
 import { filterCtx, hasRooted, getKeyword } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
@@ -304,6 +304,39 @@ function* resolveTargetsInner(state, ctx, selector) {
     case 'payloadUnit': {
       const u = ctx.payload && (ctx.payload.unit || ctx.payload.played || ctx.payload.victim);
       return u && !u.removed ? [asUnit(u)] : [];
+    }
+
+    /**
+     * 所有被冻结的敌方单位（极寒「冰轮狂舞」「寒星追」）。
+     * 冻结是状态标记（keywords.js 的 isFrozen），不是印在卡面上的词条。
+     */
+    case 'allFrozenEnemyUnits':
+      return batch(allUnits(state).filter((u) => u.side === foe && isFrozen(u)));
+
+    /**
+     * 攻击力最高的敌方单位（罪恶「妒忌」）。平手取 uid 最小的那个，
+     * 与 lowestHpEnemyUnit 同一条 tie-break（结果确定，不依赖遍历顺序）。
+     * 不需要玩家点选。
+     */
+    case 'highestAtkEnemyUnit': {
+      let pool = allUnits(state).filter((u) => u.side === foe);
+      pool = pool.filter((u) => matchesTargetFilter(u, selector.filter, filterCtx(state, source)));
+      if (pool.length === 0) return [];
+      let best = pool[0];
+      for (const u of pool) {
+        if (u.atk > best.atk || (u.atk === best.atk && u.uid < best.uid)) best = u;
+      }
+      return [asUnit(best)];
+    }
+
+    /**
+     * ctx.chosenLanes 里所有敌方单位（极寒「冰刃出击」选中的两条相邻线路）。
+     * 线路由前一条 chooseLanes 动作写进 ctx，这里不再单独提问。
+     */
+    case 'chosenLanesEnemyUnits': {
+      const out = [];
+      for (const lane of ctx.chosenLanes || []) out.push(...laneUnits(state, lane, foe));
+      return batch(out);
     }
 
     default:

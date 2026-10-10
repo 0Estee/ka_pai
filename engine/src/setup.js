@@ -164,6 +164,16 @@ export function createGame(cfg = {}) {
 // 单位实例
 // ══════════════════════════════════════════════════════════
 
+/**
+ * 卡面定义的 effects 数组必须**按实例复制**。
+ *
+ * 「attachEffect」（色欲 / 黑曜石）会把异能追加到单位身上；如果单位直接持有卡面定义
+ * 的那个数组，这次追加就写进了卡库  之后所有同名卡（连对手的）都会白得一条异能。
+ */
+function instanceEffects(def) {
+  return (def.effects || []).map((e) => Object.assign({}, e));
+}
+
 export function instantiateUnit(state, def, side, lane, row) {
   // 「本局对战中这张牌进入战场的次数」（卡牌「扫地僧」）。
   // 记在这一处是因为**打出**（play.js）和**召唤**（combat.js）都经过它，
@@ -183,7 +193,7 @@ export function instantiateUnit(state, def, side, lane, row) {
     hp: def.hp,
     maxHp: def.hp,
     keywords: (def.keywords || []).map(parseKeyword),
-    effects: def.effects || [],
+    effects: instanceEffects(def),
     marks: [],
     removed: false,
     lastDamageSource: null,
