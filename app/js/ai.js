@@ -1,5 +1,5 @@
 /**
- * 对手 AI（启发式）与其 4 个难度。
+ * 对手 AI（启发式）与其 5 个难度。
  *
  * ── 设计原则 ──────────────────────────────────────────────
  * 前三个难度**只改决策水平，不碰规则** —— 用的牌、费用、起手都和玩家完全一样。
@@ -12,7 +12,8 @@
  *   passThreshold 出牌积极性：分数低于它就不出牌（越高越消极、越爱留费用）
  *   jitter       随机噪声：越大越不稳，会出现明显的臭棋
  *   lookahead    会不会算「我放上去之后对面怎么吃掉我」
- *   bonus        额外的开局优势（只有噩梦有）
+ *   bonus        额外的开局优势（只有噩梦有；「不可能」不加任何优势）
+ *   planner      会不会真的推演：把自己这手牌之后的双方各一个回合模拟一遍再挑
  *
  * 关键行为：会补前排阻挡、会换掉能杀的敌人、会用锦囊解场或抽牌。
  * 随机 AI 完全不防守，会导致对局在 6 回合内崩掉，没法测玩法。
@@ -26,6 +27,7 @@ import { filterCtx, effectiveAtk } from '../../engine/src/auras.js';
 // 打包器把所有模块拼进同一个作用域，重名的函数会互相覆盖，
 // 连 mechanics.js 内部的调用都会被顶掉。build-web.mjs 会拦截这种情况。
 import { allUnits, drawCards } from '../../engine/src/mechanics.js';
+import { createRng } from '../../engine/src/rng.js';
 
 /** 单位是否带某词条 */
 const kw = (unit, id) => (unit.keywords || []).some((k) => k.id === id);
@@ -40,7 +42,7 @@ const kwX = (unit, id) => {
 // ══════════════════════════════════════════════════════════
 
 /**
- * 四个难度。**调难度只改这张表。**
+ * 五个难度。**调难度只改这张表。**
  *
  * 数值不是拍脑袋定的 —— 是拿 `tools/` 里的参数扫描脚本
  * 逐项和「普通」对打（各 160 局）量出来的。结论有点反直觉：
@@ -146,6 +148,26 @@ export const DIFFICULTIES = [
       manaPerTurn: 1,     // 每回合多 1 费（会同时写进 flatManaBonus 与当回合费用）
       kingHp: 8,          // 国王生命上限 +8
     },
+  },
+  {
+    ...BASE,
+    key: 'impossible',
+    name: '不可能',
+    tagline: '每一步都在脑子里试打几遍，算完才落子',
+    // 作者 2026-10：这一档**不加任何数值优势**（bonus 为 null  费用 / 手牌 /
+    // 国王血量和玩家完全一样），强的地方只有一个：真的把后面几步推演一遍。
+    // 引擎里的启发式参数已经没有可调空间（见上面的实测：换任何参数都不比普通强），
+    // 所以「从智商上」变强只能上结构性改法：模拟出牌  双方各打一个回合  评估局面。
+    passThreshold: -1.0,
+    jitter: 0,
+    lookahead: false,
+    bonus: null,
+    planner: 'rollout',   // 打开模拟前瞻
+    // 下面两个数是**实测扫出来的**（120 局  两组互不重叠的种子，见 README 的难度表）：
+    //   K4/S8  打噩梦 25.8%  K8/S12 40.0%  K8/S20 45.8%（再深到 S28/S36 反而回落 40.8%）
+    //   越深越准，但每个候选都要克隆一整局再往后再推，手机上太深会卡；S20 是拐点。
+    planK: 8,             // 推演贪心评分最高的几个候选
+    planSteps: 20,        // 每个候选往后推几步（含双方回合与开战结算）
   },
 ];
 
@@ -537,7 +559,7 @@ export function installAiTargetPicker(state) {
  *
  * @param {object} state
  * @param {number} side
- * @param {object} [opts]  { difficulty: 'easy'|'normal'|'hard'|'nightmare', maxPlays: 8 }
+ * @param {object} [opts]  { difficulty: 'easy'|'normal'|'hard'|'nightmare'|'impossible', maxPlays: 8 }
  * @returns {{ count:number, actions:Array<{iid:number, opts:object}> }}
  *   `actions` 是本阶段真正打出的每一张牌。回放录制需要它：把 AI 的每一步
  *   也照单记下来，重放时就不用再跑一遍 AI（既快，也不必依赖 AI 决策的稳定性）。
@@ -579,6 +601,146 @@ function tryAlchemyBrew(state, side) {
     return null;
   }
   return best.iids;
+}
+
+// 
+// 「不可能」：模拟前瞻（作者 2026-10：不加任何数值优势，只把棋算得更远）
+// 
+
+/**
+ * 深拷贝一局，用来推演。三条纪律：
+ *   1. `cardLib` / 函数（targetPicker 等）按引用共享  只读；拷了又慢又容易出微妙的错。
+ *   2. `rng` 必须**另造**：engine/src/rng.js 的状态藏在闭包里，
+ *      直接展开会把推演和真对局接到同一个随机源上，真对局的随机数会被推演吃掉。
+ *   3. 克隆体设 `humanSide = -1` + `autoResolveChoices = true`：
+ *      推演里所有「要问人」的请求都必须自动答，绝不能挂起。
+ */
+function cloneForSim(state) {
+  const c = {};
+  for (const k of Object.keys(state)) {
+    if (k === "cardLib" || k === "targetPicker" || k === "chooser") {
+      c[k] = state[k];
+    } else if (k === "rng") {
+      c[k] = createRng(state.rng ? state.rng.state : 0);
+    } else if (k === "pending") {
+      c[k] = state[k];           // 正常不会走到这里（推演只在空闲时开始）
+    } else {
+      c[k] = cloneValue(state[k]);
+    }
+  }
+  c.humanSide = -1;
+  c.autoResolveChoices = true;
+  return c;
+}
+
+/** 通用深拷贝：函数与原始值原样共享，对象 / 数组逐层复制 */
+function cloneValue(v) {
+  if (v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) {
+    const a = new Array(v.length);
+    for (let i = 0; i < v.length; i++) a[i] = cloneValue(v[i]);
+    return a;
+  }
+  const o = {};
+  for (const k of Object.keys(v)) {
+    const x = v[k];
+    o[k] = typeof x === "function" ? x : cloneValue(x);
+  }
+  return o;
+}
+
+/** 各条线「对面没有阻挡」时，attSide 能直接打到国王的攻击力合计 */
+function freeLaneDamage(state, attSide) {
+  const defSide = 1 - attSide;
+  let sum = 0;
+  for (const lane of LANES) {
+    const row = state.board[lane] && state.board[lane].units;
+    if (!row) continue;
+    const mine = row[attSide];
+    const theirs = row[defSide];
+    if (!mine || !theirs) continue;
+    if (theirs.front || theirs.back) continue;
+    for (const u of [mine.front, mine.back]) {
+      if (u && !u.removed) sum += effectiveAtk(state, u) || 0;
+    }
+  }
+  return sum;
+}
+
+/**
+ * 局面评估：从 side 的角度看，正数代表优势。
+ * 权重可由难度表 / opts.params 注入（W），便于跑参数扫描。
+ */
+function evalPosition(state, side, W) {
+  W = W || {};
+  const foe = 1 - side;
+  if (state.winner === side) return 1000;
+  if (state.winner === foe) return -1000;
+  const mine = state.players[side];
+  const theirs = state.players[foe];
+  if (!mine || !theirs) return 0;
+
+  let v = (mine.kingHp - theirs.kingHp) * (W.wKing === undefined ? 2.4 : W.wKing);
+  v += ((mine.hand ? mine.hand.length : 0) - (theirs.hand ? theirs.hand.length : 0)) * (W.wHand === undefined ? 0.6 : W.wHand);
+  v += ((mine.mana || 0) - (theirs.mana || 0)) * 0.3;
+
+  for (const u of allUnits(state)) {
+    if (u.removed) continue;
+    const val = (effectiveAtk(state, u) || 0) * (W.wAtk === undefined ? 1.0 : W.wAtk)
+      + (u.hp || 0) * (W.wHpEval === undefined ? 0.6 : W.wHpEval)
+      + (u.row === "front" ? 0.8 : 0.2);
+    v += u.side === side ? val : -val;
+  }
+
+  // 下个回合谁能直接打卡牌脸，权重最高  这是这套游戏真正的胜负来源
+  v += freeLaneDamage(state, side) * (W.wFreeMine === undefined ? 1.0 : W.wFreeMine);
+  v -= freeLaneDamage(state, foe) * (W.wFreeFoe === undefined ? 1.6 : W.wFreeFoe);
+  return v;
+}
+
+/** 在克隆体上从当前局面往下推 steps 步（含双方回合与开战结算） */
+function simForward(clone, steps) {
+  for (let n = 0; n < steps; n++) {
+    if (clone.winner !== null) break;
+    if (clone.pending) break;
+    let actor = null;
+    try { actor = G.getActor(clone); } catch (err) { break; }
+    if (actor === null) {
+      try { G.advance(clone); } catch (err) { break; }
+      continue;
+    }
+    try {
+      aiTakeTurn(clone, actor, { difficulty: "hard", maxPlays: 6 });
+    } catch (err) { break; }
+    try { G.advance(clone); } catch (err) { break; }
+  }
+}
+
+/** 推演「打出这个候选」之后的局面分 */
+function rolloutScore(state, side, cand, P) {
+  const clone = cloneForSim(state);
+  try {
+    G.playCard(clone, side, cand.iid, cand.opts);
+  } catch (err) {
+    return -Infinity;
+  }
+  simForward(clone, P.planSteps || 8);
+  return evalPosition(clone, side, P);
+}
+
+/** 在贪心评分最高的 K 个候选里，挑推演后局面最好的那个 */
+function planRollout(state, side, candidates, P) {
+  const k = Math.min(P.planK || 4, candidates.length);
+  let best = candidates[0];
+  let bestScore = -Infinity;
+  const wGreedy = P.wGreedy || 0;   // 推演分之外再掺一点「眼前的便宜」，避免算过头
+  for (let i = 0; i < k; i++) {
+    const c = candidates[i];
+    const s = rolloutScore(state, side, c, P) + c.score * wGreedy;
+    // 推演分相同时取贪心分更高的那个（保住原来「能打就打」的手感）
+    if (s > bestScore + 1e-9) { bestScore = s; best = c; }
+  }
+  return best;
 }
 
 export function aiTakeTurn(state, side, opts = {}) {
@@ -645,7 +807,11 @@ export function aiTakeTurn(state, side, opts = {}) {
     }
     candidates.sort((a, b) => b.score - a.score);
 
-    const pick = candidates[0];
+    // 「不可能」：把前几个候选各自推演一遍（我打完 + 双方各一个回合），
+    // 选结算后局面最好的那个，而不是只看眼前这一步的分数。
+    const pick = P.planner === 'rollout'
+      ? planRollout(state, side, candidates, P)
+      : candidates[0];
     // 分数太低的牌就不打了，留住费用。阈值越高越消极。
     if (pick.score < P.passThreshold) break;
 

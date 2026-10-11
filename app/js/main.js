@@ -582,9 +582,9 @@ function applyTo(st, act) {
  * 让两个难度互相对打 n 局，返回战绩。
  * 用来验证「难度确实是递增的」—— 如果困难打不过普通，那这张参数表就是坏的。
  */
-window.__aiLeague = (diff0, diff1, n = 60) => {
+window.__aiLeague = (diff0, diff1, n = 60, params0 = null, params1 = null, seedBase = 1) => {
   const tally = { p0: 0, p1: 0, draw: 0 };
-  for (let seed = 1; seed <= n; seed++) {
+  for (let seed = seedBase; seed < seedBase + n; seed++) {
     const deck = buildTestDeck(80, seed);
     const st = G.createGame({ seed, firstPlayer: seed % 2, deck, cardLib: TEST_CARD_LIB });
     G.startGame(st);
@@ -603,7 +603,9 @@ window.__aiLeague = (diff0, diff1, n = 60) => {
     while (st.winner === null && guard++ < 3000) {
       const actor = G.getActor(st);
       if (actor === null) { try { G.advance(st); } catch { break; } continue; }
-      try { aiTakeTurn(st, actor, { difficulty: actor === 0 ? diff0 : diff1 }); } catch { break; }
+      const key = actor === 0 ? diff0 : diff1;
+      const over = actor === 0 ? params0 : params1;
+      try { aiTakeTurn(st, actor, over ? { difficulty: key, params: over } : { difficulty: key }); } catch { break; }
       if (st.winner === null) { try { G.advance(st); } catch { break; } }
     }
     if (st.winner === 0) tally.p0++;

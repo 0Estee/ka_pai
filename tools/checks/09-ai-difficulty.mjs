@@ -1,5 +1,7 @@
 /** § AI 难度：实测站得住的差异 */
-import { api, check, softCheck } from './harness.mjs';
+import { ROOT, api, check, softCheck } from './harness.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // ── AI 难度 ───────────────────────────────────────────────
 // 注意：**只断言实测站得住的结论**。这个启发式 AI 已接近上限，
@@ -7,9 +9,9 @@ import { api, check, softCheck } from './harness.mjs';
 // 断言一个假的东西，比不测更糟。
 console.log('\n§ AI 难度：实测站得住的差异');
 
-check('四个难度都在', () => {
+check('五个难度都在', () => {
   const keys = api.__difficulties();
-  for (const k of ['easy', 'normal', 'hard', 'nightmare']) {
+  for (const k of ['easy', 'normal', 'hard', 'nightmare', 'impossible']) {
     if (!keys.includes(k)) throw new Error(`缺少难度 ${k}`);
   }
 });
@@ -39,14 +41,16 @@ softCheck('「简单」明显更弱（不会用锦囊）—— 用「普通 vs �
 //   困难 = 起手多 1 张 + 国王生命上限 +6（**不加费**）
 //   噩梦 = 起手多 1 张 + 每回合多 1 费 + 国王生命上限 +8
 // 这些优势会由 screens.js 从 bonus 逐条渲染到选难度界面上，所以必须是明码、可对账的。
-check('难度增益与界面口径一致：困难只加手牌/国王血，噩梦才多 1 费', () => {
+check('难度增益与界面口径一致：困难只加手牌/国王血，噩梦才多 1 费，「不可能」一点不加', () => {
   const want = {
     easy: { hand: 0, hp: 0, mana: 0 },
     normal: { hand: 0, hp: 0, mana: 0 },
     hard: { hand: 1, hp: 6, mana: 0 },
     nightmare: { hand: 1, hp: 8, mana: 1 },
+    // 作者 2026-10：「不可能」按设计**不加任何优势**，这一行就是那条承诺的对账。
+    impossible: { hand: 0, hp: 0, mana: 0 },
   };
-  for (const key of ['easy', 'normal', 'hard', 'nightmare']) {
+  for (const key of ['easy', 'normal', 'hard', 'nightmare', 'impossible']) {
     api.__go('home');
     api.__newGame();
     const st = api.__game();
@@ -63,5 +67,64 @@ check('难度增益与界面口径一致：困难只加手牌/国王血，噩梦
     if (a.mana - before.mana !== want[key].mana) {
       throw new Error(key + ' 的固定费用加成没有同步到当回合可用费用（' + before.mana + ' -> ' + a.mana + '）');
     }
+  }
+});
+
+//  作者 2026-10：「不可能」不加任何数值优势，只靠推演 
+// 这一档的强度全部来自 app/js/ai.js 里的模拟前瞻规划器（planRollout）：
+// 把前 K 个候选各自克隆一整局、真推到对手回合结束，再挑局面最好的那个。
+// 因为它「读真状态、写克隆体」，必须证明两件事：推演没把共享卡库改脏，
+// 也没把别的难度对打的结果带偏。
+
+check('「不可能」的推演是隔离的：克隆自带 rng，且不碰真对局', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'ai.js'), 'utf8');
+  for (const need of [
+    'createRng(state.rng',
+    'c.humanSide = -1;',
+    'c.autoResolveChoices = true;',
+    "planner: 'rollout'",
+  ]) {
+    if (!src.includes(need)) throw new Error('「不可能」的推演缺了关键隔离步骤: ' + need);
+  }
+  // 克隆必须新造 rng：engine/src/rng.js 的状态藏在闭包里，直接展开对象会把
+  // 推演和真对局接到同一个随机源上（真对局的抽牌顺序就被推演吃掉了）。
+  if (/rng:\s*state\.rng/.test(src)) throw new Error('推演直接展开了 state.rng，没另造随机源');
+});
+
+check('「不可能」的推演不污染共享卡库，也不影响别的难度对打', () => {
+  api.__go('home');
+  api.__newGame();
+  const st = api.__game();
+  const lib = st.cardLib;
+  const ids = Object.keys(lib).filter((id) => (lib[id].effects || []).length > 0).slice(0, 5);
+  if (ids.length === 0) throw new Error('卡库里找不到带 effects 的牌，这条检查失去意义');
+  const before = ids.map((id) => JSON.stringify(lib[id]));
+  const a1 = api.__aiLeague('hard', 'hard', 20);
+  api.__aiLeague('impossible', 'nightmare', 20);
+  const a2 = api.__aiLeague('hard', 'hard', 20);
+  const after = ids.map((id) => JSON.stringify(lib[id]));
+  for (let i = 0; i < ids.length; i++) {
+    if (before[i] !== after[i]) {
+      throw new Error('推演把牌库里的 ' + ids[i] + ' 改掉了（克隆没做干净）');
+    }
+  }
+  if (a1.p0 !== a2.p0 || a1.p1 !== a2.p1) {
+    throw new Error('跑过「不可能」之后再打「困难 vs 困难」，结果变了（'
+      + a1.p0 + '/' + a1.p1 + ' -> ' + a2.p0 + '/' + a2.p1 + '）');
+  }
+});
+
+// 强度只用同侧对照比差值（__aiLeague 的 p0 不是 50%）。
+// 实测（120 局  两组互不重叠的种子）：不可能打普通 94%，同侧对照普通打普通 49%；
+// 这里用 n=40 只做「明显更强」的下限断言，避免门禁跑太久。
+softCheck('「不可能」不加任何优势，但强度远超普通', () => {
+  const n = 40;
+  const ctrl = api.__aiLeague('normal', 'normal', n);
+  const base = ctrl.p0 / n;
+  const r = api.__aiLeague('impossible', 'normal', n);
+  const win = r.p0 / n;
+  if (win < base + 0.2) {
+    throw new Error('不可能打普通 ' + (win * 100).toFixed(0) + '%，同侧对照（普通打普通）是 '
+      + (base * 100).toFixed(0) + '%，优势不足 20 个百分点');
   }
 });

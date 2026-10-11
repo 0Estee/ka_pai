@@ -120,7 +120,7 @@ export function difficultyHTML({ current, difficulties, faction, factions }) {
 
   return subScreen('AI 难度与阵营', `
     <div class="diff-list">${rows}</div>
-    <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>），已在上方逐条写明。</div>
+    <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>）；<b>不可能</b>不加任何优势，只是会真的推演后面几步，已在上方逐条写明。</div>
     ${facBlock}
     <button class="hm-btn hm-primary diff-go" data-act="start-ai">
       <span class="hm-ico"></span>
