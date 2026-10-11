@@ -52,9 +52,13 @@ check('难度增益与界面口径一致：困难只加手牌/国王血，噩梦
   };
   for (const key of ['easy', 'normal', 'hard', 'nightmare', 'impossible']) {
     api.__go('home');
+    api.setDifficulty('normal');   // 基线必须是没有加成的一局（02 号检查会把难度留在 hard）
     api.__newGame();
     const st = api.__game();
     const p = () => st.players[1];
+    // 炼金阵营「每抽一张牌抽一张原料」会把难度送的这一张也算成一次抽牌（顺带多给一张原料），
+    // 让「起手多几张」对不上；这条检查量的是难度加成本身，先把阵营因素摘掉。
+    st.players[1].faction = null;
     const before = { hand: p().hand.length, hp: p().kingHp, manaCap: p().manaCap, mana: p().mana, flat: p().flatManaBonus || 0 };
     const a = api.__applyBonus(st, 1, key);
     const got = { hand: a.hand - before.hand, hp: a.hp - before.hp, mana: a.flatManaBonus - before.flat };

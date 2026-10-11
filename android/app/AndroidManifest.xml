@@ -5,8 +5,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kaipai.prototype"
-    android:versionCode="56"
-    android:versionName="0.55.0">
+    android:versionCode="57"
+    android:versionName="0.56.0">
 
     <uses-sdk
         android:minSdkVersion="24"

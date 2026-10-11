@@ -32,7 +32,7 @@ check('难度页能选炼狱 / 极寒 / 罪恶,选中的阵营带进对局,双�
   const html = stage();
   if (!html.includes('data-act="set-faction"')) throw new Error('难度页没有阵营可选项');
   const rows = (html.match(/data-act="set-faction"/g) || []).length;
-  if (rows !== 10) throw new Error('难度页阵营选项应当是 10 个(7 个旧阵营 + 炼金 + 三阵营),实际 ' + rows);
+  if (rows !== 11) throw new Error('难度页阵营选项应当是 11 个(7 个旧阵营 + 炼金 + 三阵营 + 派对),实际 ' + rows);
   for (const f of NEW_FACTIONS) {
     if (!html.includes('data-key="' + f.key + '"')) throw new Error('难度页里没有' + f.name + '阵营');
     if (!html.includes(f.name)) throw new Error('难度页里没有' + f.name + '的名字');
@@ -41,12 +41,14 @@ check('难度页能选炼狱 / 极寒 / 罪恶,选中的阵营带进对局,双�
     const st = factionGame(f.key);
     if (!st) throw new Error(f.name + ':选完阵营没能开局');
     for (const p of st.players) {
-      if (p.faction !== f.key) throw new Error(f.name + ':阵营没写进对局 side ' + p.side + ' = ' + p.faction);
+      // 与 AI 对战时 AI 的阵营随机（作者 2026-10-11）：只有我方（side 0）等于所选阵营。
+      if (p.side === 0 && p.faction !== f.key) throw new Error(f.name + ':我方阵营没写进对局 side 0 = ' + p.faction);
+      if (!p.faction) throw new Error(f.name + ':side ' + p.side + ' 没有阵营');
       const list = p.superpowers || [];
       if (list.length !== 1) throw new Error(f.name + ':开局应当各抽 1 张超能力,side ' + p.side + ' 实际 ' + list.length);
       const id = list[0];
       const def = st.cardLib[id];
-      if (!def || def.faction !== f.key) throw new Error(f.name + ':抽到的不是本阵营超能力 ' + id);
+      if (!def || def.faction !== p.faction) throw new Error(f.name + ':抽到的不是本阵营超能力 ' + id);
       if (def.token) throw new Error(f.name + ':令牌不该被抽到 ' + id);
       if (!p.hand.some((hc) => hc.cardId === id)) throw new Error(f.name + ':抽到的超能力没进手牌 ' + id);
     }

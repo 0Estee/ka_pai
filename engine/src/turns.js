@@ -377,3 +377,22 @@ export function applyHandStatDelta(state, unit, handCard) {
   if (d.atk) M.buffAtk(state, unit, d.atk);
   if (d.maxHp) M.buffMaxHp(state, unit, d.maxHp);
 }
+
+/**
+ * 「立即进入下个回合」（派对阵营「小丑」，作者 2026-10-11）。
+ *
+ * 与界面上的「结束回合」同一条路：把当前回合剩下的阶段依次跑完
+ * （开战也跑），直到进入下一回合的 TURN_START。
+ * 开战中途挂起时（state.pending）立刻停手：代表「这个回合到此为止」，
+ * 答完之后由界面的自动推进把剩下阶段走完。
+ */
+export function endTurnNow(state) {
+  if (isOver(state)) return false;
+  for (let i = 0; i < 8; i++) {
+    if (state.pending) return true;
+    advance(state);
+    if (state.phase === 'TURN_START') return true;
+    if (state.pending) return true;
+  }
+  return true;
+}

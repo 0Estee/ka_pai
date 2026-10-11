@@ -28,11 +28,13 @@ check('难度页能选上帝阵营，选中的带进对局，双方各抽一张�
   const st = api.__game();
   if (!st) throw new Error('选完阵营没能开局');
   for (const p of st.players) {
-    if (p.faction !== 'god') throw new Error('阵营没写进对局：side ' + p.side + ' = ' + p.faction);
+    // 与 AI 对战时 AI 的阵营随机（作者 2026-10-11）：只有我方（side 0）等于所选阵营。
+    if (p.side === 0 && p.faction !== 'god') throw new Error('我方阵营没写进对局：side 0 = ' + p.faction);
+    if (!p.faction) throw new Error('side ' + p.side + ' 没有阵营');
     const list = p.superpowers || [];
     if (list.length !== 1) throw new Error('开局应当各抽 1 张超能力，side ' + p.side + ' 实际 ' + list.length);
     const def = st.cardLib[list[0]];
-    if (!def || def.faction !== 'god') throw new Error('抽到的不是本阵营超能力：' + list[0]);
+    if (!def || def.faction !== p.faction) throw new Error('抽到的不是本阵营超能力：' + list[0]);
     if (def.token) throw new Error('令牌不该被抽到：' + list[0]);
   }
 });

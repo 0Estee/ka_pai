@@ -4820,4 +4820,142 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U462",
+    "name": "小丑",
+    "type": "unit",
+    "cost": 1,
+    "atk": 1,
+    "hp": 2,
+    "faction": "party",
+    "text": "打出:所有单位额外攻击一次，立即进入下个回合。",
+    "effects": [
+      {
+        "trigger": "onPlay",
+        "actions": [
+          {
+            "op": "extraAttack",
+            "target": {
+              "kind": "allUnits"
+            }
+          },
+          {
+            "op": "endTurnNow"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U463",
+    "name": "惊喜",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "party",
+    "text": "召唤一张随机的令牌，使其费用-1，友方国王回复3点生命。",
+    "actions": [
+      {
+        "op": "summonRandomToken",
+        "modify": {
+          "costDelta": -1
+        }
+      },
+      {
+        "op": "heal",
+        "amount": 3,
+        "target": {
+          "kind": "ownKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U464",
+    "name": "爆炸水果蛋糕",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "party",
+    "text": "对一名敌人造成6点伤害，敌方抽一张牌。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 6,
+        "target": {
+          "kind": "chosenEnemyTarget"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1,
+        "side": "opponent"
+      }
+    ]
+  },
+  {
+    "id": "U465",
+    "name": "杂技演员",
+    "type": "unit",
+    "cost": 1,
+    "atk": 1,
+    "hp": 4,
+    "faction": "party",
+    "text": "受到伤害:抽一张牌。被消灭:召唤一张气球。",
+    "effects": [
+      {
+        "trigger": "onDamaged",
+        "actions": [
+          {
+            "op": "draw",
+            "amount": 1
+          }
+        ]
+      },
+      {
+        "trigger": "onDeath",
+        "actions": [
+          {
+            "op": "summon",
+            "cardId": "U466"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U466",
+    "name": "气球",
+    "type": "unit",
+    "cost": 2,
+    "atk": 0,
+    "hp": 1,
+    "faction": "party",
+    "token": true,
+    "keywords": [
+      "combo"
+    ],
+    "text": "组合。被消灭:对这条线上的所有敌人和敌方国王造成3点伤害。",
+    "effects": [
+      {
+        "trigger": "onDeath",
+        "actions": [
+          {
+            "op": "damage",
+            "amount": 3,
+            "target": {
+              "kind": "allEnemyUnitsInLane"
+            }
+          },
+          {
+            "op": "damage",
+            "amount": 3,
+            "target": {
+              "kind": "enemyKing"
+            }
+          }
+        ]
+      }
+    ]
+  },
 ];

@@ -553,6 +553,48 @@ export function* execAction(state, ctx, action) {
     }
 
     /**
+     * 「立即进入下个回合」（派对阵营「小丑」）。
+     * 把本回合剩下的阶段跑完（含开战）再进入下一回合，
+     * 走的就是会话里「结束回合」那条路（turns.js 的 advance 串）。
+     * 开战中途挂起（强化士兵这类要问人）时立刻停手，
+     * 答完由挂起协议与界面接着推。
+     */
+    case 'endTurnNow': {
+      if (!ctx.api || !ctx.api.endTurnNow) throw new Error('缺少 endTurnNow api');
+      ctx.api.endTurnNow(state);
+      break;
+    }
+
+    /**
+     * 「召唤一张随机的令牌」（派对阵营「惊喜」）。
+     * 从卡库里带 token 标记的牌里随机抽一张加进手牌；
+     * 原料（rawMaterial）、归属别的阵营的令牌、以及标了
+     * noRandomSummon 的牌都不进池子（否则会抽到别人家的异火）。
+     * 用 state.rng，因此同种子同回放。
+     */
+    case 'summonRandomToken': {
+      if (!ctx.api || !ctx.api.giveCardToHand) throw new Error('缺少 giveCardToHand api');
+      const side = resolveSide(action.side, me);
+      const n = resolveAmount(state, ctx, action.count || 1);
+      const myFaction = state.players[side] && state.players[side].faction;
+      const pool = Object.keys(state.cardLib || {})
+        .filter((id) => {
+          const c = state.cardLib[id];
+          if (!c || !c.token || c.rawMaterial || c.noRandomSummon) return false;
+          if (c.faction && c.faction !== myFaction) return false;
+          return true;
+        })
+        .sort();
+      if (!pool.length) break;
+      const modify = resolveSummonModify(state, ctx, action.modify);
+      for (let i = 0; i < n; i++) {
+        const cardId = pool[nextInt(state.rng, pool.length)];
+        ctx.api.giveCardToHand(state, { cardId, side, modify });
+      }
+      break;
+    }
+
+    /**
      * 「移动」——卡牌「转移：移动一名队友」。
      *
      * 两步选择：先选移谁（target 选择器），再选移到哪条线路。

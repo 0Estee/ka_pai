@@ -2193,6 +2193,103 @@ test('U461 贪婪：捕猎+组合；被消灭时友方国王回复 4 点', () =>
 });
 
 //  汇总 
+//
+group('U 派对阵营');
+//
+
+test('派对已注册：FACTIONS 有 party，U 组 5 张进卡库（含 1 张令牌）', () => {
+  assert.ok(G.FACTIONS.party, 'party 在 FACTIONS 里');
+  const s = factionGame('party');
+  assert.equal(s.players[0].faction, 'party', '阵营写进对局');
+  for (const id of ['U462', 'U463', 'U464', 'U465', 'U466']) assert.ok(s.cardLib[id], id + ' 在卡库');
+  assert.ok(s.cardLib.U466.token, '气球是令牌');
+  assert.ok(!s.cardLib.U462.token && !s.cardLib.U463.token && !s.cardLib.U464.token && !s.cardLib.U465.token, '其余四张不是令牌');
+  const ids = Object.keys(s.cardLib).filter((id) => s.cardLib[id].faction === 'party');
+  assert.equal(ids.length, 5, '派对共 5 张');
+});
+
+test('U462 小丑：所有单位额外攻击一次，然后立刻进入下个回合', () => {
+  const s = factionGame('party');
+  const big = deploy(s, 0, 'W04', 'mountain', 'front');
+  big.atk = 3;
+  const before = king(s, 1);
+  playUnit(s, 0, 'U462', 'plainL', 'front');
+  assert.equal(s.turn, 2, '打完小丑立刻进入下个回合');
+  // 对照：同样一张 3 攻白板 + 一张 1 攻白板，只走一次常规开战
+  const c = factionGame('party');
+  const cbig = deploy(c, 0, 'W04', 'mountain', 'front');
+  cbig.atk = 3;
+  const cbefore = king(c, 1);
+  playUnit(c, 0, 'W01', 'plainL', 'front');
+  nextTurn(c);
+  const doubled = before - king(s, 1);
+  const single = cbefore - king(c, 1);
+  assert.equal(single, 4, '对照局一次开战打 4 点（3+1）');
+  assert.equal(doubled, single * 2, '额外攻击让这一次开战的伤害翻倍');
+});
+
+test('U463 惊喜：随机令牌-1费进手牌，友方国王回复 3 点', () => {
+  const s = factionGame('party');
+  s.players[0].kingHp = 10;
+  const beforeIds = s.players[0].hand.map((h) => h.iid);
+  cast(s, 0, 'U463');
+  const added = s.players[0].hand.filter((h) => beforeIds.indexOf(h.iid) < 0);
+  assert.equal(added.length, 1, '只多一张手牌');
+  assert.ok(s.cardLib[added[0].cardId].token, '抽到的是令牌');
+  assert.equal(added[0].costDelta, -1, '这张令牌费用-1');
+  assert.equal(king(s, 0), 13, '国王回复 3 点');
+});
+
+test('U464 爆炸水果蛋糕：6 点伤害，敌方抽一张牌', () => {
+  const s = factionGame('party');
+  const foe = deploy(s, 1, 'W05', 'mountain', 'front');
+  foe.hp = 99;
+  const foeHand0 = s.players[1].hand.length;
+  cast(s, 0, 'U464', { targetUid: foe.uid });
+  assert.equal(foe.hp, 93, '对目标造成 6 点伤害');
+  assert.equal(s.players[1].hand.length, foeHand0 + 1, '敌方抽一张牌');
+});
+
+test('U465 杂技演员：受到伤害抽一张牌；被消灭时召唤气球', () => {
+  const s = factionGame('party');
+  const acro = deploy(s, 0, 'U465', 'mountain', 'front');
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  foe.atk = 2;
+  foe.hp = 99;
+  const hand0 = s.players[0].hand.length;
+  combat(s);
+  assert.equal(acro.hp, 2, '受到 2 点伤害');
+  assert.equal(s.players[0].hand.length, hand0 + 1, '受到伤害抽一张牌');
+
+  const s2 = factionGame('party');
+  const acro2 = deploy(s2, 0, 'U465', 'mountain', 'front');
+  const foe2 = deploy(s2, 1, 'W04', 'mountain', 'front');
+  foe2.atk = 6;
+  foe2.hp = 99;
+  combat(s2);
+  assert.ok(acro2.removed, '被消灭');
+  const ev = s2.log.filter((e) => e.type === 'summon' && e.cardId === 'U466').pop();
+  assert.ok(ev, '应记一条召唤气球的日志');
+  assert.equal(ev.lane, 'mountain', '气球落在它死时那条线');
+  assert.equal(ev.side, 0, '召唤给自己');
+});
+
+test('U466 气球：被消灭时对这条线上的敌人和敌方国王各造成 3 点伤害', () => {
+  const s = factionGame('party');
+  const balloon = deploy(s, 0, 'U466', 'mountain', 'front');
+  const foeHere = deploy(s, 1, 'W04', 'mountain', 'front');
+  foeHere.atk = 5;
+  foeHere.hp = 99;
+  const foeOther = deploy(s, 1, 'W04', 'plainL', 'front');
+  foeOther.hp = 99;
+  const before = king(s, 1);
+  combat(s);
+  assert.ok(balloon.removed, '0/1 的气球被打掉');
+  assert.equal(foeHere.hp, 96, '这条线上的敌人吃 3 点');
+  assert.equal(foeOther.hp, 99, '另一条线上的敌人不受影响');
+  assert.equal(before - king(s, 1), 3, '敌方国王吃 3 点');
+});
+
 console.log('\n' + BAR);
 if (failures.length === 0) {
   console.log(OK_ALL + ' 全部通过：' + passed + ' 个测试');

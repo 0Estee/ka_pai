@@ -29,6 +29,8 @@ export const FACTIONS = {
   inferno: { key: 'inferno', name: '炼狱' },
   frost: { key: 'frost', name: '极寒' },
   sin: { key: 'sin', name: '罪恶' },
+  // 作者 2026-10-11：超能力第四批（派对，卡 id U462 起）
+  party: { key: 'party', name: '派对' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */

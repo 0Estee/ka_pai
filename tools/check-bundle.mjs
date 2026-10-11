@@ -52,6 +52,7 @@ import './checks/29-motion.mjs';
 import './checks/30-card-fx.mjs';
 import './checks/31-alchemy.mjs';
 import './checks/32-new-factions.mjs';
+import './checks/33-party-faction.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

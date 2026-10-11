@@ -64,7 +64,15 @@ function newGame() {
    * 现在只有一个阵营，AI 就先和玩家同阵营（镜像对局）。以后加阵营时这里改成让 AI 自己选。
    * 必须和建局参数、录制都对齐：重放时要靠它重建「谁抽得到哪些超能力」。
    */
-  const factions = [myFaction, myFaction];
+  /**
+   * 与 AI 对战时 AI 的阵营随机（作者 2026-10-11）。
+   * 用局内种子选，同一局永远同一个阵营 —— 回放与联机锁步靠这个；
+   * 阵营本来就会写进录制（RP.newRecording 的 factions 字段）。
+   * 联机不走这里：双方阵营由 session.beginGame 各自报上来。
+   */
+  const factionKeys = Object.keys(G.FACTIONS);
+  const aiFaction = factionKeys[seed % factionKeys.length];
+  const factions = [myFaction, aiFaction];
 
   state = G.createGame({
     seed,

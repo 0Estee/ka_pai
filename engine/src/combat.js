@@ -24,7 +24,7 @@ import * as M from './mechanics.js';
 import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
-import { isOver, getActor, checkGameOver } from './turns.js';
+import { isOver, getActor, checkGameOver, endTurnNow } from './turns.js';
 import { flushTriggers, flushTriggersGen } from './choices.js';
 import { resolveHunt, canPlaceUnit, legalPlacements } from './play.js';
 
@@ -407,6 +407,11 @@ export function collectAttackEvents(state, lane, unit, events) {
 
 export function apiFor(state) {
   return {
+    /** 「立即进入下个回合」（派对阵营「小丑」），见 turns.js 的 endTurnNow。 */
+    endTurnNow(st) {
+      return endTurnNow(st);
+    },
+
     /**
      * 召唤落点的合法格（作者 2026-10-04：召唤时由玩家在场上选一个位置放下）。
      * 界面高亮格子与引擎生成选项列表共用这一份口径。

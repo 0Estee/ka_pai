@@ -437,7 +437,14 @@ function scoreSpell(state, side, def, target, P) {
         break;
       // ── 第三批新 op。不补这些的话 AI 会把「额外攻击」「上封印」这类牌当 0 分，
       //    于是手上有也不打 —— 玩家会觉得「AI 不会用新卡」。
-      case 'extraAttack':
+      case 'extraAttack':      case 'summonRandomToken':
+        // 随机令牌：不知道抽到什么，按一张中等牌估值
+        score += 2.6;
+        break;
+      case 'endTurnNow':
+        // 立即结束本回合：本身不产生数值，进攻性由同一张牌的 extraAttack 体现
+        break;
+
         // 相当于再打一次，价值接近一张伤害法术
         score += 2.8;
         break;

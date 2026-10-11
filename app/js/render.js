@@ -71,6 +71,7 @@ const FACTION_TAGLINE = {
   inferno: '越烧越旺：狂热、溅射与全场横扫的火焰',
   frost: '冻结敌人的下一次攻击，再对被冻住的目标追加伤害',
   sin: '捕猎与掠夺：抢走对手的手牌，用生命换生命',
+  party: '临时凑出来的节目：随机令牌、两队单位额外攻击，把节奏搅乱',
 };
 
 function factionOptions() {
