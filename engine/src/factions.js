@@ -31,6 +31,8 @@ export const FACTIONS = {
   sin: { key: 'sin', name: '罪恶' },
   // 作者 2026-10-11：超能力第四批（派对，卡 id U462 起）
   party: { key: 'party', name: '派对' },
+  // 作者 2026-10-12：超能力第五批（炎帝 + 异火堆，卡 id U467 起）
+  flame: { key: 'flame', name: '炎帝' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */
@@ -269,4 +271,104 @@ export function findVoodooDoll(state, side) {
     }
   }
   return null;
+}
+
+/**
+ * 炎帝阵营（作者 2026-10-12 规格）。
+ *
+ * 特殊机制「异火」：炎帝有一副**异火堆**（全是令牌），
+ * 且**只能靠超能力的效果获得**（作者裁定②，没有「抽牌顺便抽」这种钩子）；
+ * 异火堆抽干不自动补，只有「佛怒火莲」会重置它。
+ */
+
+/** 五种异火（都是令牌、超能力牌） */
+export const FLAME_IDS = ['U467', 'U468', 'U469', 'U470', 'U471'];
+
+/** 异火堆构成：每种 2 张，共 10 张（作者未指定数量，先按此实现，已在汇报里说明） */
+export const FLAME_PILE_MAKEUP = FLAME_IDS.map((cardId) => ({ cardId, count: 2 }));
+
+/** 「佛怒火莲」的卡 id：唯一会重置异火堆的牌 */
+export const FLAME_LOTUS_ID = 'U477';
+
+/** 是不是异火牌（卡面定义上带 flame: true） */
+export function isFlameCard(def) {
+  if (!def) return false;
+  if (def.flame === true) return true;
+  return FLAME_IDS.indexOf(def.id) >= 0;
+}
+
+/** 一副新的异火堆 */
+export function makeFlamePile() {
+  const pile = [];
+  for (const m of FLAME_PILE_MAKEUP) for (let i = 0; i < m.count; i++) pile.push(m.cardId);
+  return pile;
+}
+
+/** 异火堆（缺了就补一副；只有炎帝阵营有） */
+export function ensureFlamePile(state, side) {
+  const p = state.players && state.players[side];
+  if (!p) return [];
+  if (p.faction !== 'flame') return [];
+  if (!Array.isArray(p.flamePile)) p.flamePile = makeFlamePile();
+  return p.flamePile;
+}
+
+/** 只读异火堆（界面用，不写 state） */
+export function flamePileOf(state, side) {
+  const p = state.players && state.players[side];
+  if (!p || !Array.isArray(p.flamePile)) return [];
+  return p.flamePile;
+}
+
+/** 抽一张异火进手牌；堆空了返回 null（不自动补） */
+export function drawFlame(state, side) {
+  const p = state.players[side];
+  if (!p || p.faction !== 'flame') return null;
+  const pile = ensureFlamePile(state, side);
+  if (!pile.length) {
+    log(state, { type: 'flame-empty', side });
+    return null;
+  }
+  const idx = nextInt(state.rng, pile.length);
+  const cardId = pile.splice(idx, 1)[0];
+  p.hand.push({ iid: state.nextIid++, cardId });
+  log(state, { type: 'flame-draw', side, cardId, left: pile.length });
+  return cardId;
+}
+
+/**
+ * 「佛怒火莲」：重置异火堆，并**重新武装**佛怒火莲的入手检查
+ * （作者裁定②：重置之后的下一次满足条件时才能再入手一次）。
+ */
+export function resetFlamePile(state, side) {
+  const p = state.players[side];
+  if (!p) return [];
+  p.flamePile = makeFlamePile();
+  p.flameLotusGiven = false;
+  log(state, { type: 'flame-pile-reset', side, left: p.flamePile.length });
+  return p.flamePile;
+}
+
+/** 「异火堆和手牌中均没有异火牌」 */
+export function noFlameAnywhere(state, side) {
+  const p = state.players[side];
+  if (!p) return false;
+  if (ensureFlamePile(state, side).length > 0) return false;
+  return !p.hand.some((c) => isFlameCard(state.cardLib[c.cardId]));
+}
+
+/**
+ * 佛怒火莲的入手检查（作者裁定②：**打出异火之后**检查；不重复入手）。
+ * 返回入手的那张卡 id，没入手返回 null。
+ */
+export function checkFlameLotus(state, side) {
+  const p = state.players[side];
+  if (!p || p.faction !== 'flame') return null;
+  if (p.flameLotusGiven) return null;
+  if (!state.cardLib[FLAME_LOTUS_ID]) return null;
+  if (!noFlameAnywhere(state, side)) return null;
+  p.flameLotusGiven = true;
+  p.hand.push({ iid: state.nextIid++, cardId: FLAME_LOTUS_ID });
+  log(state, { type: 'flame-lotus', side, cardId: FLAME_LOTUS_ID });
+  return FLAME_LOTUS_ID;
 }

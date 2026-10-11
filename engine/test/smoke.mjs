@@ -16,6 +16,8 @@ import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
 import { pickFragileTarget } from '../src/targets.js';
 import { filterCtx, effectiveAtk, hasRooted, syncStatAuras } from '../src/auras.js';
 import { trapsOf, visibleMana } from '../src/board.js';
+import { flamePileOf, drawFlame, checkFlameLotus, superpowerPool, FLAME_IDS } from '../src/factions.js';
+import { spellLocked } from '../src/play.js';
 import { dealDamage } from '../src/damage.js';
 import { LANES, ROWS } from '../src/constants.js';
 import fs from 'node:fs';
@@ -2288,6 +2290,243 @@ test('U466 气球：被消灭时对这条线上的敌人和敌方国王各造成
   assert.equal(foeHere.hp, 96, '这条线上的敌人吃 3 点');
   assert.equal(foeOther.hp, 99, '另一条线上的敌人不受影响');
   assert.equal(before - king(s, 1), 3, '敌方国王吃 3 点');
+});
+
+//
+group('24 炎帝阵营（异火堆 + U467~U477，作者 2026-10-12 规格）');
+//
+
+test('炎帝开局就有 10 张异火堆：五种异火各 2 张（作者未指定数量，先按此实现）', () => {
+  const s = game({ factions: ['flame', null] });
+  const pile = flamePileOf(s, 0);
+  assert.equal(pile.length, 10, '异火堆 10 张');
+  for (const id of FLAME_IDS) assert.equal(pile.filter((x) => x === id).length, 2, id + ' 应有两张');
+  assert.equal(flamePileOf(s, 1).length, 0, '不是炎帝就没有异火堆');
+  assert.ok(!s.players[0].flameLotusGiven, '佛怒火莲开局还没发过');
+});
+
+test('炎帝的超能力池只有 4 张非令牌（U472~U475）：异火与令牌都不进池', () => {
+  const s = G.createGame({ seed: 11, firstPlayer: 0, deck: buildTestDeck(80, 11), cardLib: TEST_CARD_LIB, factions: ['flame', null] });
+  assert.deepEqual(superpowerPool(s, 0), ['U472', 'U473', 'U474', 'U475']);
+});
+
+test('异火只能靠超能力效果获得：普通抽牌不产异火（作者裁定②）', () => {
+  const s = game({ factions: ['flame', null] });
+  M.drawCards(s, 0, 5);
+  assert.equal(flamePileOf(s, 0).length, 10, '抽牌不动异火堆');
+  assert.equal(s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) >= 0).length, 0, '手牌里没有异火');
+});
+
+test('异火堆不自动补：抽到第 11 次返回 null（作者裁定②）', () => {
+  const s = game({ factions: ['flame', null] });
+  let got = 0;
+  for (let i = 0; i < 12; i++) if (drawFlame(s, 0)) got++;
+  assert.equal(got, 10, '一共只抽到 10 张');
+  assert.equal(flamePileOf(s, 0).length, 0, '堆已经空了');
+  const hand = s.players[0].hand.length;
+  assert.equal(drawFlame(s, 0), null, '空堆再抽返回 null');
+  assert.equal(s.players[0].hand.length, hand, '手牌不再增加');
+  assert.equal(drawFlame(s, 1), null, '非炎帝也抽不到异火');
+});
+
+test('陨落心炎 U467：一名敌人 -1/-1，一名队友 +1/+1', () => {
+  const s = game({ factions: ['flame', null] });
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const f0 = { atk: foe.atk, hp: foe.maxHp };
+  const m0 = { atk: mate.atk, hp: mate.maxHp };
+  cast(s, 0, 'U467');
+  assert.equal(foe.atk, f0.atk - 1, '敌人攻击 -1');
+  assert.equal(foe.maxHp, f0.hp - 1, '敌人生命上限 -1');
+  assert.equal(mate.atk, m0.atk + 1, '队友攻击 +1');
+  assert.equal(mate.maxHp, m0.hp + 1, '队友生命上限 +1');
+});
+
+test('骨灵冷火 U468：冻结一名敌人并封印其异能', () => {
+  const s = game({ factions: ['flame', null] });
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  cast(s, 0, 'U468');
+  assert.ok(isFrozen(foe), '被冻结');
+  assert.ok(foe.sealed, '被封印（unit.sealed，异能失效）');
+});
+
+test('净莲妖火 U469：友方国王下一次受到的伤害为 0，并回复 3 点', () => {
+  const s = game({ factions: ['flame', null] });
+  s.players[0].kingHp = 12;
+  cast(s, 0, 'U469');
+  assert.equal(king(s, 0), 15, '回复 3 点（12 -> 15）');
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 5);
+  assert.equal(king(s, 0), 15, '这一次伤害被完全免掉');
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 5);
+  assert.equal(king(s, 0), 10, '护盾只有一次');
+});
+
+test('生灵之焱 U470 陷阱：国王受致命伤时免除、回 3 点、弃一张手牌', () => {
+  const s = game({ factions: ['flame', null] });
+  cast(s, 0, 'U470');
+  assert.equal(trapsOf(s, 0).length, 1, '埋进了陷阱格');
+  assert.equal(trapsOf(s, 0)[0].trap.revealed, false, '触发之前敌方看不见');
+  s.players[0].kingHp = 5;
+  const hand = s.players[0].hand.length;
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 30);
+  assert.equal(king(s, 0), 5, '致命伤害被免除（回复在触发链里）');
+  assert.equal(trapsOf(s, 0)[0].trap.revealed, true, '触发后揭示');
+  G.flushTriggers(s);
+  assert.equal(king(s, 0), 8, '免除之后回复 3 点');
+  assert.equal(s.players[0].hand.length, hand - 1, '选择并弃置了一张手牌');
+});
+
+test('三千焱炎火 U471：一名队友本回合无敌', () => {
+  const s = game({ factions: ['flame', null] });
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  cast(s, 0, 'U471');
+  assert.equal(M.dealDamage(s, foe, { kind: 'unit', unit: mate }, 5), 0, '无敌不吃伤害');
+  nextTurn(s);
+  assert.equal(M.dealDamage(s, foe, { kind: 'unit', unit: mate }, 5), 5, '回合结束就失效');
+});
+
+test('焰分噬浪尺 U472：选两条相邻线路各吃 2 点、挂灼烧1、把六合游身尺拿到手', () => {
+  const s = game({ factions: ['flame', null] });
+  const enemies = {};
+  const before = {};
+  for (const lane of LANES) { enemies[lane] = deploy(s, 1, 'W04', lane, 'front'); before[lane] = enemies[lane].hp; }
+  cast(s, 0, 'U472');
+  // 选两条相邻线路：第一条是四选一，第二条的候选只剩相邻的（只剩一个时会自动落子）
+  const hitLanes = LANES.filter((l) => before[l] - enemies[l].hp === 2);
+  assert.equal(hitLanes.length, 2, '正好两条线路各吃 2 点');
+  assert.equal(Math.abs(LANES.indexOf(hitLanes[0]) - LANES.indexOf(hitLanes[1])), 1, '两条线路必须相邻');
+  for (const lane of LANES) {
+    if (hitLanes.indexOf(lane) >= 0) continue;
+    assert.equal(enemies[lane].hp, before[lane], lane + ' 不在这两条线上，不该掉血');
+  }
+  assert.equal(enemies[hitLanes[0]].marks.filter((m) => m.type === 'burn' && m.x === 1).length, 1, '受伤的单位被挂上灼烧1');
+  assert.ok(s.players[0].hand.some((c) => c.cardId === 'U476'), '六合游身尺进了手牌');
+});
+
+test('灼烧1：下个回合开始受 1 点伤害，标记只结算一次（作者裁定③）', () => {
+  const s = game();
+  const victim = deploy(s, 1, 'W04', 'plainL', 'front');
+  victim.marks.push({ type: 'burn', x: 1, appliedTurn: s.turn });
+  const hp = victim.hp;
+  nextTurn(s);
+  assert.equal(victim.hp, hp - 1, '回合开始受 1 点');
+  assert.equal(victim.marks.filter((m) => m.type === 'burn').length, 0, '标记被消费掉');
+  nextTurn(s);
+  assert.equal(victim.hp, hp - 1, '不会一直掉血');
+});
+
+test('大天造化掌 U473 抉择①：全场敌人和敌方国王各 3 点，下回合我方费用 -3', () => {
+  const s = game({ factions: ['flame', null] });
+  const a = deploy(s, 1, 'W04', 'plainL', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  const kb = king(s, 1);
+  cast(s, 0, 'U473');
+  assert.equal(kb - king(s, 1), 3, '敌方国王 3 点');
+  assert.equal(a.maxHp - a.hp, 3, '敌人甲 3 点');
+  assert.equal(b.maxHp - b.hp, 3, '敌人乙 3 点');
+  assert.equal(s.players[0].manaPenalty, 3, '下回合我方费用 -3');
+  assert.equal(s.players[1].manaPenalty, 0, '只减自己这边的费用');
+});
+
+test('大天造化掌 U473 抉择②：选 2 个词条给一名队友，X=2，不能选无敌/祝福X', () => {
+  const s = game({ factions: ['flame', null] });
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const kwBefore = mate.keywords.length;
+  s.autoResolveChoices = false;
+  cast(s, 0, 'U473');
+  const first = s.pending && s.pending.request;
+  assert.ok(first && first.type === 'chooseOption', '先问抉择');
+  G.resolveChoice(s, { index: 1 });
+  let guard = 0;
+  while (s.pending && guard++ < 10) {
+    const rq = s.pending.request;
+    if (rq.type === 'chooseKeyword') {
+      const ids = rq.options.map((o) => o.id);
+      assert.ok(ids.indexOf('invincible') < 0, '不能选无敌');
+      assert.ok(ids.indexOf('blessing') < 0, '不能选祝福X');
+      G.resolveChoice(s, { id: ids.indexOf('armor') >= 0 ? 'armor' : ids[0] });
+    } else {
+      const opts = rq.options || [];
+      const hit = opts.find((o) => o.uid === mate.uid);
+      assert.ok(hit, '问的应该是场上的单位：' + rq.type);
+      G.resolveChoice(s, { uid: hit.uid });
+    }
+  }
+  assert.equal(mate.keywords.length, kwBefore + 2, '正好挂了两个词条');
+  const armor = mate.keywords.filter((k) => k.id === 'armor')[0];
+  assert.ok(armor, '装甲挂上了');
+  assert.equal(armor.x, 2, 'X=2');
+});
+
+test('焚决 U474：国王获得「有单位被消灭时，抽一张异火」', () => {
+  const s = game({ factions: ['flame', null] });
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  cast(s, 0, 'U474');
+  const count = () => s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) >= 0).length;
+  const before = count();
+  M.destroyUnit(s, foe, 'combat');
+  G.flushTriggers(s);
+  assert.equal(count(), before + 1, '有单位被消灭 -> 抽一张异火');
+  assert.equal(flamePileOf(s, 0).length, 9, '异火堆少了一张');
+});
+
+test('天火三玄变 U475 抉择①：一个单位 +3 攻、生命设为 1，并抽一张异火', () => {
+  const s = game({ factions: ['flame', null] });
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const atk = mate.atk;
+  s.autoResolveChoices = false;
+  cast(s, 0, 'U475');
+  let guard = 0;
+  while (s.pending && guard++ < 10) {
+    const rq = s.pending.request;
+    if (rq.type === 'chooseOption') G.resolveChoice(s, { index: 0 });
+    else G.resolveChoice(s, { uid: mate.uid });
+  }
+  assert.equal(mate.atk, atk + 3, '攻击 +3');
+  assert.equal(mate.hp, 1, '生命设为 1');
+  assert.ok(s.players[0].hand.some((c) => FLAME_IDS.indexOf(c.cardId) >= 0), '抽到一张异火');
+});
+
+test('天火三玄变 U475 抉择②：敌方下个回合不能使用锦囊牌', () => {
+  const s = game({ factions: ['flame', null] });
+  s.autoResolveChoices = false;
+  cast(s, 0, 'U475');
+  G.resolveChoice(s, { index: 1 });
+  assert.equal(s.pending, null, '这一支没有别的问询');
+  nextTurn(s);
+  assert.ok(spellLocked(s, 1), '敌方这一回合的锦囊被锁');
+  assert.ok(!spellLocked(s, 0), '自己这边不受影响');
+});
+
+test('六合游身尺 U476：本回合所有单位攻击力为 0，回合结束恢复', () => {
+  const s = game({ factions: ['flame', null] });
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const foe = deploy(s, 1, 'W04', 'plainL', 'front');
+  const atk = effectiveAtk(s, mate);
+  cast(s, 0, 'U476');
+  assert.equal(effectiveAtk(s, mate), 0, '我方单位 0 攻');
+  assert.equal(effectiveAtk(s, foe), 0, '敌方单位也 0 攻');
+  assert.equal(mate.atkLocked, undefined, '不是永久锁攻（没写 unit.atkLocked）');
+  nextTurn(s);
+  assert.equal(effectiveAtk(s, mate), atk, '回合过去就恢复原攻击力');
+});
+
+test('佛怒火莲 U477：异火堆和手牌都没有异火时入手；重置后才能再入手（作者裁定②）', () => {
+  const s = game({ factions: ['flame', null] });
+  for (let i = 0; i < 10; i++) drawFlame(s, 0);
+  s.players[0].hand = s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) < 0);
+  assert.equal(checkFlameLotus(s, 0), 'U477', '满足条件：入手佛怒火莲');
+  assert.ok(s.players[0].hand.some((c) => c.cardId === 'U477'), '进了手牌');
+  assert.equal(checkFlameLotus(s, 0), null, '不会重复入手');
+  const kb = king(s, 1);
+  cast(s, 0, 'U477');
+  assert.equal(kb - king(s, 1), 3, '敌方国王吃 3 点');
+  assert.equal(flamePileOf(s, 0).length, 10, '异火堆被重置');
+  assert.equal(s.players[0].flameLotusGiven, false, '重新武装入手检查');
+  for (let i = 0; i < 10; i++) drawFlame(s, 0);
+  s.players[0].hand = s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) < 0);
+  assert.equal(checkFlameLotus(s, 0), 'U477', '重置后的堆再抽干、手牌也没异火 -> 再入手一次');
 });
 
 console.log('\n' + BAR);

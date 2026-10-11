@@ -32,7 +32,7 @@ check('难度页能选炼狱 / 极寒 / 罪恶,选中的阵营带进对局,双�
   const html = stage();
   if (!html.includes('data-act="set-faction"')) throw new Error('难度页没有阵营可选项');
   const rows = (html.match(/data-act="set-faction"/g) || []).length;
-  if (rows !== 11) throw new Error('难度页阵营选项应当是 11 个(7 个旧阵营 + 炼金 + 三阵营 + 派对),实际 ' + rows);
+  if (rows !== 12) throw new Error('难度页阵营选项应当是 12 个(7 个旧阵营 + 炼金 + 三阵营 + 派对 + 炎帝),实际 ' + rows);
   for (const f of NEW_FACTIONS) {
     if (!html.includes('data-key="' + f.key + '"')) throw new Error('难度页里没有' + f.name + '阵营');
     if (!html.includes(f.name)) throw new Error('难度页里没有' + f.name + '的名字');

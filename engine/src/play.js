@@ -23,7 +23,7 @@ import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
 import { isOver, getActor, checkGameOver, triggerInHandEffects, applyHandStatDelta, advance } from './turns.js';
 import { apiFor, applySummonModify } from './combat.js';
 import { flushTriggers, driveGenerator } from './choices.js';
-import { isRawMaterial, comboTokenFor, returnRawMaterials, alchemyUnlock, alchemyTideOn } from './factions.js';
+import { isRawMaterial, comboTokenFor, returnRawMaterials, alchemyUnlock, alchemyTideOn, checkFlameLotus } from './factions.js';
 
 // ══════════════════════════════════════════════════════════
 // 合法性
@@ -57,6 +57,14 @@ export function costOf(state, handCard) {
  * 某方当前可以打出的所有牌及合法位置。
  * 返回 [{ iid, cardId, cost, places:[{lane,row}|null] }]
  */
+/**
+ * 这一方本回合是否被「无法使用锦囊牌」锁住（炎帝「天火三玄变」）。
+ * 记的是 `spellLockTurn = 打出时的回合 + 1`，所以只锁那一方自己的下一个回合。
+ */
+export function spellLocked(state, side) {
+  const p = state.players && state.players[side];
+  return !!(p && p.spellLockTurn === state.turn);
+}
 export function getLegalPlays(state, side) {
   if (isOver(state) || state.pending) return [];
   if (getActor(state) !== side) return [];
@@ -70,6 +78,9 @@ export function getLegalPlays(state, side) {
     if (!def) continue;
     // 原料（金沙/厄毒之尘/陨铁/硫磺）不能直接打出：只能通过「炼药」消耗。
     if (isRawMaterial(def)) continue;
+    // 「敌方下回合无法使用锦囊牌」：被锁的那一方本回合的锦囊一律不合法（陷阱也不行，
+    // 因为陷阱也是锦囊牌，只是埋伏打出）。
+    if (def.type === CARD_TYPE.SPELL && spellLocked(state, side)) continue;
     // 「解禁」：炼金阵营的锦囊在放置阶段也能打出。
     const unlockedSpell = def.faction === 'alchemy' && alchemyUnlock(state, side);
     if (def.type !== allowedType && !unlockedSpell) continue;
@@ -156,6 +167,8 @@ export function playCard(state, side, iid, opts = {}) {
   if (!def) throw new Error(`卡牌库缺少卡牌定义: ${handCard.cardId}`);
   // 陷阱是例外：作者口径「单位回合或锦囊回合都能打出」，所以不受阶段类型限制
   if (def.type !== allowedType && !isTrapCard(def) && !unlockedSpell) throw new Error(`本阶段只能打出「${allowedType}」，不能打出「${def.type}」`);
+  // 「无法使用锦囊牌」的硬拦截（与 getLegalPlays 同步：界面不会给按钮，直接调 API 也拦住）
+  if (def.type === CARD_TYPE.SPELL && spellLocked(state, side)) throw new Error('本回合无法使用锦囊牌');
   const cost = costOf(state, handCard);
   if (cost > p.mana) throw new Error(`费用不足：需要 ${cost}，剩余 ${p.mana}`);
 
@@ -279,6 +292,12 @@ export function playCard(state, side, iid, opts = {}) {
 
   flushTriggers(state);
   if (def.type !== CARD_TYPE.UNIT) state.discard.push(def.id);
+  /**
+   * 「打出异火之后检查佛怒火莲能否入手」（炎帝，作者 2026-10-12 裁定②）：
+   * 只在打出**异火**这一刻检查，所以佛怒火莲不会因为别的原因反复入手；
+   * 入手过一次后要等「佛怒火莲」把异火堆重置才会再次武装。
+   */
+  if (def.flame === true) checkFlameLotus(state, side);
   // 「轻灵」是状态检查：任何生命变动之后都要复检（血量掉到一半以下可能在水路淹死）
   M.checkAllNimble(state);
   flushTriggers(state);

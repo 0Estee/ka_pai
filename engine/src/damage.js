@@ -203,6 +203,29 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
       dealDamage(state, source, { kind: 'unit', unit: guard }, kingAmount, { ...opts, noRedirect: true });
       return 0;
     }
+    /**
+     * 炎帝「净莲妖火」：友方国王**下次**受到的伤害为 0（一次性护盾）。
+     */
+    if (p.kingShieldOnce && !(opts && opts.unpreventable) && kingAmount > 0) {
+      p.kingShieldOnce = false;
+      log(state, { type: 'king-shield', side: target.side, blocked: kingAmount });
+      return 0;
+    }
+    /**
+     * 陷阱「生灵之焱」：友方国王受到**致命**伤害时免除这次伤害，
+     * 然后把这张牌的卡面效果排进触发队列（回复 + 弃一张手牌）。
+     * 弃牌要问人 → 必须走 generator 触发链，所以这里只做「揭示 + 免除 + 入队」。
+     */
+    if (!(opts && opts.unpreventable) && kingAmount > 0 && p.kingHp - kingAmount <= 0) {
+      const fatal = findFatKingTrap(state, target.side);
+      if (fatal) {
+        fatal.trap.revealed = true;
+        fatal.trap.expiresTurn = state.turn;
+        log(state, { type: 'trap-triggered', side: target.side, lane: fatal.lane, cardId: fatal.trap.cardId, kingLethal: true });
+        queueCardActions(state, target.side, fatal.trap.cardId);
+        return 0;
+      }
+    }
     p.kingHp -= kingAmount;
     log(state, { type: 'king-damage', side: target.side, amount: kingAmount, hp: p.kingHp, source: source ? source.uid : null });
 
@@ -292,6 +315,18 @@ export function onDealtDamage(state, source, victim, amount, opts = {}) {
     if (victim && hasKw(source, 'disease')) {
       victim.marks.push({ type: 'disease', sourceUid: source.uid, appliedTurn: state.turn });
       log(state, { type: 'disease-applied', uid: victim.uid });
+    }
+    /**
+     * 「灼烧」（炎帝「焰分噬浪尺」）。作者 2026-10 口径：造成 >0 伤害时，
+     * 那名受伤的**单位**挂上「回合开始受到X点伤害」的标记。
+     * 与淬毒不同的是走**普通伤害**（无敌/减伤照常生效），且不落在国王身上。
+     */
+    if (victim && hasKw(source, 'burn')) {
+      const burn = getKw(source, 'burn');
+      if (burn && burn.x > 0) {
+        victim.marks.push({ type: 'burn', x: burn.x, sourceUid: source.uid, appliedTurn: state.turn });
+        log(state, { type: 'burn-applied', uid: victim.uid, x: burn.x });
+      }
     }
   }
 
@@ -527,3 +562,29 @@ export function dealDamage(state, source, target, raw, opts = {}) {
   }
 }
 
+
+/**
+ * 找出这一方**还没揭示**的、「国王受到致命伤害时」触发的陷阱（炎帝「生灵之焱」）。
+ * 卡面定义上以 `kingLethal: true` 标记。
+ */
+function findFatKingTrap(state, side) {
+  for (const entry of trapsOf(state, side)) {
+    if (entry.trap.revealed) continue;
+    const def = state.cardLib[entry.trap.cardId] || {};
+    if (def.kingLethal) return entry;
+  }
+  return null;
+}
+
+/**
+ * 把一张牌（通常是被揭示的陷阱）的卡面效果排进触发队列。
+ * 伤害管线是同步代码，而效果里可能要有需要问人的部分（例如弃手牌）——
+ * 所以这里只入队，由 choices.js 的 flushTriggersGen 在 generator 链里执行。
+ */
+export function queueCardActions(state, side, cardId, payload = {}) {
+  const def = state.cardLib[cardId] || {};
+  const actions = def.actions || [];
+  if (!actions.length) return;
+  if (!state.triggerQueue) state.triggerQueue = [];
+  state.triggerQueue.push({ cardSide: side, cardId, actions, triggerName: 'cardActions', payload });
+}

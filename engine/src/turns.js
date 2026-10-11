@@ -20,7 +20,7 @@ import {
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
-import { giveStartingSuperpowers, ensureRawPile } from './factions.js';
+import { giveStartingSuperpowers, ensureRawPile, ensureFlamePile } from './factions.js';
 import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { runCombat, apiFor } from './combat.js';
@@ -230,6 +230,10 @@ export function resolveMarks(state) {
       } else if (mark.type === 'disease') {
         M.log(state, { type: 'disease-tick', uid: unit.uid, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
         M.destroyUnit(state, unit, 'disease');
+      } else if (mark.type === 'burn') {
+        M.log(state, { type: 'burn-tick', uid: unit.uid, x: mark.x, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
+        // 普通伤害：无敌/减伤照常生效，但不重复触发「造成伤害:」
+        M.dealDamage(state, null, { kind: 'unit', unit }, mark.x, { noKeywords: true });
       }
     }
     // 淬毒/疾病导致的死亡之后再做轻灵检查
@@ -324,6 +328,10 @@ export function startGame(state) {
   // 谁先读谁就把 rawPile 写进 state，锁步对拍会因此分叉。
   ensureRawPile(state, 0);
   ensureRawPile(state, 1);
+  // 炎帝的异火堆同理：开局就建好。懒建会让「异火堆是否为空」在两边客户端之间不一致，
+  // 而「异火堆空了就发佛怒火莲」正是靠这个判断。
+  ensureFlamePile(state, 0);
+  ensureFlamePile(state, 1);
   // 起手不算抽牌：炼金不因为起手产原料（作者 2026-10-07 口径）
   M.drawCards(state, state.firstPlayer, 5, { raw: false });
   M.drawCards(state, 1 - state.firstPlayer, 4, { raw: false });
@@ -388,11 +396,19 @@ export function applyHandStatDelta(state, unit, handCard) {
  */
 export function endTurnNow(state) {
   if (isOver(state)) return false;
+  /**
+   * 「立即进入下个回合」（派对「小丑」）。作者 2026-10 裁定①：
+   * **不开战**，效果结算完直接进下一回合 —— 原来这里无脑 advance() 到 TURN_START，
+   * 会顺路把 COMBAT（开战）跑完，与「不开战」的口径不符。
+   */
   for (let i = 0; i < 8; i++) {
     if (state.pending) return true;
-    advance(state);
     if (state.phase === 'TURN_START') return true;
+    // 战斗阶段跳过：本回合不再开战，直接去跑 TURN_END
+    if (typeof state.phase === 'string' && state.phase.indexOf('COMBAT') === 0) state.phase = 'TURN_END';
+    advance(state);
     if (state.pending) return true;
+    if (state.phase === 'TURN_START') return true;
   }
   return true;
 }

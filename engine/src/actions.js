@@ -8,7 +8,7 @@
  */
 
 import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
-import { matchesTargetFilter, isFrozen } from './keywords.js';
+import { matchesTargetFilter, isFrozen, KEYWORD_DEFS } from './keywords.js';
 import { filterCtx, hasRooted, getKeyword } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
@@ -19,7 +19,7 @@ import {
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
 import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
-import { queueDelayedSummon, RAW_MATERIAL_IDS, takeRawMaterial } from './factions.js';
+import { queueDelayedSummon, RAW_MATERIAL_IDS, takeRawMaterial, drawFlame, resetFlamePile, checkFlameLotus } from './factions.js';
 import { nextInt } from './rng.js';
 
 /**
@@ -350,6 +350,58 @@ export function* execAction(state, ctx, action) {
       log(state, { type: 'king-invincible', side, turn: state.turn });
       break;
     }
+    /**
+     * 炎帝「净莲妖火」：友方国王**下次**受到的伤害为 0（一次性，不是整回合）。
+     * 结算点在 damage.js 的王伤分支，扣血之前。
+     */
+    case 'kingShield': {
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      state.players[side].kingShieldOnce = true;
+      log(state, { type: 'king-shield-armed', side });
+      break;
+    }
+
+    /**
+     * 「敌方下回合无法使用锦囊牌」（炎帝「天火三玄变」）。
+     * 锁的是**那一方自己的下一个回合**，所以记 `spellLockTurn = 当前回合 + 1`。
+     */
+    case 'spellLock': {
+      const side = resolveSide(action.side === undefined ? 'opponent' : action.side, me);
+      state.players[side].spellLockTurn = state.turn + 1;
+      log(state, { type: 'spell-lock', side, turn: state.turn + 1 });
+      break;
+    }
+
+    /**
+     * 炎帝「陨落心炎」用到的异火抽取：从**异火堆**里抽一张进手牌。
+     * 异火堆不自动补，抽干就没了（作者裁定②）。
+     */
+    case 'drawFlame': {
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      const n = resolveAmount(state, ctx, action.count === undefined ? 1 : action.count);
+      for (let i = 0; i < n; i++) {
+        if (!drawFlame(state, side)) break;
+      }
+      break;
+    }
+
+    /** 炎帝「佛怒火莲」：重置异火堆（并重新武装佛怒火莲的入手检查） */
+    case 'resetFlamePile': {
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      resetFlamePile(state, side);
+      break;
+    }
+
+    /**
+     * 「打出异火之后检查佛怒火莲能否入手」（作者裁定②）。
+     * 单独做成 op，是因为「打出锦囊之后」这一刻只有 play.js 知道。
+     */
+    case 'checkFlameLotus': {
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      checkFlameLotus(state, side);
+      break;
+    }
+
 
     case 'freeze': {
       const targets = yield* resolveTargets(state, ctx, action.target);
@@ -753,6 +805,36 @@ export function* execAction(state, ctx, action) {
       }
       break;
     }
+    /**
+     * 「选择N个词条，一名队友获得它们，X=2」（炎帝「大天造化掌」）。
+     * `exclude` 里是不能选的词条（无敌 / 祝福X）；每次只列还没选过的。
+     */
+    case 'chooseKeywords': {
+      const targets = yield* resolveTargets(state, ctx, action.target);
+      const unit = targets.find((t) => t.kind === 'unit' && t.unit && !t.unit.removed);
+      const n = action.count || 1;
+      const x = action.x === undefined ? 0 : action.x;
+      const exclude = action.exclude || [];
+      const picked = [];
+      for (let i = 0; i < n; i++) {
+        const options = Object.keys(KEYWORD_DEFS)
+          .filter((id) => exclude.indexOf(id) < 0 && picked.indexOf(id) < 0)
+          .map((id) => ({ id, label: (KEYWORD_DEFS[id] && KEYWORD_DEFS[id].name) || id }));
+        if (!options.length) break;
+        const answer = yield {
+          type: 'chooseKeyword',
+          side: me,
+          prompt: action.prompt || ('选择第 ' + (i + 1) + ' 个词条'),
+          options,
+        };
+        const id = answer && answer.id && options.some((o) => o.id === answer.id) ? answer.id : options[0].id;
+        picked.push(id);
+      }
+      if (unit) for (const id of picked) grantKeyword(state, unit.unit, id, x);
+      log(state, { type: 'keyword-granted', side: me, uid: unit ? unit.unit.uid : null, keywords: picked, x });
+      break;
+    }
+
 
     /**
      * 「一名队友本回合获得无敌并+2生命」（上帝阵营超能力「圣经」）。
@@ -911,6 +993,16 @@ export function* execAction(state, ctx, action) {
      * 所以走 lockAtk（留 unit.atkLocked 标记），不是简单的 setStats。
      */
     case 'lockAtk': {
+      /**
+       * `untilTurnEnd: true` = 「本回合所有单位攻击力为 0」（炎帝「六合游身尺」U476）。
+       * 这是全场的**临时**状态（effectiveAtk 读 state.atkZeroTurn），
+       * 不是 stats.lockAtk 那种把 unit.atkLocked 写死的永久锁攻。
+       */
+      if (action.untilTurnEnd) {
+        state.atkZeroTurn = state.turn;
+        log(state, { type: 'atk-zero-turn', turn: state.turn });
+        break;
+      }
       const targets = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenEnemyUnit' });
       for (const t of targets) {
         if (t.kind !== 'unit' || t.unit.removed) continue;

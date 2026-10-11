@@ -4958,4 +4958,391 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+  {
+    "id": "U467",
+    "name": "陨落心炎",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "flame",
+    "token": true,
+    "flame": true,
+    "text": "一名敌人获得-1攻击力-1生命，一名队友获得+1攻击力+1生命。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "prompt": "选择一名敌人"
+        },
+        "actions": [
+          {
+            "op": "buffAtk",
+            "amount": -1,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "buffMaxHp",
+            "amount": -1,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      },
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        },
+        "actions": [
+          {
+            "op": "buffAtk",
+            "amount": 1,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "buffMaxHp",
+            "amount": 1,
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U468",
+    "name": "骨灵冷火",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 2,
+    "faction": "flame",
+    "token": true,
+    "flame": true,
+    "text": "冻结一名敌人，封印其异能。",
+    "actions": [
+      {
+        "op": "compound",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "prompt": "选择一名敌人"
+        },
+        "actions": [
+          {
+            "op": "freeze",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          },
+          {
+            "op": "seal",
+            "target": {
+              "kind": "compoundTarget"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U469",
+    "name": "净莲妖火",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 3,
+    "faction": "flame",
+    "token": true,
+    "flame": true,
+    "text": "友方国王下次受到的伤害为0，友方回复3点生命。",
+    "actions": [
+      {
+        "op": "kingShield",
+        "side": "controller"
+      },
+      {
+        "op": "heal",
+        "amount": 3,
+        "target": {
+          "kind": "ownKing"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U470",
+    "name": "生灵之焱",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 3,
+    "faction": "flame",
+    "token": true,
+    "flame": true,
+    "keywords": [
+      "trap"
+    ],
+    "kingLethal": true,
+    "text": "陷阱：友方国王受到致命伤害时，免除这次伤害，友方国王回复3点生命，选择并弃置友方的一张手牌。",
+    "actions": [
+      {
+        "op": "heal",
+        "amount": 3,
+        "target": {
+          "kind": "ownKing"
+        }
+      },
+      {
+        "op": "discard",
+        "amount": 1,
+        "side": "controller",
+        "prompt": "选择要弃置的手牌"
+      }
+    ]
+  },
+  {
+    "id": "U471",
+    "name": "三千焱炎火",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "flame",
+    "token": true,
+    "flame": true,
+    "text": "一名队友本回合获得无敌。",
+    "actions": [
+      {
+        "op": "grantKeyword",
+        "keyword": "invincible",
+        "untilTurnEnd": true,
+        "target": {
+          "kind": "chosenOwnUnit",
+          "prompt": "选择一名队友"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U472",
+    "name": "焰分噬浪尺",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "flame",
+    "keywords": [
+      "burn:1"
+    ],
+    "text": "灼烧1。对两条相邻线上的敌人造成2点伤害，召唤一张六合游身尺。",
+    "actions": [
+      {
+        "op": "chooseLanes",
+        "count": 2,
+        "adjacent": true,
+        "prompt": "选择两条相邻的线路"
+      },
+      {
+        "op": "damage",
+        "amount": 2,
+        "target": {
+          "kind": "chosenLanesEnemyUnits"
+        }
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U476",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "U473",
+    "name": "大天造化掌",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "flame",
+    "text": "抉择：对所有敌人和敌方国王造成3点伤害，下回合友方费用-3；或选择2个词条，一名队友获得它们，X=2（不可选无敌或祝福X）。",
+    "actions": [
+      {
+        "op": "choose",
+        "prompt": "抉择",
+        "options": [
+          {
+            "label": "对所有敌人和敌方国王造成3点伤害，下回合友方费用-3",
+            "actions": [
+              {
+                "op": "damage",
+                "amount": 3,
+                "target": {
+                  "kind": "allEnemyUnits"
+                }
+              },
+              {
+                "op": "damage",
+                "amount": 3,
+                "target": {
+                  "kind": "enemyKing"
+                }
+              },
+              {
+                "op": "taxMana",
+                "side": "controller",
+                "amount": 3
+              }
+            ]
+          },
+          {
+            "label": "选择2个词条给一名队友（X=2）",
+            "actions": [
+              {
+                "op": "chooseKeywords",
+                "count": 2,
+                "x": 2,
+                "exclude": [
+                  "invincible",
+                  "blessing"
+                ],
+                "target": {
+                  "kind": "chosenOwnUnit",
+                  "prompt": "选择一名队友"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U474",
+    "name": "焚决",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "flame",
+    "text": "使友方国王获得「有单位被消灭时，抽一张异火」。",
+    "actions": [
+      {
+        "op": "attachKingEffect",
+        "side": "controller",
+        "effects": [
+          {
+            "trigger": "onAnyUnitDestroyed",
+            "actions": [
+              {
+                "op": "drawFlame"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U475",
+    "name": "天火三玄变",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "flame",
+    "text": "抉择：一个单位获得+3攻击力，将其生命设为1；或敌方下回合无法使用锦囊牌。抽一张异火。",
+    "actions": [
+      {
+        "op": "choose",
+        "prompt": "抉择",
+        "options": [
+          {
+            "label": "一个单位获得+3攻击力，生命设为1",
+            "actions": [
+              {
+                "op": "compound",
+                "target": {
+                  "kind": "chosenAnyUnit",
+                  "prompt": "选择一个单位"
+                },
+                "actions": [
+                  {
+                    "op": "buffAtk",
+                    "amount": 3,
+                    "target": {
+                      "kind": "compoundTarget"
+                    }
+                  },
+                  {
+                    "op": "setStats",
+                    "hp": 1,
+                    "target": {
+                      "kind": "compoundTarget"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "label": "敌方下回合无法使用锦囊牌",
+            "actions": [
+              {
+                "op": "spellLock",
+                "side": "opponent"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "op": "drawFlame"
+      }
+    ]
+  },
+  {
+    "id": "U476",
+    "name": "六合游身尺",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "flame",
+    "token": true,
+    "text": "所有单位本回合攻击力为0。",
+    "actions": [
+      {
+        "op": "lockAtk",
+        "untilTurnEnd": true
+      }
+    ]
+  },
+  {
+    "id": "U477",
+    "name": "佛怒火莲",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 5,
+    "faction": "flame",
+    "token": true,
+    "text": "异火堆和手牌中均没有异火牌时，将这张牌加入手中。对所有敌方单位和敌方国王造成3点伤害，重置异火堆。",
+    "actions": [
+      {
+        "op": "damage",
+        "amount": 3,
+        "target": {
+          "kind": "allEnemyUnits"
+        }
+      },
+      {
+        "op": "damage",
+        "amount": 3,
+        "target": {
+          "kind": "enemyKing"
+        }
+      },
+      {
+        "op": "resetFlamePile"
+      }
+    ]
+  },
 ];

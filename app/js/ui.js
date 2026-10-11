@@ -439,6 +439,7 @@ export function render(root, state, view) {
       <span class="turn">第 ${state.turn} 回合</span>
       <span class="deck-left">牌库 ${state.deck.length}</span>
       ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
+      ${myP && myP.faction === 'flame' ? `<span class="raw-left">异火 ${G.flamePileOf(state, view.humanSide).length}</span>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
 

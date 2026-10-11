@@ -262,6 +262,13 @@ export function auraAtkDelta(state, unit) {
  */
 export function effectiveAtk(state, unit) {
   if (!unit) return 0;
+  /**
+   * 「本回合所有单位攻击力为 0」（炎帝「六合游身尺」U476）。
+   * 记在 state 上而不是单位上：这一回合**之后**才上场的单位也照样 0 攻，
+   * 而且回合号一往前走它就自动失效，不需要任何清理。
+   * 不复用 stats.lockAtk：那是「诅咒 / 神罚」的**永久**锁攻（会写 unit.atkLocked）。
+   */
+  if (state && state.atkZeroTurn === state.turn) return 0;
   return Math.max(0, unit.atk + auraAtkDelta(state, unit));
 }
 

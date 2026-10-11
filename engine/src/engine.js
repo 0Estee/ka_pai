@@ -45,6 +45,8 @@ import { instantiateUnit, attackPower, probeFromDef, PENDING } from './setup.js'
 import {
   FACTIONS,
   isRawMaterial, rawPileOf, RAW_MATERIAL_IDS, RAW_COMBOS, comboTokenFor, alchemyUnlock,
+  isFlameCard, flamePileOf, FLAME_IDS, FLAME_PILE_MAKEUP, FLAME_LOTUS_ID,
+  drawFlame, resetFlamePile, checkFlameLotus, noFlameAnywhere,
 } from './factions.js';
 
 export {
@@ -88,5 +90,15 @@ export {
   RAW_COMBOS,
   comboTokenFor,
   alchemyUnlock,
+  // 炎帝阵营（作者 2026-10-12）：异火堆
+  isFlameCard,
+  flamePileOf,
+  FLAME_IDS,
+  FLAME_PILE_MAKEUP,
+  FLAME_LOTUS_ID,
+  drawFlame,
+  resetFlamePile,
+  checkFlameLotus,
+  noFlameAnywhere,
   surrender,
 };

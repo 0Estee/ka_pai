@@ -27,7 +27,7 @@ check('难度页能选派对，卡库里有 5 张派对牌（只有气球是令�
   const html = stage();
   if (!html.includes('data-act="set-faction"')) throw new Error('难度页没有阵营可选项');
   const rows = (html.match(/data-act="set-faction"/g) || []).length;
-  if (rows !== 11) throw new Error('难度页阵营选项应当是 11 个（旧阵营 + 炼金 + 三阵营 + 派对），实际 ' + rows);
+  if (rows !== 12) throw new Error('难度页阵营选项应当是 12 个（旧阵营 + 炼金 + 三阵营 + 派对 + 炎帝），实际 ' + rows);
   if (!html.includes('data-key="party"')) throw new Error('难度页里没有派对阵营');
 
   const st = aiGame('party');

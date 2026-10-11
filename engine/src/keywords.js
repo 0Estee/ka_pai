@@ -30,6 +30,7 @@ export const KEYWORD_DEFS = {
   combo: { name: '组合', params: false, kind: 'static', note: '解锁该线路第2个身位（前排1+后排1）' },
   splash: { name: '溅射', params: true, kind: 'trigger', note: '发动攻击时，对相邻左右各一条线路上的所有敌方单位(含后排)造成X点伤害' },
   poison: { name: '淬毒', params: true, kind: 'trigger', note: '造成>0伤害时，目标下回合开始时受X点伤害，无视机制（无敌除外）' },
+  burn: { name: '灼烧', params: true, kind: 'trigger', note: '造成>0伤害时，目标下回合开始时受X点伤害（普通伤害，无敌/减伤按常规生效）；标记结算一次即消费' },
   pierce: { name: '穿透', params: true, kind: 'trigger', note: '攻击时额外对本线路X个敌方单位(含后排)造成伤害；不足则溢出打国王' },
   firstStrike: { name: '先制', params: false, kind: 'static', note: '开战时本单位的伤害先于同线路其他单位结算；被它打死的敌人当回合不反击。卡面写作「这张牌在开战时优先攻击」' },
 

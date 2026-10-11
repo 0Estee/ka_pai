@@ -151,6 +151,21 @@ export function destroyUnit(state, unit, reason = 'destroy') {
     if (eff.trigger === 'onFriendlyUnitDestroyed') {
       queueKingTrigger(state, unit.side, eff.trigger, { unit, reason });
     }
+    // 炎帝「焚决」：国王获得「有单位被消灭时，抽一张异火」。
+    // 卡面没限定友方，所以任何单位（含敌方、含敌方召唤物）被消灭都触发。
+    if (eff.trigger === 'onAnyUnitDestroyed') {
+      queueKingTrigger(state, unit.side, eff.trigger, { unit, reason });
+    }
+  }
+  // 「有单位被消灭时」的国王效果（炎帝「焚决」）必须**双方都看**：
+  // 卡面没限定友方，所以敌方单位被消灭时，这边也该抽一张异火。
+  for (const side of [0, 1]) {
+    if (side === unit.side) continue;
+    for (const eff of state.players[side].kingEffects || []) {
+      if (eff.trigger === 'onAnyUnitDestroyed') {
+        queueKingTrigger(state, side, eff.trigger, { unit, reason });
+      }
+    }
   }
 
   // 「全场有单位被消灭时」的观察者（卡牌「卫兵」靠它 + when:{deathsAtLeast:4} 判定）

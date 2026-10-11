@@ -231,6 +231,45 @@ export function whenMet(state, when, payload) {
  * 国王附着的异能（「战略纵深」）。
  * 与单位异能分开，因为来源不是棋盘上的单位，而是玩家编号。
  */
+/**
+ * 执行「一张牌自己的卡面效果」（不是单位异能，也不是国王附着异能）。
+ *
+ * 用在**同步代码触发的、需要问人**的效果上：典型是炎帝陷阱「生灵之焱」
+ * ——国王在伤害管线里挨了致命一击，要靠这张牌的 actions 去回复 + 让玩家弃一张手牌。
+ * 伤害管线是同步的，所以那边只把 actions 入队（damage.queueCardActions），
+ * 真正执行在这里，由 generator 链负责挂起/续跑。
+ */
+export function* runCardTriggeredActions(state, side, cardId, actions, payload = {}) {
+  const def = state.cardLib[cardId] || {};
+  const ctx = {
+    state,
+    controller: side,
+    card: def,
+    source: null,
+    chosenLane: null,
+    chosenTargetUid: null,
+    chosenTargetIsKing: false,
+    payload,
+    api: apiFor(state),
+  };
+  if ((def.keywords || []).length > 0) {
+    ctx.source = {
+      uid: -(state.nextUid++),
+      cardId: def.id,
+      name: def.name,
+      side,
+      lane: null,
+      row: 'front',
+      atk: 0, hp: 0, maxHp: 0,
+      keywords: def.keywords.map(parseKeyword),
+      effects: [],
+      marks: [],
+      removed: false,
+      virtual: true,
+    };
+  }
+  yield* execActions(state, ctx, actions || []);
+}
 export function* runKingTriggeredEffects(state, side, triggerName, payload = {}) {
   const list = (state.players[side].kingEffects || []).filter((e) => e.trigger === triggerName);
   for (const effect of list) {
@@ -263,9 +302,11 @@ export function* flushTriggersGen(state) {
   while (state.triggerQueue.length > 0) {
     if (++guard > 1000) throw new Error('触发链超过 1000 步，可能存在无限循环');
     const t = state.triggerQueue.shift();
-    const gen = t.kingSide !== undefined
-      ? runKingTriggeredEffects(state, t.kingSide, t.triggerName, t.payload)
-      : runTriggeredEffects(state, t.unit, t.triggerName, t.payload);
+    const gen = t.cardSide !== undefined
+      ? runCardTriggeredActions(state, t.cardSide, t.cardId, t.actions, t.payload)
+      : (t.kingSide !== undefined
+        ? runKingTriggeredEffects(state, t.kingSide, t.triggerName, t.payload)
+        : runTriggeredEffects(state, t.unit, t.triggerName, t.payload));
     yield* gen;
   }
 }
