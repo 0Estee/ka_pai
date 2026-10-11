@@ -166,8 +166,13 @@ export const DIFFICULTIES = [
     // 下面两个数是**实测扫出来的**（120 局  两组互不重叠的种子，见 README 的难度表）：
     //   K4/S8  打噩梦 25.8%  K8/S12 40.0%  K8/S20 45.8%（再深到 S28/S36 反而回落 40.8%）
     //   越深越准，但每个候选都要克隆一整局再往后再推，手机上太深会卡；S20 是拐点。
-    planK: 8,             // 推演贪心评分最高的几个候选
-    planSteps: 20,        // 每个候选往后推几步（含双方回合与开战结算）
+    // 推演的档位表在 PLAN_LEVELS（最省的一档就是原来的 K8/S20）。这里是**一整个回合**
+    // 的推演时间上限：作者 2026-10 允许几秒延迟，让规划器自己往上爬档 ——
+    // 手机上慢就自动少算一档，不会卡死；机器快就把 5 档跑满。
+    // 跑参数扫描时用 planLevel 写死档位（可复现，不受机器快慢影响）。
+    planBudgetMs: 6000,
+    planK: 8,             // 第一档：推演贪心评分最高的几个候选（planLevel 可写死档位）
+    planSteps: 20,        // 第一档：每个候选往后推几步（含双方回合与开战结算）
   },
 ];
 
@@ -698,6 +703,22 @@ function evalPosition(state, side, W) {
   return v;
 }
 
+/**
+ * 「不可能」的推演档位：从最省的一档往上爬，越高越费算力。
+ *
+ * 档位是扫出来的（n=120，种子 1-120，见 README）：**只加广，不加深**。
+ * 加深是负收益：K24/S32 只有 40.8%、K8/S36 也是 40.8%，K16/S28 45.8%，
+ * 而同样 20 步只把 K 从 8 加到 12/16/20/24 是 49.2%/47.5%/48.3%/48.3%（都在噪声里）。
+ * 推演越深，评估函数的那点偏差被放大得越厉害，所以步数锁在 20，档位只加候选数。
+ */
+const PLAN_LEVELS = [
+  { k: 8, steps: 20 },    // 第 0 档 = 原来的定档
+  { k: 12, steps: 20 },
+  { k: 16, steps: 20 },
+  { k: 20, steps: 20 },
+  { k: 24, steps: 20 },   // 第 4 档：算力约 3 倍，预算管够时的默认
+];
+
 /** 在克隆体上从当前局面往下推 steps 步（含双方回合与开战结算） */
 function simForward(clone, steps) {
   for (let n = 0; n < steps; n++) {
@@ -728,19 +749,63 @@ function rolloutScore(state, side, cand, P) {
   return evalPosition(clone, side, P);
 }
 
-/** 在贪心评分最高的 K 个候选里，挑推演后局面最好的那个 */
-function planRollout(state, side, candidates, P) {
-  const k = Math.min(P.planK || 4, candidates.length);
+/** 用某一档把前 K 个候选各推演一遍，返回推演后局面最好的那一手 */
+function rolloutAtLevel(state, side, candidates, P, lv) {
+  const k = Math.min(lv.k, candidates.length);
+  const wGreedy = P.wGreedy || 0;   // 推演分之外再掺一点「眼前的便宜」，避免算过头
   let best = candidates[0];
   let bestScore = -Infinity;
-  const wGreedy = P.wGreedy || 0;   // 推演分之外再掺一点「眼前的便宜」，避免算过头
   for (let i = 0; i < k; i++) {
     const c = candidates[i];
-    const s = rolloutScore(state, side, c, P) + c.score * wGreedy;
+    const s = rolloutScore(state, side, c, { ...P, planSteps: lv.steps }) + c.score * wGreedy;
     // 推演分相同时取贪心分更高的那个（保住原来「能打就打」的手感）
     if (s > bestScore + 1e-9) { bestScore = s; best = c; }
   }
   return best;
+}
+
+/**
+ * 在贪心评分最高的前几个候选里，挑推演后局面最好的那个。
+ *
+ * 时间预算（作者 2026-10：可以接受几秒的延迟，让他算）：
+ *   - `planBudgetMs` 是**一整个回合**最多花多少毫秒做推演（不是每张牌都算一遍），
+ *     0 / 不填 = 只跑最省的一档；
+ *   - 从最省的一档往上爬：先量出第一档要多久，再按「算力 ≈ K × 步数」预估下一档，
+ *     装得进剩余预算就继续爬，装不进就停在上一档。手机上慢就自动少算，不会卡死；
+ *   - `planLevel` 可以写死某一档（跑参数扫描用，结果可复现，不受机器快慢影响）。
+ */
+/** 测试钩子：上一次规划实际跑到了第几档（0 = 最省的一档） */
+function notePlanLevel(idx) {
+  try { if (typeof globalThis !== 'undefined') globalThis.__aiLastPlanLevel = idx; } catch (err) { /* 老环境没有 globalThis */ }
+  return idx;
+}
+
+function planRollout(state, side, candidates, P) {
+  if (P.planLevel !== undefined && P.planLevel !== null) {
+    const idx = Math.max(0, Math.min(P.planLevel, PLAN_LEVELS.length - 1));
+    notePlanLevel(idx);
+    return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[idx]);
+  }
+  const budget = Math.max(0, P.planBudgetMs || 0);
+  const deadline = P.planDeadline || (budget > 0 ? Date.now() + budget : 0);
+  if (!deadline) { notePlanLevel(0); return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0]); }
+
+  // 第一档既要出结果，也用来「量一下这台机器有多快」：算力大致与 K × 步数成正比，
+  // 于是能按比例预估别的档要多久，再跳到「预算装得下的最贵那一档」——
+  // 不再一档一档地爬（那样等于把每一档都算一遍，白白多花好几倍时间）。
+  const t0 = Date.now();
+  const base = rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0]);
+  const dt0 = Math.max(Date.now() - t0, 1);
+  const unit0 = PLAN_LEVELS[0].k * PLAN_LEVELS[0].steps;
+  let pick = 0;
+  for (let i = 1; i < PLAN_LEVELS.length; i++) {
+    const est = dt0 * (PLAN_LEVELS[i].k * PLAN_LEVELS[i].steps) / unit0;
+    if (Date.now() + est > deadline) break;
+    pick = i;
+  }
+  notePlanLevel(pick);
+  if (pick === 0) return base;
+  return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[pick]);
 }
 
 export function aiTakeTurn(state, side, opts = {}) {
@@ -750,6 +815,11 @@ export function aiTakeTurn(state, side, opts = {}) {
   const P = opts.params
     ? { ...difficultyByKey(difficulty), ...opts.params }
     : difficultyByKey(difficulty);
+
+  // 推演预算按**整个回合**算：一回合里可能连续做几次规划，它们共用同一个截止时间。
+  // 这样「可以接受几秒延迟」变成的是「这一回合最多算几秒」，而不是每张牌都算几秒。
+  const planDeadline = (P.planBudgetMs > 0) ? Date.now() + P.planBudgetMs : 0;
+  const P2 = planDeadline ? { ...P, planDeadline } : P;
 
   let played = 0;
   const seen = new Set();
@@ -810,7 +880,7 @@ export function aiTakeTurn(state, side, opts = {}) {
     // 「不可能」：把前几个候选各自推演一遍（我打完 + 双方各一个回合），
     // 选结算后局面最好的那个，而不是只看眼前这一步的分数。
     const pick = P.planner === 'rollout'
-      ? planRollout(state, side, candidates, P)
+      ? planRollout(state, side, candidates, P2)
       : candidates[0];
     // 分数太低的牌就不打了，留住费用。阈值越高越消极。
     if (pick.score < P.passThreshold) break;

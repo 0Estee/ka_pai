@@ -100,7 +100,9 @@ check('「不可能」的推演不污染共享卡库，也不影响别的难度�
   if (ids.length === 0) throw new Error('卡库里找不到带 effects 的牌，这条检查失去意义');
   const before = ids.map((id) => JSON.stringify(lib[id]));
   const a1 = api.__aiLeague('hard', 'hard', 20);
-  api.__aiLeague('impossible', 'nightmare', 20);
+  // 这一条只关心「推演有没有把共享状态改脏」，不需要跑满时间预算：
+  // 写死 0 档（最省的一档  原来的定档），又快又跟机器快慢无关。
+  api.__aiLeague('impossible', 'nightmare', 20, { planBudgetMs: 0 });
   const a2 = api.__aiLeague('hard', 'hard', 20);
   const after = ids.map((id) => JSON.stringify(lib[id]));
   for (let i = 0; i < ids.length; i++) {
@@ -127,4 +129,28 @@ softCheck('「不可能」不加任何优势，但强度远超普通', () => {
     throw new Error('不可能打普通 ' + (win * 100).toFixed(0) + '%，同侧对照（普通打普通）是 '
       + (base * 100).toFixed(0) + '%，优势不足 20 个百分点');
   }
+});
+
+// ── 时间预算（作者 2026-10-11：几秒的出牌延迟可以接受，让他算）──
+// 「不可能」不再写死一个深度，而是按**一整个回合**的时间预算自己爬档
+// （app/js/ai.js 的 PLAN_LEVELS / planBudgetMs / planRollout）。
+// 这条检查盯三件事：预算不够要停在最省的一档、预算管够要真的爬上去、写死档位要照办。
+// 判据是 ai.js 里的测试钩子 window.__aiLastPlanLevel（上一次规划实际跑到第几档）。
+check('「不可能」按时间预算爬档：慢机器停低档，快机器爬高档', () => {
+  api.__go('home');
+  api.__newGame();
+  const runOne = (params) => {
+    api.__aiLeague('impossible', 'normal', 2, params, null, 1);
+    return api.__aiLastPlanLevel;
+  };
+  const low = runOne({ planBudgetMs: 1 });
+  if (low !== 0) throw new Error('预算 1ms 时爬到了第 ' + low + ' 档，应该停在最省的 0 档');
+  const hi = runOne({ planBudgetMs: 60000 });
+  if (hi < 1) throw new Error('预算 60s 时仍停在第 0 档，档位没起作用');
+  if (runOne({ planLevel: 1 }) !== 1) throw new Error('写死 planLevel=1 时没有照办');
+  if (runOne({ planLevel: 99 }) !== 4) throw new Error('planLevel 超出档位表时没有夹到最后一档');
+  // 档位表本身：只能加广（K），不能靠加深（实测越深越吵，见 README）
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'ai.js'), 'utf8');
+  if (!src.includes('const PLAN_LEVELS = [')) throw new Error('ai.js 里没有档位表 PLAN_LEVELS');
+  if (!src.includes('planBudgetMs: 6000')) throw new Error('「不可能」档没有定时间预算（应为 6000ms）');
 });
