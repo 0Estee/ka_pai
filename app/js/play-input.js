@@ -549,7 +549,10 @@ function handleAction(act, el) {
   // 以前这里写的是 `screen = 'play'`，于是「开始游戏 → AI 对决 → 选难度」
   // 又绕回二级菜单，而且全流程根本没有任何一个按钮会调 startNewGame() ——
   // AI 对决因此永远进不去。
-  if (act === 'start-game') { screen = 'play'; refresh(); return; }
+  // 普通模式与强化模式是**两套独立入口**（作者 2026-10-17：分开）：
+  // 从哪个菜单进来就定下 playMode，整局（含「再来一局」）都跟着它走。
+  if (act === 'start-game') { playMode = 'normal'; screen = 'play'; refresh(); return; }
+  if (act === 'start-forge') { playMode = 'forge'; screen = 'forgeMenu'; refresh(); return; }
   if (act === 'choose-ai') { screen = 'difficulty'; refresh(); return; }
   if (act === 'set-difficulty') { setDifficulty(el.dataset.key); return; }
   if (act === 'set-faction') {
@@ -563,7 +566,17 @@ function handleAction(act, el) {
   if (act === 'start-ai') { startNewGame(); return; }
   if (act === 'open-replays') { goReplays(); return; }
   if (act === 'open-settings') { goSettings(); return; }
-  if (act === 'back-home') { goHome(); return; }
+  if (act === 'back-home') {
+    // 强化模式是独立的二级树：从难度页 / 联机页返回时回「强化模式」菜单，
+    // 而不是一路跳回首页（否则每次都要重新点一遍强化模式）。
+    if (playMode === 'forge' && (screen === 'difficulty' || screen === 'lan' || screen === 'lanScan')) {
+      screen = 'forgeMenu';
+      refresh();
+      return;
+    }
+    goHome();
+    return;
+  }
   if (act === 'set-theme') { setTheme(el.dataset.theme); return; }
 
   // ── 局域网
@@ -584,7 +597,13 @@ function handleAction(act, el) {
     refresh();
     return;
   }
-  if (act === 'back-play') { screen = 'play'; view.forgePick = null; refresh(); return; }
+  if (act === 'back-play') {
+    // 工坊是从强化模式进来的，返回就回强化模式菜单（不是普通模式的开始游戏）
+    screen = playMode === 'forge' ? 'forgeMenu' : 'play';
+    view.forgePick = null;
+    refresh();
+    return;
+  }
   if (act === 'forge-group') {
     view.forgeGroup = el.dataset.key === 'type' ? 'type' : 'initial';
     refresh();

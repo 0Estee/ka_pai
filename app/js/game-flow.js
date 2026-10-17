@@ -81,10 +81,15 @@ function newGame() {
    *    「AI 强化多抽了几个随机数」而整体错位。
    * 这张表和 deck / factions 一样属于**建局参数**，所以也要进录制与联机的 start 消息。
    */
-  const aiForge = Enh.aiForge(TEST_CARD_LIB, { seed, difficulty });
-  const enhance = [];
-  enhance[me()] = Enh.buildSideEnhance(TEST_CARD_LIB, profile);
-  enhance[AI] = Enh.buildSideEnhance(TEST_CARD_LIB, aiForge);
+  // 普通模式（playMode !== 'forge'）**完全不读强化/精通**：双方都是卡面原值。
+  // 这是作者 2026-10-17 的口径 —— 强化是独立模式，不能偷偷影响普通模式的平衡。
+  const forgeMode = playMode === 'forge';
+  const enhance = forgeMode ? [] : null;
+  if (forgeMode) {
+    const aiForge = Enh.aiForge(TEST_CARD_LIB, { seed, difficulty });
+    enhance[me()] = Enh.buildSideEnhance(TEST_CARD_LIB, profile);
+    enhance[AI] = Enh.buildSideEnhance(TEST_CARD_LIB, aiForge);
+  }
 
   state = G.createGame({
     seed,

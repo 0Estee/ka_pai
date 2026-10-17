@@ -238,6 +238,8 @@ export class Session {
     this.peerName = '';
     /** 对手选的阵营（联机开局要用它建局，见 lan.js 的 hostStartMatch） */
     this.peerFaction = '';
+    /** 对手所在的玩法模式（hello 里报的；只用于大厅提示，最终以主机为准） */
+    this.peerForge = false;
     /**
      * 对手的强化/精通增量表（`{cardId:{atk,hp,cost,kw}}`，来自 hello 消息）。
      *
@@ -254,14 +256,17 @@ export class Session {
   }
 
   /** 主机把开局参数广播出去 */
-  async beginGame({ seed, firstPlayer, deck, factions, enhance }) {
-    this.applyStart({ seed, firstPlayer, deck, factions, enhance });
+  async beginGame({ seed, firstPlayer, deck, factions, enhance, mode }) {
+    this.applyStart({ seed, firstPlayer, deck, factions, enhance, mode });
     await this.transport.start();
-    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions, enhance });
+    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions, enhance, mode });
     this.onUpdate();
   }
 
-  applyStart({ seed, firstPlayer, deck, factions, enhance }) {
+  applyStart({ seed, firstPlayer, deck, factions, enhance, mode }) {
+    // 模式以主机为谁：'forge' = 强化模式（读双方增量），其余一律普通模式。
+    // 客人通过 URL 进房时本地 playMode 是默认值，必须用广播过来的这一份。
+    this.mode = mode === 'forge' ? 'forge' : 'normal';
     // 先把开局参数交回上层记下来（客人要靠它录回放）。
     // 以前只有主机在 hostStartMatch 里自己记，客人这边的 recordingSeed/recordingDeck
     // 一直是空的 —— 客人那侧存出来的回放会是一副残局。
@@ -350,6 +355,8 @@ export class Session {
         if (msg.faction) this.peerFaction = msg.faction;
         // 同一份 hello 里还报「我这边强化了哪些牌」——主机开局要把它算进 enhance
         if (msg.enhance && typeof msg.enhance === 'object') this.peerEnhance = msg.enhance;
+        // 以及「我在普通模式还是强化模式」——大厅要提示两边是否一致
+        this.peerForge = msg.forge === true;
         return true;
 
       case 'faction':

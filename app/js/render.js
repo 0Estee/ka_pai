@@ -20,7 +20,7 @@ import { FACTIONS } from '../../engine/src/engine.js';
 import { render, esc } from './ui.js';
 import {
   homeHTML, settingsHTML, replayListHTML, replayBarHTML,
-  playMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
+  playMenuHTML, forgeMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
   workshopHTML, setNavDir,
 } from './screens.js';
 import * as Enh from './enhance.js';
@@ -265,7 +265,7 @@ function fillMenuLog() {
  * 屏幕层级：数字变大 = 前进（进二级 / 三级菜单、进对局），变小 = 返回。
  * 切换时用它决定滑动方向，于是「返回动画与进入相反」是自动成立的。
  */
-const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
+const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, forgeMenu: 1, forge: 2, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
 let lastScreen = null;
 let navTimer = null;
 
@@ -1131,6 +1131,12 @@ function refresh() {
     return;
   }
 
+  if (screen === 'forgeMenu') {
+    stage.innerHTML = forgeMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable(), profile });
+    applyScreenFx(stage);
+    return;
+  }
+
   if (screen === 'forge') {
     const groupBy = view.forgeGroup === 'type' ? 'type' : 'initial';
     const w = Enh.workshopCards(TEST_CARD_LIB, profile, groupBy);
@@ -1151,6 +1157,7 @@ function refresh() {
       difficulties: DIFFICULTIES,
       faction: myFaction,
       factions: factionOptions(),
+      mode: playMode,
     });
     applyScreenFx(stage);
     return;
@@ -1186,6 +1193,9 @@ function refresh() {
       // 大厅里也要能选阵营（作者 2026-10-05）
       faction: myFaction,
       factions: factionOptions(),
+      // 强化是独立模式：大厅里要能一眼看出这一局用哪套规则
+      forgeMode: playMode === 'forge',
+      peerForge: session ? !!session.peerForge : false,
     });
     applyScreenFx(stage);
     return;

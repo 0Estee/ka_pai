@@ -180,8 +180,14 @@ check('工坊界面：能打开、能按类型切换、能买到星尘', () => {
   try {
     p.gold = 640; p.dust = 35; p.perf = 812; p.forge = { v: 1, cards: {} };
     api.__go('home');
+    // 普通模式与强化模式是两个独立入口：工坊只属于强化模式
     api.__nav('start-game', {});
-    if (!stage().includes('data-act="open-forge"')) throw new Error('开始游戏页没有强化工坊入口');
+    if (stage().includes('data-act="open-forge"')) throw new Error('普通模式菜单里不该出现强化工坊');
+    api.__nav('start-forge', {});
+    if (!stage().includes('data-act="open-forge"')) throw new Error('强化模式菜单里没有强化工坊入口');
+    if (!stage().includes('data-act="choose-ai"') || !stage().includes('data-act="lan-menu"')) {
+      throw new Error('强化模式菜单缺少 AI / 联机对决入口');
+    }
     api.__nav('open-forge', {});
     if (api.__screen() !== 'forge') throw new Error('没进工坊屏：' + api.__screen());
     const n = (stage().match(/class="forge-card/g) || []).length;
@@ -197,6 +203,49 @@ check('工坊界面：能打开、能按类型切换、能买到星尘', () => {
     if (p2.dust !== before + 1) throw new Error('买星尘没生效：' + before + ' -> ' + p2.dust);
   } finally {
     p.gold = keep.gold; p.dust = keep.dust; p.perf = keep.perf; p.forge = keep.forge;
+    api.__nav('start-game', {});   // 把模式切回普通，别影响后面的用例
+    api.__go('home');
+  }
+});
+
+check('模式分开：普通模式完全不读强化，强化模式才交给引擎', () => {
+  const p = api.__profile();
+  const keep = { gold: p.gold, dust: p.dust, perf: p.perf, forge: p.forge };
+  try {
+    let q = fresh(1000);
+    for (let i = 0; i < 9; i++) q = api.applyEnhance(q, lib[unitId], unitId).profile;
+    p.forge = q.forge;
+
+    // 普通模式：双方增量都应当是空表，场上的牌是卡面原值
+    api.__go('home');
+    api.__nav('start-game', {});
+    api.__nav('choose-ai', {});
+    api.__nav('start-ai', {});
+    api.__pause(true);
+    const normal = api.__game();
+    for (const side of [0, 1]) {
+      const n = Object.keys((normal.enhance && normal.enhance[side]) || {}).length;
+      if (n !== 0) throw new Error('普通模式 side ' + side + ' 不该有强化增量，实际 ' + n + ' 张');
+    }
+    api.__place(0, unitId, 'mountain', 'front');
+    const u0 = normal.board.mountain.units[0].front;
+    if (u0 && u0.cardId === unitId) {
+      if (u0.atk !== (Number(lib[unitId].atk) || 0)) throw new Error('普通模式攻击被强化了：' + u0.atk);
+      if (u0.hp !== (Number(lib[unitId].hp) || 0)) throw new Error('普通模式生命被强化了：' + u0.hp);
+    }
+
+    // 强化模式：同一份档案要真的交进引擎
+    api.__go('home');
+    api.__nav('start-forge', {});
+    api.__nav('choose-ai', {});
+    api.__nav('start-ai', {});
+    api.__pause(true);
+    const forgeGame = api.__game();
+    const mine = forgeGame.enhance && forgeGame.enhance[forgeGame.humanSide || 0];
+    if (!mine || !mine[unitId]) throw new Error('强化模式没有把我方增量交给引擎');
+  } finally {
+    p.gold = keep.gold; p.dust = keep.dust; p.perf = keep.perf; p.forge = keep.forge;
+    api.__nav('start-game', {});
     api.__go('home');
   }
 });
@@ -209,6 +258,8 @@ check('强化学到对局里：开局把增量交给引擎，回放也带着同�
     for (let i = 0; i < 9; i++) q = api.applyEnhance(q, lib[unitId], unitId).profile;
     p.forge = q.forge;
     api.setDifficulty('normal');
+    api.__go('home');
+    api.__nav('start-forge', {});   // 强化模式入口
     api.__nav('choose-ai', {});
     api.__nav('start-ai', {});
     api.__pause(true);
@@ -234,6 +285,7 @@ check('强化学到对局里：开局把增量交给引擎，回放也带着同�
     }
   } finally {
     p.gold = keep.gold; p.dust = keep.dust; p.perf = keep.perf; p.forge = keep.forge;
+    api.__nav('start-game', {});   // 切回普通模式，避免影响后续用例
     api.__go('home');
   }
 });

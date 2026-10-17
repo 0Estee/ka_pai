@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.58.0';
+export const APP_VERSION = '0.58.1';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -84,16 +84,43 @@ export function playMenuHTML({ difficulty, lanSupported, profile }) {
       <span class="hm-text">局域网对决</span>
       <span class="hm-sub">同一 Wi-Fi 下两台设备</span>
     </button>
+    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持局域网（需要在手机 App 里运行）</div>'}
+    <div class="set-tip">普通模式：双方都用卡面原值，强化与精通不生效。</div>
+  `);
+}
+
+/**
+ * 强化模式（作者 2026-10-17：单独一个模式，和普通模式分开）。
+ *
+ * 进来的每一局都会读取档案里的强化/精通；AI 也会按难度强化自己的牌。
+ * 工坊也放在这里 —— 强化是这套模式的东西，不该混进普通模式的菜单。
+ */
+export function forgeMenuHTML({ difficulty, lanSupported, profile }) {
+  const dust = (profile && profile.dust) || 0;
+  const gold = (profile && profile.gold) || 0;
+  return subScreen('强化模式', `
+    <div class="forge-mode-tip">这一模式里，你的强化 / 精通会真正生效；AI 也会按难度强化它的牌。<br>
+      普通模式不受影响 —— 两边完全分开。</div>
+    <button class="hm-btn hm-primary" data-act="choose-ai">
+      <span class="hm-ico">⚔</span>
+      <span class="hm-text">强化 AI 对决</span>
+      <span class="hm-sub">${esc((difficulty && difficulty.name) || '普通')}</span>
+    </button>
+    <button class="hm-btn" data-act="lan-menu">
+      <span class="hm-ico">⇄</span>
+      <span class="hm-text">强化 联机对决</span>
+      <span class="hm-sub">双方各自带上自己的强化卡组</span>
+    </button>
     <button class="hm-btn" data-act="open-forge">
       <span class="hm-ico">✦</span>
       <span class="hm-text">强化工坊</span>
-      <span class="hm-sub">强化卡牌 · 精通技能 · 星尘 ${dust}</span>
+      <span class="hm-sub">金币 ${gold} · 星尘 ${dust}</span>
     </button>
     ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持局域网（需要在手机 App 里运行）</div>'}
   `);
 }
 
-export function difficultyHTML({ current, difficulties, faction, factions }) {
+export function difficultyHTML({ current, difficulties, faction, factions, mode }) {
   const cur = difficulties.find((d) => d.key === current) || difficulties[0] || { name: '' };
   // 选中那行不再额外挂一个 ✓：选中态已经由 .diff-row.on 的金边 + 高一档底色说全了，
   // 再补一个勾是同一条信息的第二个信号（CSS 里 .diff-check 的样式上轮也撤了，
@@ -134,7 +161,10 @@ export function difficultyHTML({ current, difficulties, faction, factions }) {
     <div class="set-head">阵营（本局超能力）</div>
     <div class="diff-list">${facRows}</div>` : '';
 
-  return subScreen('AI 难度与阵营', `
+  return subScreen(mode === 'forge' ? '强化模式 · AI 难度与阵营' : 'AI 难度与阵营', `
+    ${mode === 'forge'
+      ? '<div class="forge-mode-tip">强化模式：本局你会用强化 / 精通后的卡牌；AI 也会按难度强化它的牌。</div>'
+      : ''}
     <div class="diff-list">${rows}</div>
     <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>）；<b>不可能</b>不加任何优势，只是会真的推演后面几步，已在上方逐条写明。</div>
     ${facBlock}
@@ -212,7 +242,7 @@ export function lanScanHTML({ rooms, scanning, manualError }) {
 }
 
 /** 联机大厅：主机等对手，客人等主机开始 */
-export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions }) {
+export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge }) {
   const isHost = mode === 'host';
   const statusText = {
     connected: peerName ? `已连接：${peerName}` : '等待对手加入…',
@@ -270,6 +300,9 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
         <div class="lobby-room">${esc(roomName || '未命名房间')}</div>
         ${isHost && joinUrl ? `<div class="lobby-url">同一 Wi-Fi 下的另一台设备可以扫描到这个房间，<br>或直接访问 <b>${esc(joinUrl)}</b></div>` : ''}
         <div class="lobby-status lobby-${status}">${esc(statusText)}</div>
+        <div class="lobby-mode">房间模式：${forgeMode ? '强化模式（双方各带自己的强化卡组）' : '普通模式（卡面原值）'}${peerName
+          ? `　·　对手：${peerForge ? '强化模式' : '普通模式'}${!!peerForge !== !!forgeMode ? '（与房间不一致，开局以主机为准）' : ''}`
+          : ''}</div>
       </div>
 
       ${startBlock}
@@ -312,6 +345,10 @@ export function homeHTML({ profile, level, storageMode }) {
     <div class="home-menu">
       <button class="hm-btn hm-primary" data-act="start-game">
         <span class="hm-ico">⚔</span><span class="hm-text">开始游戏</span>
+      </button>
+      <button class="hm-btn" data-act="start-forge">
+        <span class="hm-ico">✦</span><span class="hm-text">强化模式</span>
+        <span class="hm-sub">强化 / 精通 · 星尘 ${(profile && profile.dust) || 0}</span>
       </button>
       <button class="hm-btn" data-act="open-replays">
         <span class="hm-ico">⟲</span><span class="hm-text">回放对局</span>

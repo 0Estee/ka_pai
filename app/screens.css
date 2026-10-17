@@ -1270,3 +1270,21 @@
   font-variant-numeric: tabular-nums;
 }
 .reward-sub .dust { width: 8px; height: 8px; margin-right: 2px; }
+
+/* 强化模式说明条（首页/难度页/大厅共用） */
+.forge-mode-tip {
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line, #2a3646);
+  border-left: 2px solid var(--gold, #e8b84b);
+  border-radius: var(--scr-r-sm);
+  background: var(--panel, #151c26);
+  color: var(--dim, #8b9bb0);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.lobby-mode {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+}

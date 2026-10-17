@@ -106,6 +106,15 @@ let lanManualError = '';
 /** AI 难度（持久化在设置里） */
 let difficulty = DEFAULT_DIFFICULTY;
 /**
+ * 本局玩法模式：'normal' = 普通模式，'forge' = 强化模式。
+ *
+ * 作者 2026-10-17 口径：**强化是单独一个模式，和普通模式分开**。
+ * 普通模式完全不读强化/精通（双方都是卡面原值），只有从「强化模式」入口
+ * 开的局才把档案里的增量交给引擎 —— 这样两套玩法分开，强化不会偷偷影响
+ * 普通模式的手感与平衡数据。联机时以**主机**为准（模式随开局参数广播）。
+ */
+let playMode = 'normal';
+/**
  * 本局选择的阵营（超能力系统，见 engine/src/factions.js）。
  * 作者 2026-10-03 的规则：对局开始前自选，本局可用该阵营的超能力。
  * 这里只是进难度页之前的初值，玩家一选就被 render.js 的 setFaction 覆盖。
@@ -127,6 +136,6 @@ export {
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,
-  lanInfo, lanManualError, difficulty, myFaction, HOME_ASSET_URL,
+  lanInfo, lanManualError, difficulty, myFaction, playMode, HOME_ASSET_URL,
   recordingSeed, recordingDeck, recordingFactions, recordingEnhance,
 };

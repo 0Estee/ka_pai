@@ -33,6 +33,9 @@ function enterLobby(mode) {
       refresh();
     },
     onStart: (st) => {
+      // 模式以主机为准：客人是通过 URL 进房的，本地默认是普通模式，
+      // 必须按广播过来的这一份切换，否则界面说一套、引擎跑另一套。
+      playMode = session && session.mode === 'forge' ? 'forge' : 'normal';
       // 两端各自建立同一个对局，并从此刻开始录制回放
       state = st;
       view = makeView();
@@ -70,6 +73,8 @@ function enterLobby(mode) {
     name: isHostName(),
     faction: myFaction,
     enhance: Enh.buildSideEnhance(TEST_CARD_LIB, profile),
+    // 大厅要提示「两边是不是同一个模式」：不一致时以主机为准，提前让客人知道
+    forge: playMode === 'forge',
   });
   screen = 'lobby';
   refresh();
@@ -173,10 +178,14 @@ async function hostStartMatch() {
    * 必须先算好再广播 —— 客人的本地档案只对**它自己那一侧**有效，
    * 主机这边要模拟对手的牌，就必须拿到对手的增量表（反之亦然）。
    */
-  const enhance = [
-    Enh.buildSideEnhance(TEST_CARD_LIB, profile),
-    (session.peerEnhance && typeof session.peerEnhance === 'object') ? session.peerEnhance : {},
-  ];
+  // 普通模式不读强化：双方都是卡面原值（作者 2026-10-17 的分模式口径）。
+  const forgeMode = playMode === 'forge';
+  const enhance = forgeMode
+    ? [
+      Enh.buildSideEnhance(TEST_CARD_LIB, profile),
+      (session.peerEnhance && typeof session.peerEnhance === 'object') ? session.peerEnhance : {},
+    ]
+    : null;
   recordingEnhance = enhance;
   lanInfo.gameReady = true;
   /**
@@ -187,7 +196,14 @@ async function hostStartMatch() {
    * hello / faction 消息报过来（见 multiplayer.js）。拿不到就退回主机自己的。
    */
   const guestFaction = session.peerFaction || myFaction;
-  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, guestFaction], enhance });
+  await session.beginGame({
+    seed,
+    firstPlayer: seed % 2,
+    deck,
+    factions: [myFaction, guestFaction],
+    enhance,
+    mode: forgeMode ? 'forge' : 'normal',
+  });
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */
