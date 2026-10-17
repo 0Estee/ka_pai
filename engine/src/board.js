@@ -2,16 +2,15 @@
  * 场地与单位：日志、单位查询、站位/移动/弹射、以及「被弹射时」的观察者。
  *
  * 从 mechanics.js 拆出（纯搬移，行为不变）：
- *   log / findUnit / laneUnits / allUnitsInLane / allUnits / enemyFrontUnit /
+ *   log / findUnit / laneUnits / allUnitsInLane / allUnits /
  *   enemyCombatTarget / findBodyguard / removeUnitFromBoard / destroyUnit /
  *   vanishUnit / canMoveTo / moveUnitToLane / bounceUnit / notifyBounceWatchers
  *
  * 依赖方向：constants/keywords/rng ← board ← damage/stats
  */
 
-import { LANES, ROWS, SIDE, KING_MAX_HP, REBIRTH_HP } from './constants.js';
-import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKeyword, canPlaceInLane, isUntargetable } from './keywords.js';
-import { chance, shuffle } from './rng.js';
+import { LANES, ROWS, REBIRTH_HP } from './constants.js';
+import { hasKw, canPlaceInLane, isUntargetable } from './keywords.js';
 // ⚠ board ←→ damage 是一个**函数声明的环**：board 要 queueTrigger / queueKingTrigger，
 //   damage 要 destroyUnit。两边都只有函数声明（没有加载期求值的顶层 const），
 //   ESM 与打包器都能靠函数提升正常工作；不要往这两个文件里加顶层 const 互相引用。
@@ -53,11 +52,6 @@ export function allUnits(state) {
   const out = [];
   for (const lane of LANES) out.push(...allUnitsInLane(state, lane));
   return out;
-}
-
-/** 敌方**前排**单位。用于「穿透」这类需要区分前后排的效果 */
-export function enemyFrontUnit(state, lane, side) {
-  return state.board[lane].units[1 - side].front || null;
 }
 
 /**
@@ -140,6 +134,9 @@ export function destroyUnit(state, unit, reason = 'destroy') {
   removeUnitFromBoard(state, unit);
   state.discard.push(unit.cardId);
   state.stats.unitsDestroyed++;   // 全局计数（卡牌「卫兵：4个单位被消灭后…」要读它）
+  // 分方击杀数：结算「表现分」用（每消灭 1 个敌方单位 +10），双方各算各的。
+  if (!state.stats.killsBySide) state.stats.killsBySide = [0, 0];
+  state.stats.killsBySide[1 - unit.side]++;
   // 带上卡名：战报要显示「哪张卡被消灭」。只给 cardId 的话界面上会出现 U401 这种内部编号。
   const destroyName = (state.cardLib[unit.cardId] || {}).name || unit.cardId;
   log(state, { type: 'destroy', uid: unit.uid, cardId: unit.cardId, name: destroyName, lane: unit.lane, row: unit.row, side: unit.side, reason });
@@ -314,7 +311,7 @@ export function bounceUnit(state, unit, opts = {}) {
 }
 
 /** 「有单位被弹射时:」的观察者通知。不连锁（弹射不会由弹射产生）。 */
-export function notifyBounceWatchers(state, bounced) {
+function notifyBounceWatchers(state, bounced) {
   if (!bounced) return;
   for (const watcher of allUnits(state)) {
     if (watcher.removed) continue;
@@ -384,7 +381,7 @@ export function placeTrap(state, side, cardId, paid) {
 }
 
 /** 该方**未揭示**的陷阱一共花了多少钱（敌方视角要加回去的那部分） */
-export function hiddenTrapMana(state, side) {
+function hiddenTrapMana(state, side) {
   let sum = 0;
   for (const { trap } of trapsOf(state, side)) if (!trap.revealed) sum += trap.paid || 0;
   return sum;

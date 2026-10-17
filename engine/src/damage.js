@@ -10,17 +10,13 @@
  */
 
 import { checkSuperpowerThresholds, findVoodooDoll } from './factions.js';
-import { LANES, ROWS, SIDE, KING_MAX_HP, REBIRTH_HP } from './constants.js';
-import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKeyword, isUntargetable } from './keywords.js';
-import { chance, shuffle } from './rng.js';
+import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, isUntargetable } from './keywords.js';
+import { chance } from './rng.js';
 //  这一句让 damage  auras 多一条边（auras  mechanics  damage 本来就有环）。
 //   项目规矩是「环里只放函数声明、不要放加载期求值的顶层 const」
 //   这里只用到一个函数，且只在调用期使用，ESM 与打包器都安全。
 import { isSealedByAura, syncStatAuras } from './auras.js';
-import {
-  log, findUnit, laneUnits, allUnitsInLane, allUnits, enemyFrontUnit, enemyCombatTarget,
-  findBodyguard, removeUnitFromBoard, destroyUnit, canMoveTo, moveUnitToLane, bounceUnit, trapsOf,
-} from './board.js';
+import { log, allUnits, findBodyguard, destroyUnit, trapsOf } from './board.js';
 
 // ─────────────────────────────────────────────────────────
 // 状态标记（冻结）
@@ -53,7 +49,7 @@ export function freezeUnit(state, unit) {
  * 所以在这里直接广播一次：只看「被冻那一方以外」的单位身上的异能。
  * 触发只是入队，真正的执行由调用方之后的 flushTriggers 完成。
  */
-export function notifyFreezeWatchers(state, frozen) {
+function notifyFreezeWatchers(state, frozen) {
   for (const u of allUnits(state)) {
     if (u.side === frozen.side || u.removed) continue;
     if (!(u.effects || []).some((e) => e.trigger === 'onEnemyFrozen')) continue;
@@ -108,7 +104,7 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
    * 友方对它的伤害照旧（source.side 相同就放行）；source 为 null（环境伤害、
    * 判不出敌我）也不拦。
    */
-  if (target && target.kind === 'unit' && !opts.noUntargetable
+  if (target && target.kind === 'unit'
       && isUntargetable(target.unit) && source !== target.unit) {
     // source 可能是 null（环境伤害 / 无来源），所以这里不能直接读 source.side
     log(state, { type: 'untargetable-block', uid: target.unit.uid, from: source ? source.side : null, amount: raw });
@@ -293,7 +289,7 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
  *   · 「造成伤害:」异能照常触发
  *   · 「淬毒」照常挂到国王身上（标记记在玩家对象上）、「疾病」不触发（国王不是单位）
  */
-export function onDealtDamage(state, source, victim, amount, opts = {}) {
+function onDealtDamage(state, source, victim, amount, opts = {}) {
   if (amount <= 0) return;
 
   // victim 为 null 时用 opts.kingSide 指明「打的是哪一方国王」（国王中毒要用）。
@@ -356,7 +352,7 @@ export function onDealtDamage(state, source, victim, amount, opts = {}) {
  *   2. **不连锁**。观察者自己造成的这点伤害不会再惊动其他观察者，
  *      否则「怨魂 A ↔ 怨魂 B」会无限互相触发。由 opts.noWatchers 实现。
  */
-export function notifyDamageWatchers(state, victim) {
+function notifyDamageWatchers(state, victim) {
   if (!victim || victim.removed) return;
   for (const watcher of allUnits(state)) {
     if (watcher.removed) continue;
@@ -581,7 +577,7 @@ function findFatKingTrap(state, side) {
  * 伤害管线是同步代码，而效果里可能要有需要问人的部分（例如弃手牌）——
  * 所以这里只入队，由 choices.js 的 flushTriggersGen 在 generator 链里执行。
  */
-export function queueCardActions(state, side, cardId, payload = {}) {
+function queueCardActions(state, side, cardId, payload = {}) {
   const def = state.cardLib[cardId] || {};
   const actions = def.actions || [];
   if (!actions.length) return;

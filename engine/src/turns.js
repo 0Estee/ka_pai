@@ -12,17 +12,10 @@
  * 依赖方向：mechanics ← setup ← turns ← play/choices/combat
  */
 
-import {
-  LANES, ROWS, SIDE, SIDE_NAME, LANE_NAME, PHASES, PHASE_ACTOR,
-  PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, KING_MAX_HP, MAX_TURNS, ADJACENT_LANES,
-  manaCapForTurn, DRAW_ON_FIRST_TURN, roleName,
-} from './constants.js';
-import { createRng, shuffle } from './rng.js';
-import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
+import { PHASES, MAX_TURNS, manaCapForTurn, DRAW_ON_FIRST_TURN } from './constants.js';
 import * as M from './mechanics.js';
 import { giveStartingSuperpowers, ensureRawPile, ensureFlamePile } from './factions.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
-import { execActions } from './effects.js';
+import { syncStatAuras } from './auras.js';
 import { runCombat, apiFor } from './combat.js';
 import { returnExpiredTraps, expireRevealedTraps, sacrificeUnitOnBoard } from './board.js';
 import { flushTriggers, driveGenerator } from './choices.js';
@@ -35,7 +28,7 @@ import { PENDING } from './setup.js';
 /**
  * 当前可以行动的玩家。
  *
- * 注意：必须在运行时按 state.firstPlayer 解析，不能查 PHASE_ACTOR 常量表。
+ * 注意：必须在运行时按 state.firstPlayer 解析，不能查「阶段 → 玩家」的常量表。
  * 「先手/后手」是开局随机决定后**固定不变**的角色（规则书 §4），
  * 而 DEPLOY_FIRST 里的 "FIRST" 指的是「先手」这个角色，不是玩家编号 0。
  * 早期版本硬编码成了玩家 0，导致 firstPlayer=1 时先后手完全颠倒。
@@ -104,7 +97,7 @@ export function advance(state) {
   return state.phase;
 }
 
-export function onTurnStart(state) {
+function onTurnStart(state) {
   state.extraAttackUsed = {};
   state._pendingDeaths = [];
 
@@ -171,7 +164,7 @@ export function onTurnStart(state) {
   syncStatAuras(state);
 }
 
-export function onTurnEnd(state) {
+function onTurnEnd(state) {
   M.log(state, { type: 'turn-end', turn: state.turn });
 
   // 陷阱：已经触发过（本回合生效）的，效果结束就消失（作者 2026-10 口径）
@@ -203,7 +196,7 @@ export function onTurnEnd(state) {
  * 牌库抽空时的终局判定（裁决 D13）：
  * 双方都抽不到牌之后，在**回合结束时**比较国王生命，高者获胜；相同则平局。
  */
-export function resolveByDeckOut(state) {
+function resolveByDeckOut(state) {
   const [a, b] = state.players;
   if (a.kingHp === b.kingHp) {
     state.winner = 'draw';
@@ -215,7 +208,7 @@ export function resolveByDeckOut(state) {
   M.log(state, { type: 'game-over', winner: state.winner, reason: state.winReason });
 }
 
-export function resolveMarks(state) {
+function resolveMarks(state) {
   for (const unit of M.allUnits(state)) {
     if (unit.removed) continue;
     const marks = unit.marks.splice(0);
@@ -254,7 +247,7 @@ export function resolveMarks(state) {
   }
 }
 
-export function resolveByTurnLimit(state) {
+function resolveByTurnLimit(state) {
   const [a, b] = state.players;
   if (a.kingHp === b.kingHp) {
     state.winner = 'draw';

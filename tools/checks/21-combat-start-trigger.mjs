@@ -1,6 +1,10 @@
 /** 开战前异能：狙击手「开战时:造成2点伤害（选择一个目标）」（作者 2026-10 改口径，裁决 D71） */
 import { api, check } from './harness.mjs';
 
+// 这一节的用例要按卡面原值断言攻/血：AI 的强化（enhance.js 的 aiForge）会按难度
+// 随机给敌方的牌加成，normal 起步就可能让 6 血靶子变成 6.4，所以固定成「简单」（不强化）。
+api.setDifficulty('easy');
+
 console.log('\n 开战前异能：狙击手「开战时」先打 2 点');
 
 /**
@@ -24,7 +28,7 @@ function setup(sniperSide, twoFoes) {
   const other = twoFoes ? api.__place(foeSide, 'W04', 'plainL', 'front') : null;
   let n = 0;
   while (api.__game().phase !== 'COMBAT' && n++ < 14) api.__advance();
-  return { foeSide, foe, other, st: api.__game() };
+  return { foe, other, st: api.__game() };
 }
 
 check('狙击手（真人侧）：开战时挂起点选，2 点落在选中的目标上、且早于 lane-combat', () => {

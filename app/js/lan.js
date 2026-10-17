@@ -10,6 +10,7 @@
 
 import * as Net from './multiplayer.js';
 import * as Eco from './economy.js';
+import * as Enh from './enhance.js';
 import * as RP from './replay.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 
@@ -29,7 +30,6 @@ function enterLobby(mode) {
     onUpdate: () => { refresh(); if (screen === 'game') tick(); },
     onStatus: (s) => {
       lanInfo.status = s;
-      if (s === 'closed') lanInfo.peerName = lanInfo.peerName; // 保留名字，界面显示「对方已离开」
       refresh();
     },
     onStart: (st) => {
@@ -41,6 +41,8 @@ function enterLobby(mode) {
         cardSet: RP.cardSetId(TEST_CARD_LIB),
         // 双方阵营由主机广播过来（见 hostStartMatch），不带上客人那侧重建不出超能力
         factions: recordingFactions,
+        // 双方强化增量同理：随 start 一起广播下来，两端必须用同一份
+        enhance: recordingEnhance,
       });
       lanInfo.gameReady = true;
       screen = 'game';
@@ -54,14 +56,21 @@ function enterLobby(mode) {
   });
 
   // 开局参数由主机生成，客人从 start 消息里拿到，这里先记下来给 onStart 用
-  session.onSeedDeck = (seed, firstPlayer, deck, factions) => {
+  session.onSeedDeck = (seed, firstPlayer, deck, factions, enhance) => {
     recordingSeed = seed; recordingDeck = deck;
     recordingFactions = (factions || []).slice();
+    recordingEnhance = Array.isArray(enhance) ? enhance.map((side) => ({ ...(side || {}) })) : null;
   };
 
   session.start();
   // 进房间就报一次自己的阵营：主机开局要按两边各自的阵营建局（作者 2026-10-05）
-  session.transport.send({ t: 'hello', name: isHostName(), faction: myFaction });
+  // 顺便把自己的强化增量报过去：主机开局要把它写进 enhance（见 hostStartMatch）
+  session.transport.send({
+    t: 'hello',
+    name: isHostName(),
+    faction: myFaction,
+    enhance: Enh.buildSideEnhance(TEST_CARD_LIB, profile),
+  });
   screen = 'lobby';
   refresh();
 }
@@ -158,6 +167,17 @@ async function hostStartMatch() {
   const deck = buildTestDeck(80, seed);
   recordingSeed = seed;
   recordingDeck = deck;
+  /**
+   * 双方的强化增量：我这侧来自档案，对手那侧来自它进房时报的 hello。
+   *
+   * 必须先算好再广播 —— 客人的本地档案只对**它自己那一侧**有效，
+   * 主机这边要模拟对手的牌，就必须拿到对手的增量表（反之亦然）。
+   */
+  const enhance = [
+    Enh.buildSideEnhance(TEST_CARD_LIB, profile),
+    (session.peerEnhance && typeof session.peerEnhance === 'object') ? session.peerEnhance : {},
+  ];
+  recordingEnhance = enhance;
   lanInfo.gameReady = true;
   /**
    * 两边各自的阵营（作者 2026-10-05：「联机选不了阵营」）。
@@ -167,7 +187,7 @@ async function hostStartMatch() {
    * hello / faction 消息报过来（见 multiplayer.js）。拿不到就退回主机自己的。
    */
   const guestFaction = session.peerFaction || myFaction;
-  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, guestFaction] });
+  await session.beginGame({ seed, firstPlayer: seed % 2, deck, factions: [myFaction, guestFaction], enhance });
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

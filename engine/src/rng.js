@@ -9,8 +9,6 @@
  * 状态是一个 32 位无符号整数，可直接序列化进 GameState。
  */
 
-const MASK = 0xffffffff;
-
 export function createRng(seed = 0x9e3779b9) {
   let s = seed >>> 0;
   if (s === 0) s = 0x9e3779b9; // xorshift 的状态不能为 0
@@ -56,5 +54,3 @@ export function shuffle(rng, arr) {
   }
   return arr;
 }
-
-export { MASK };

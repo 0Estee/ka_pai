@@ -249,16 +249,6 @@ public final class NativeBridge {
 
     // ── 生命周期 ────────────────────────────────────────────
 
-    /** 房间状态变化时同步给 UDP 应答器，否则客人列表里会显示成「可加入」。 */
-    public void setStarted(boolean started) {
-        synchronized (lock) {
-            if (responder != null) {
-                responder.setStarted(started);
-                if (server != null) responder.setPlayers(server.getPlayers());
-            }
-        }
-    }
-
     /** Activity 销毁时收尾：房间和 UDP 监听都必须在，否则列表里会残留连不上的死房间。 */
     public void shutdown() {
         synchronized (lock) {

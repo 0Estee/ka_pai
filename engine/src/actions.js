@@ -7,18 +7,18 @@
  * 依赖方向：mechanics/auras ← amounts/targets ← actions
  */
 
-import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
-import { matchesTargetFilter, isFrozen, KEYWORD_DEFS } from './keywords.js';
-import { filterCtx, hasRooted, getKeyword } from './auras.js';
+import { LANES, ADJACENT_LANES, LANE_NAME } from './constants.js';
+import { isFrozen, KEYWORD_DEFS } from './keywords.js';
+import { hasRooted, getKeyword } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
-  drawCards, gainMana, gainManaCap, laneUnits, allUnitsInLane, allUnits, log, freezeUnit,
+  drawCards, gainMana, gainManaCap, laneUnits, allUnits, log, freezeUnit,
   canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
   sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword, transformUnit,
   buffKeywordX, lockAtk,
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
-import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
+import { resolveAmount, resolveSide } from './amounts.js';
 import { queueDelayedSummon, RAW_MATERIAL_IDS, takeRawMaterial, drawFlame, resetFlamePile, checkFlameLotus } from './factions.js';
 import { nextInt } from './rng.js';
 

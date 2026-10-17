@@ -29,8 +29,6 @@ import { filterCtx, effectiveAtk } from '../../engine/src/auras.js';
 import { allUnits, drawCards } from '../../engine/src/mechanics.js';
 import { createRng } from '../../engine/src/rng.js';
 
-/** 单位是否带某词条 */
-const kw = (unit, id) => (unit.keywords || []).some((k) => k.id === id);
 /** 取词条的数值参数 */
 const kwX = (unit, id) => {
   const k = (unit.keywords || []).find((x) => x.id === id);
@@ -163,7 +161,17 @@ export const DIFFICULTIES = [
     lookahead: false,
     bonus: null,
     planner: 'rollout',   // 打开模拟前瞻
-    // 下面两个数是**实测扫出来的**（120 局  两组互不重叠的种子，见 README 的难度表）：
+    // 留手也交给推演决定（agent 2026-10 的实测改动，见 aiTakeTurn 里的 rolloutPass 分支）。
+    // 原来是「贪心分低于 -1 就不出牌」，手调的常数 —— 实测它才是这一档最大的短板：
+    //   写死第 0 档打噩梦，n=240（种子 1-240）：117/122/1 = 48.8%（关掉留手判定则 111/128/1 = 46.3%）
+    //   另一段互不重叠的种子，n=120（种子 500-619）：59/60/1 = 49.2%（关掉则 55/64/1 = 45.8%）
+    //   打「普通」那一档两种做法都在 94% 附近（n=240：93.8% vs 94.6%，已经碰到天花板）
+    // 选推演版而不是再手调一个更低的阈值，是因为这套游戏里手调阈值**已经被推翻两次**
+    // （见上面「困难」档的实测记录：-100 在旧卡池 +2.3 点，卡池换大后反而变亏）。
+    // 交给推演就没有这个失效模式：卡池怎么换，它按同一把尺子重新比。
+    // 代价：每次规划多推演一次「留手」，n=20 实测 184 次规划多 162 次克隆（+13%）。
+    rolloutPass: true,
+    // 推演档位是**实测扫出来的**（120 局  两组互不重叠的种子，见 README 的难度表）：
     //   K4/S8  打噩梦 25.8%  K8/S12 40.0%  K8/S20 45.8%（再深到 S28/S36 反而回落 40.8%）
     //   越深越准，但每个候选都要克隆一整局再往后再推，手机上太深会卡；S20 是拐点。
     // 推演的档位表在 PLAN_LEVELS（最省的一档就是原来的 K8/S20）。这里是**一整个回合**
@@ -171,8 +179,6 @@ export const DIFFICULTIES = [
     // 手机上慢就自动少算一档，不会卡死；机器快就把 5 档跑满。
     // 跑参数扫描时用 planLevel 写死档位（可复现，不受机器快慢影响）。
     planBudgetMs: 6000,
-    planK: 8,             // 第一档：推演贪心评分最高的几个候选（planLevel 可写死档位）
-    planSteps: 20,        // 第一档：每个候选往后推几步（含双方回合与开战结算）
   },
 ];
 
@@ -444,10 +450,6 @@ function scoreSpell(state, side, def, target, P) {
       case 'endTurnNow':
         // 立即结束本回合：本身不产生数值，进攻性由同一张牌的 extraAttack 体现
         break;
-
-        // 相当于再打一次，价值接近一张伤害法术
-        score += 2.8;
-        break;
       case 'setStats':
         // 把自己拉回固定身材（正向时值钱，负向时不值）
         if (target && target.unit) {
@@ -620,18 +622,39 @@ function tryAlchemyBrew(state, side) {
 // 
 
 /**
- * 深拷贝一局，用来推演。三条纪律：
+ * 只写不读的流水账：推演全程**没有任何一处读它们**，所以克隆体给个空数组就够。
+ *
+ *   log        战报。board.js 的 M.log 只 push；唯一读它的是界面（game-flow.js
+ *              的战斗可视化按 `state.log.length` 游标取新事件），推演根本不经过界面。
+ *   choiceLog  裁定流水。choices.js 只 push；读它的是回放录制侧（replay.js 用自己
+ *              那份 recording.choiceLog），推演里的 takeChoice 也不会去读。
+ *
+ * 为什么值得单独挑出来：它们是**只增不减**的，一局几百条，而且每一条都要递归深拷。
+ * 实测（244 条日志的局面，2000 次克隆取平均）：cloneForSim 全量 0.192ms/次，
+ * 跳过 log 后 0.049ms/次 —— log 一个人吃掉 77%。一次规划要克隆几十次
+ * （每档每个候选一次），省下来的全是白给的时间预算。
+ *
+ * ⚠ 必须是**空数组**而不是共享引用：M.log 会 push，共享会把推演的假事件写进
+ *   真对局的战报里，界面就会播出根本没发生的特效。
+ */
+const JOURNAL_KEYS = ['log', 'choiceLog'];
+
+/**
+ * 深拷贝一局，用来推演。四条纪律：
  *   1. `cardLib` / 函数（targetPicker 等）按引用共享  只读；拷了又慢又容易出微妙的错。
  *   2. `rng` 必须**另造**：engine/src/rng.js 的状态藏在闭包里，
  *      直接展开会把推演和真对局接到同一个随机源上，真对局的随机数会被推演吃掉。
  *   3. 克隆体设 `humanSide = -1` + `autoResolveChoices = true`：
  *      推演里所有「要问人」的请求都必须自动答，绝不能挂起。
+ *   4. `JOURNAL_KEYS` 里的流水账只给空数组，见上面那段实测。
  */
 function cloneForSim(state) {
   const c = {};
   for (const k of Object.keys(state)) {
     if (k === "cardLib" || k === "targetPicker" || k === "chooser") {
       c[k] = state[k];
+    } else if (JOURNAL_KEYS.includes(k)) {
+      c[k] = Array.isArray(state[k]) ? [] : state[k];
     } else if (k === "rng") {
       c[k] = createRng(state.rng ? state.rng.state : 0);
     } else if (k === "pending") {
@@ -682,6 +705,16 @@ function freeLaneDamage(state, attSide) {
 /**
  * 局面评估：从 side 的角度看，正数代表优势。
  * 权重可由难度表 / opts.params 注入（W），便于跑参数扫描。
+ *
+ * ⚠ 2026-10 实测记录：这一层**已经没有可调的余地了**，试过的都原样退回。
+ *   拿「不可能」写死第 0 档打噩梦（n=120，种子 1-120，基线 45.8%）：
+ *     · 把单位身材项反过来算（wAtk/wHpEval = -5）→ 17.5%
+ *     · 国王血量差 / 手牌张数 / 两条「白打脸」项的权重**全部清零** → 45.8%（一个 pick 都没变）
+ *     · 「白打脸」权重 ×3 → 45.8%；费用项清零 → 45.8%
+ *     · 另加的三项（关键词折价 / 手牌费用和 / 斩杀项）逐项扫 0 / 1 / 2 / 40 → 45.8%~46.7%，全在噪声里
+ *   身材项一动就崩、其它项怎么动都一样，说明**推演的分胜负信号已经压过评估函数的排序**：
+ *   实测叶节点里 54.8% 已经是 ±1000 的终局（赢 263 / 输 571），剩下不到一半才轮到评估函数排。
+ *   所以「让不可能更强」的关键不在评估函数，而在**什么时候不出牌**（见 aiTakeTurn 的留手判定）。
  */
 function evalPosition(state, side, W) {
   W = W || {};
@@ -709,6 +742,7 @@ function evalPosition(state, side, W) {
   v -= freeLaneDamage(state, foe) * (W.wFreeFoe === undefined ? 1.6 : W.wFreeFoe);
   return v;
 }
+
 
 /**
  * 「不可能」的推演档位：从最省的一档往上爬，越高越费算力。
@@ -756,19 +790,40 @@ function rolloutScore(state, side, cand, P) {
   return evalPosition(clone, side, P);
 }
 
-/** 用某一档把前 K 个候选各推演一遍，返回推演后局面最好的那一手 */
-function rolloutAtLevel(state, side, candidates, P, lv) {
+/** 推演「这一手先不出（留手）」之后的局面分 —— 与出牌候选用的是同一把尺子 */
+function rolloutPassScore(state, side, P, steps) {
+  const clone = cloneForSim(state);
+  simForward(clone, steps);
+  return evalPosition(clone, side, P);
+}
+
+/**
+ * 用某一档把前 K 个候选各推演一遍，返回推演后局面最好的那一手（含它的推演分）。
+ *
+ * `cache`（可选）复用上一次**同一档步数**算出来的分数。爬档时前 8 个候选的分数
+ * 与档位无关（PLAN_LEVELS 里步数一律 20），所以能原样搬过来：
+ * 原来从第 0 档爬到第 4 档要 8 + 24 = 32 次推演，其中 8 次是纯重复；
+ * 现在只要 24 次。推演分是确定性的（克隆自带 rng、决策无随机），复用的分数
+ * 与重算逐位相同，所以「同分取贪心分更高那个」的 tie-break 语义不变。
+ */
+function rolloutAtLevel(state, side, candidates, P, lv, cache) {
   const k = Math.min(lv.k, candidates.length);
-  const wGreedy = P.wGreedy || 0;   // 推演分之外再掺一点「眼前的便宜」，避免算过头
+  const usable = cache && cache.steps === lv.steps ? cache : null;
   let best = candidates[0];
   let bestScore = -Infinity;
   for (let i = 0; i < k; i++) {
     const c = candidates[i];
-    const s = rolloutScore(state, side, c, { ...P, planSteps: lv.steps }) + c.score * wGreedy;
+    let s;
+    if (usable && i < usable.scores.length) {
+      s = usable.scores[i];
+    } else {
+      s = rolloutScore(state, side, c, { ...P, planSteps: lv.steps });
+      if (usable) usable.scores[i] = s;
+    }
     // 推演分相同时取贪心分更高的那个（保住原来「能打就打」的手感）
     if (s > bestScore + 1e-9) { bestScore = s; best = c; }
   }
-  return best;
+  return { best, bestScore };
 }
 
 /**
@@ -791,17 +846,24 @@ function planRollout(state, side, candidates, P) {
   if (P.planLevel !== undefined && P.planLevel !== null) {
     const idx = Math.max(0, Math.min(P.planLevel, PLAN_LEVELS.length - 1));
     notePlanLevel(idx);
-    return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[idx]);
+    return { ...rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[idx]), level: idx };
   }
   const budget = Math.max(0, P.planBudgetMs || 0);
   const deadline = P.planDeadline || (budget > 0 ? Date.now() + budget : 0);
-  if (!deadline) { notePlanLevel(0); return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0]); }
+  if (!deadline) {
+    notePlanLevel(0);
+    return { ...rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0]), level: 0 };
+  }
 
   // 第一档既要出结果，也用来「量一下这台机器有多快」：算力大致与 K × 步数成正比，
   // 于是能按比例预估别的档要多久，再跳到「预算装得下的最贵那一档」——
   // 不再一档一档地爬（那样等于把每一档都算一遍，白白多花好几倍时间）。
+  //
+  // 第一档的分数存进 cache，爬档时只补算第 8..K-1 个候选（见 rolloutAtLevel）。
+  // 第 0 档本身仍然只跑一遍，所以「量速度」和「出结果」两条都还成立。
   const t0 = Date.now();
-  const base = rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0]);
+  const cache = { steps: PLAN_LEVELS[0].steps, scores: [] };
+  const base = rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[0], cache);
   const dt0 = Math.max(Date.now() - t0, 1);
   const unit0 = PLAN_LEVELS[0].k * PLAN_LEVELS[0].steps;
   let pick = 0;
@@ -811,13 +873,13 @@ function planRollout(state, side, candidates, P) {
     pick = i;
   }
   notePlanLevel(pick);
-  if (pick === 0) return base;
-  return rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[pick]);
+  if (pick === 0) return { ...base, level: 0 };
+  return { ...rolloutAtLevel(state, side, candidates, P, PLAN_LEVELS[pick], cache), level: pick };
 }
 
 export function aiTakeTurn(state, side, opts = {}) {
-  const difficulty = typeof opts === 'string' ? opts : (opts.difficulty || DEFAULT_DIFFICULTY);
-  const maxPlays = typeof opts === 'string' ? 8 : (opts.maxPlays || 8);
+  const difficulty = opts.difficulty || DEFAULT_DIFFICULTY;
+  const maxPlays = opts.maxPlays || 8;
   // opts.params 允许临时覆盖参数，用于跑参数扫描（tools 里的实验脚本用）
   const P = opts.params
     ? { ...difficultyByKey(difficulty), ...opts.params }
@@ -829,7 +891,6 @@ export function aiTakeTurn(state, side, opts = {}) {
   const P2 = planDeadline ? { ...P, planDeadline } : P;
 
   let played = 0;
-  const seen = new Set();
   const actions = [];
 
   let brews = 0;
@@ -886,20 +947,23 @@ export function aiTakeTurn(state, side, opts = {}) {
 
     // 「不可能」：把前几个候选各自推演一遍（我打完 + 双方各一个回合），
     // 选结算后局面最好的那个，而不是只看眼前这一步的分数。
-    const pick = P.planner === 'rollout'
-      ? planRollout(state, side, candidates, P2)
-      : candidates[0];
-    // 分数太低的牌就不打了，留住费用。阈值越高越消极。
-    if (pick.score < P.passThreshold) break;
+    const plan = P.planner === 'rollout' ? planRollout(state, side, candidates, P2) : null;
+    const pick = plan ? plan.best : candidates[0];
+    if (plan && P.rolloutPass) {
+      // 由推演自己决定「打」还是「留手」：把「这一手都不出」也推演一遍，
+      // 用同一把尺子和最优出牌比。passMargin 是留手的门槛（0 = 一样好就不打）。
+      const passScore = rolloutPassScore(state, side, P2, PLAN_LEVELS[plan.level].steps);
+      if (passScore > plan.bestScore + (P.passMargin || 0)) break;
+    } else if (pick.score < P.passThreshold) {
+      // 分数太低的牌就不打了，留住费用。阈值越高越消极。
+      break;
+    }
 
     try {
       G.playCard(state, side, pick.iid, pick.opts);
       played++;
       actions.push({ iid: pick.iid, opts: pick.opts });
     } catch (err) {
-      // 打不出去就把它记下来，避免死循环
-      if (seen.has(pick.iid)) break;
-      seen.add(pick.iid);
       break;
     }
   }

@@ -9,9 +9,11 @@
  *   lan.js        局域网大厅、开房扫描、房间内开局与退出
  *   replay-ui.js  回放档案增删改与回放播放器
  *
- * ⚠ app-state.js 必须**第一个** import：它是共享状态的声明，要先求值；
- *   而且打包器会把 `const G = {...}` 这类命名空间对象插在模块代码之后，
- *   所以共享状态的读取一律走裸名字（见各文件头部说明）。
+ * ⚠ 共享状态一律**读写裸名字**（`screen` / `state` / `view` / `profile` …）：
+ *   它们是 app-state.js 的模块级声明，打包器把各模块拍进同一个作用域后谁都看得见。
+ *   注意求值顺序由 import 图推出、**不按文件编号**，而 app-state.js 自己就排在
+ *   很靠后（它 import 的模块太多）；所以任何模块的顶层代码都不要去读别的模块
+ *   还没求值的状态，否则撞 TDZ 会直接抛 ReferenceError。
  * ⚠ 这些 import 必须都是**具名**的：打包器不认纯副作用 import（`import './x.js'`），
  *   那样写的模块根本不会被打进 bundle。
  *
@@ -25,45 +27,30 @@
  * #menu 是对局中的战报浮层，独立于 #stage，不受重绘影响。
  */
 
-import { HUMAN, AI, me, foe, foeName, HOME_ASSET_URL } from './app-state.js';
+import { AI, me, foe } from './app-state.js';
 import {
-  makeView, applyTheme, setTheme, setDifficulty, goHome, goSettings, goReplays,
-  showBanner, refresh, escMain, LANE_LABEL, toggleMenu, fillMenuLog,
+  makeView, applyTheme, setTheme, goHome, goSettings, goReplays,
+  refresh, toggleMenu,
 } from './render.js';
 import {
-  startNewGame, newGame, doAction, applyLocalAction, advanceGame,
-  playCardAction, tick, settleIfNeeded, summarizeLog,
+  startNewGame, applyLocalAction, advanceGame, tick, settleIfNeeded,
 } from './game-flow.js';
 import {
-  NO_CHOICE_TARGET_KINDS, analyzeSpell, isPlayable, computePlayable, clearSelection,
-  selectCard, resolvePlayerChoice, commitPlay,
+  clearSelection, selectCard, resolvePlayerChoice,
   handleSlotClick, handleUnitClick, handleKingClick, handleAction,
 } from './play-input.js';
+import { enterLobby } from './lan.js';
 import {
-  enterLobby, isHostName, normalizeHostInput, joinByManualAddress,
-  randomRoomName, createRoom, scanLanRooms, hostStartMatch, quitRoom,
-} from './lan.js';
-import {
-  persistReplays, updateReplay, deleteReplay, openReplay, stopReplay, replayDelay,
-  scheduleReplay, toggleReplayPlay, stepReplay, cycleReplaySpeed, seekReplayTo,
+  updateReplay, deleteReplay, openReplay, stopReplay, seekReplayTo,
 } from './replay-ui.js';
 
 import * as G from '../../engine/src/engine.js';
-import * as M from '../../engine/src/mechanics.js';
-import { LANES, ROWS, LANE_NAME } from '../../engine/src/constants.js';
-import { matchesTargetFilter } from '../../engine/src/keywords.js';
-import { filterCtx } from '../../engine/src/auras.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
-import { aiTakeTurn, DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyByKey, applyDifficultyBonus, applyBonusObject } from './ai.js';
-import { render } from './ui.js';
+import { aiTakeTurn, DIFFICULTIES, difficultyByKey, applyDifficultyBonus, applyBonusObject } from './ai.js';
 import * as Store from './store.js';
 import * as Eco from './economy.js';
 import * as RP from './replay.js';
 import * as Net from './multiplayer.js';
-import {
-  homeHTML, settingsHTML, replayListHTML, replayBarHTML, nextSpeed, APP_VERSION,
-  playMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
-} from './screens.js';
 
 // ══════════════════════════════════════════════════════════
 // 启动：读存档、套主题、进首页
@@ -77,8 +64,8 @@ function boot() {
   if (saved) {
     profile = saved;
   } else {
-    // 第一次进游戏：发初始金币，但**不计入累计金币**（不然白送一级）
-    profile = { ...Store.defaultProfile(), gold: Eco.INITIAL_GOLD, lifetimeGold: 0 };
+    // 第一次进游戏：发初始金币与初始星尘，但**不计入表现分**（不然白送一级）
+    profile = { ...Store.defaultProfile(), gold: Eco.INITIAL_GOLD, dust: Eco.INITIAL_DUST, perf: 0 };
     Store.saveProfile(profile);
   }
 
@@ -310,8 +297,6 @@ window.__snapLiveAt = (n) => {
   return n;
 };
 window.__liveBriefs = [];
-/** 自检用：看录制里那份「每一问的答案流水」 */
-window.__recordingLog = () => (recording && recording.choiceLog ? recording.choiceLog.map((e) => ({ ...e })) : []);
 
 /**
  * 自检用：把某个引擎状态压成一份**便于对拍**的简报（不是指纹，是给人读的）。
@@ -333,34 +318,6 @@ window.__stateBrief = (s) => {
 };
 
 /**
- * 自检用：以**当前局面**为起点重开一份录制（动作清空）。
- *
- * 用途：测试要构造特定场面（例如「手上正好有一张歼-10」）时，
- * 直接改 `state` 会让录制里的起局与实际不符，回放必然对不上 ——
- * 那不是回放的 bug，是造场面的方式不对。以当前局面为起点重新录，
- * 两边就吃同一份「起局 + 操作」，才能干净地验回放。
- *
- * 只需要 `seed / firstPlayer / deck / cardSet / bonuses` 就够了，
- * 因为 `createGame` 是按这些确定性重建的，而 `deck` 此刻就是**还没抽的那部分**。
- */
-window.__resetRecording = () => {
-  if (!state) return null;
-  recording = RP.newRecording({
-    seed: state.seed,
-    firstPlayer: state.firstPlayer,
-    deck: state.deck,
-    cardSet: RP.cardSetId(TEST_CARD_LIB),
-    bonuses: [],
-    humanSide: state.humanSide,
-    factions: state.players.map((p) => p.faction || null),
-  });
-  // 答案流水也要一起清空：它属于「这一份录制」，不清就等于带着上一段的答案
-  // 重放新的一段，从第一问起就错位。
-  state.choiceLog = recording.choiceLog;
-  return recording.actions.length;
-};
-
-/**
  * 自检用：拿「同一位置  同一局面」的判据，逐步对拍一条录制。
  *
  * @param liveDigests     实战留下的指纹（由 __snapLive 采）
@@ -379,7 +336,6 @@ window.__replayVerifyLive = (liveDigests, recordOverride) => {
   if (!snaps[actions.length]) {
     return { error: '没有实战指纹（请在每一步操作后调 __snapLive()）' };
   }
-  if (state && Array.isArray(state.qTrace)) window.__liveQTrace = state.qTrace.slice();
 
   /** 从内存里那份 recording 重建一条等价的回放记录（给不传 recordOverride 的场合用） */
   const recOf = (acts) => ({
@@ -443,12 +399,6 @@ window.__tapUnit = (uid) => {
 /** 存档快照（自检用） */
 window.__profile = () => profile;
 window.__replays = () => replays;
-window.__setGold = (n) => {
-  profile = { ...profile, gold: Number(n) || 0 };
-  Store.saveProfile(profile);
-  refresh();
-  return profile;
-};
 window.__setTheme = (t) => { setTheme(t); return settings.theme; };
 window.__theme = () => {
   try { return document.documentElement.dataset.theme; } catch { return null; }
@@ -524,59 +474,69 @@ window.__mp = {
    *
    * 用同一串操作喂两个独立引擎（同种子、同牌库），每一步都比较状态指纹。
    * 只要始终一致，就说明「只同步操作、不同步棋盘」是可行的。
+   *
+   * ⚠ 两个引擎都用 `RP.createReplayPlayer` 重建 —— 和 `replay.js` 的正规回放
+   *   走**同一段建局代码**，两条路永远不会再分叉。
+   *
+   *   以前这里自己写了一份「建局」（只有 `createGame` + `startGame`）：不传
+   *   `opening`（开局发牌前一刻的牌库与 rng），也不喂 `choiceLog` 裁定流。
+   *   于是重建出来的那一局和录的那一局**抽牌顺序不同**，录下来的操作指向的手牌
+   *   实例在重建的那一局里根本不存在，报
+   *   `第 N 步开始不一致（共 N 步）  错误：手牌中没有 iid=xx`。
+   *
+   *   为什么是**偶发**：`08-mp-lockstep.mjs` 喂的是本次进程里随机播出来的那一局
+   *   （`game-flow.js` 的 `seed = (Date.now() ^ Math.random()*0xffffffff) >>> 0`），
+   *   只有那一局真正用到「开局对齐 / 裁定流」时才会暴露 —— 实测 40 局里错 3 局。
+   *
+   * 签名保持向后兼容：第 7 个参数 `record` 可选。传完整录制
+   * （`api.__replays()[0]`）时按它逐字段重建；不传时退回旧口径
+   * （照种子自己洗牌、两侧都不是真人），旧的调用方式照样能跑。
    */
-  lockstepCheck: (seed, firstPlayer, deck, actions, bonuses = [], factions = []) => {
-    const build = () => {
-      // 阵营也要一起复现：开局抽的那 1 张超能力会进手牌、并消耗 rng 位置，
-      // 不传 factions 的话两个引擎从第一步起就和录制的那局不一样。
-      const s = G.createGame({ seed, firstPlayer, deck: deck.slice(), cardLib: TEST_CARD_LIB, factions: factions.slice() });
-      G.startGame(s);
-      // 难度加成也要复现，否则「锁步」在一开始就不锁（那是它自己在跟自己比）
-      for (const bn of bonuses) applyBonusObject(s, bn.side, bn);
-      s.autoResolveChoices = true;
-      /**
-       * **两侧都不是真人**：这一局是「拿录下来的操作流喂给两个引擎」，
-       * 没有人在旁边点。强化士兵（拟定目标攻击）在真人那一侧会挂起等人答，
-       * 而这里没人答 —— 设成 -1 让两侧都由引擎自己决策，
-       * 两端走的是同一套确定性策略，锁步才有意义。
-       * （真实联机里 humanSide 是 me()，和这里的用途不同。）
-       */
-      s.humanSide = -1;
-      return s;
-    };
-    const a = build();
-    const b = build();
+  lockstepCheck: (seed, firstPlayer, deck, actions, bonuses = [], factions = [], record = null) => {
+    const makeRec = () => ({
+      v: RP.REPLAY_VERSION,
+      seed,
+      firstPlayer,
+      deck: (deck || []).slice(),
+      // `shuffled` / `opening` / `choiceLog` 一个都不能少：少了 `opening` 就是
+      // 「照种子自己洗牌自己发牌」而手里那份牌库是已经洗过的那一份；
+      // 少了 `choiceLog` 则是每一问都落回引擎策略、与录制那局的裁定错位。
+      shuffled: record ? !!record.shuffled : false,
+      opening: record ? record.opening : null,
+      humanSide: record && record.humanSide !== undefined ? record.humanSide : -1,
+      factions: (factions || []).slice(),
+      bonuses: (bonuses || []).map((b) => ({ ...b })),
+      // 强化增量和 bonuses 一样是**建局参数**：少了它，重建的那一局单位攻/血
+      // 与锦囊费用都回到卡面原值，战斗结果就从某一步起错位
+      // （表现为「手牌中没有 iid=xx」这类看起来毫不相干的报错）。
+      enhance: record && Array.isArray(record.enhance) ? record.enhance.map((side) => ({ ...(side || {}) })) : null,
+      choiceLog: record && Array.isArray(record.choiceLog) ? record.choiceLog : [],
+      actions,
+    });
+    const a = RP.createReplayPlayer(makeRec(), TEST_CARD_LIB);
+    const b = RP.createReplayPlayer(makeRec(), TEST_CARD_LIB);
 
     let divergedAt = -1;
+    let error = '';
     for (let i = 0; i < actions.length; i++) {
-      const act = actions[i];
-      try {
-        applyTo(a, act);
-        applyTo(b, act);
-      } catch (err) {
-        return { ok: false, steps: i, divergedAt: i, error: err.message };
-      }
-      if (Net.stateSignature(a) !== Net.stateSignature(b)) { divergedAt = i + 1; break; }
+      const ra = a.next();
+      const rb = b.next();
+      if (a.error || b.error) { error = a.error || b.error; divergedAt = i + 1; break; }
+      if (!ra || !rb) break;
+      if (Net.stateSignature(a.state) !== Net.stateSignature(b.state)) { divergedAt = i + 1; break; }
     }
     return {
       ok: divergedAt < 0,
       steps: actions.length,
       divergedAt,
-      hashA: Net.stateHash(a),
-      hashB: Net.stateHash(b),
-      winnerA: a.winner,
-      winnerB: b.winner,
+      error,
+      hashA: Net.stateHash(a.state),
+      hashB: Net.stateHash(b.state),
+      winnerA: a.state.winner,
+      winnerB: b.state.winner,
     };
   },
 };
-
-function applyTo(st, act) {
-  if (act.k === 'a') G.advance(st);
-  else if (act.k === 'p') G.playCard(st, act.s, act.i, act.o || {});
-  else if (act.k === 'c') G.resolveChoice(st, act.v);
-  else if (act.k === 'x') G.sacrificeUnit(st, act.s, act.u);
-  else if (act.k === 's') G.surrender(st, act.s);
-}
 
 /**
  * 让两个难度互相对打 n 局，返回战绩。
@@ -632,10 +592,6 @@ window.__applyBonus = (st, side, key) => {
   };
 };
 
-/**
- * 截图 / 自检用：构造一个「玩家手里有【攻击】且轮到玩家打锦囊」的场景，
- * 并自动选中那张牌，用来验证「敌方国王」这个目标是否正确高亮、可点击。
- */
 /**
  * 自检钩子：造一个「效果打到一半反问玩家」的现场（卡牌「歼-10」的抉择）。
  * 把歼-10 塞进手牌 → 以 autoResolveChoices=false 打出 → 引擎应当挂起。
@@ -920,10 +876,6 @@ window.__pause = (on = true) => {
 };
 
 /**
- * 截图 / 自检用：把手牌换成指定的一组卡，用来检查卡面文字排版。
- * 不传参数时放一批第二批手绘卡（单位牌现在也要显示异能文字）。
- */
-/**
  * 自检钩子：卡牌飞行的意图记录（门禁用）。
  * 每次该飞的卡都记一笔：{ kind, side, cardId, iid, lane, row, from, animated }。
  * kind: 'draw' 是新抽到的手牌（从屏幕下方划入），'play' 是打出的牌
@@ -957,6 +909,24 @@ window.__demoHand = (ids) => {
   return list;
 };
 
+/**
+ * 无头推进的一步：让当前行动方由 AI 走完，再推进阶段。
+ *
+ * 调用方必须先把 `state.humanSide` 设成 -1（「这一局没有真人」）：
+ * 强化士兵（拟定目标攻击）在真人那一侧会挂起等人答，而这条路径上没有玩家 ——
+ * 设成 -1 后引擎自己挑目标，从源头上就不产生挂起
+ * （这也是它能替代 autoAnswerPending 的原因）。
+ *
+ * 出错就抛，由调用方决定是「静默停下」还是「把错误报回去」—— 下面两个钩子口径不同。
+ */
+function driveAiStep() {
+  const actor = G.getActor(state);
+  if (actor === null) { advanceGame(); return; }
+  const r = aiTakeTurn(state, actor);
+  RP.recAiActions(recording, actor, r && r.actions);
+  if (state.winner === null) advanceGame();
+}
+
 /** 双方都由 AI 代打，推进到第 n 回合后停下（预览中局用） */
 window.__playTurns = (n = 3) => {
   if (!state) startNewGame();
@@ -964,17 +934,10 @@ window.__playTurns = (n = 3) => {
   paused = true;
   clearTimeout(bannerTimer);
   clearTimeout(autoAdvanceTimer);
-  // 「这一局没有真人」——同 __autoPlay：否则强化士兵的问询会挂起等人，而这里没人
   state.humanSide = -1;
   let guard = 0;
   while (state.winner === null && state.turn <= n && guard++ < 4000) {
-    const actor = G.getActor(state);
-    if (actor === null) {
-      try { advanceGame(); } catch { break; }
-      continue;
-    }
-    try { const r = aiTakeTurn(state, actor); RP.recAiActions(recording, actor, r && r.actions); } catch { break; }
-    try { if (state.winner === null) advanceGame(); } catch { break; }
+    try { driveAiStep(); } catch { break; }
   }
   view.busy = false;
   view.busyText = '';
@@ -992,32 +955,10 @@ window.__playTurns = (n = 3) => {
 window.__autoPlay = (maxSteps = 4000) => {
   if (!state) startNewGame();
   screen = 'game';
-  /**
-   * 「这一局没有真人」：把双方都交给 AI 决策。
-   *
-   * 强化士兵（拟定目标攻击）在真人那一侧会挂起等人答，而这条路径上没有玩家 ——
-   * humanSide = -1 表示两侧都不是真人，引擎就会自己挑目标，不会挂起。
-   * （这也是它能替代 autoAnswerPending 的原因：从源头上就不产生挂起。）
-   */
   state.humanSide = -1;
   let guard = 0;
   while (state.winner === null && guard++ < maxSteps) {
-    const actor = G.getActor(state);
-    if (actor === null) {
-      try { advanceGame(); } catch (err) { return { error: `advance 失败: ${err.message}` }; }
-      continue;
-    }
-    try {
-      const r = aiTakeTurn(state, actor);
-      RP.recAiActions(recording, actor, r && r.actions);
-    } catch (err) {
-      return { error: `AI 出牌失败: ${err.message}` };
-    }
-    try {
-      if (state.winner === null) advanceGame();
-    } catch (err) {
-      return { error: `advance 失败: ${err.message}` };
-    }
+    try { driveAiStep(); } catch (err) { return { error: `推进失败: ${err.message}` }; }
   }
   settleIfNeeded();
   refresh();
@@ -1052,7 +993,7 @@ window.__demoSurrender = (mySide = 0) => {
     submit(a) {
       sent.push(a);
       // 真会话的 submit 也会先本地应用再发包，这里保持一致
-      if (a.k === 's') applyLocalAction(a, false);
+      if (a.k === 's') applyLocalAction(a);
       return true;
     },
   };

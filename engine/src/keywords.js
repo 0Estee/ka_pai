@@ -85,11 +85,6 @@ export function hasKw(unit, id) {
   return getKw(unit, id) !== null;
 }
 
-/** 单位是否拥有「后排」特性（不会被普通交战命中）—— 由所在排决定，不是词条 */
-export function isBackRow(unit) {
-  return !!unit && unit.row === 'back';
-}
-
 /**
  * 单位当前是否具有「两栖」。
  * 来源有二：自带 amphibious 词条；或拥有 nimble 且生命值 ≥ 生命上限的一半（向上取整）。
@@ -159,17 +154,6 @@ export function computeFinalDamage(target, raw, opts = {}) {
   const armor = getKw(target, 'armor');
   if (armor) amount = Math.max(0, amount - armor.x);
   return amount;
-}
-
-/** 单位能否被移动。「扎根」（含光环授予的）会挡住移动 —— 这是扎根的第二个实际作用。 */
-export function canBeMoved(unit) {
-  if (!unit || unit.removed) return false;
-  return !hasKw(unit, 'rooted');
-}
-
-/** 该卡牌定义是否可以放置在指定线路（用于引擎的合法性检查） */
-export function cardCanPlaceIn(def, lane) {
-  return canPlaceInLane({ keywords: def.keywords || [], hp: def.hp, maxHp: def.hp, lane: null }, lane);
 }
 
 /**

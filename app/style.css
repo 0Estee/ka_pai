@@ -4,7 +4,11 @@
    配色策略：
    · 所有颜色都走 CSS 自定义属性，正文里不再出现字面量颜色。
    · :root 是深色主题（默认），:root[data-theme="light"] 覆盖成浅色主题。
-   · 深色主题的取值 = 改造前的原值，保证视觉零变化。
+   · 主强调色只有一枚：--gold。--me / --foe / --legal / --target / --accent 是**语义色**，
+     一律降饱和、往金棕一系靠：战斗屏上一屏最多只让一样东西「跳」出来
+     （作者 2026-10 反馈「AI 味太重」：五六个高饱和色同时喊，就是模板味的来源）。
+   · 圆角只有两档：3px（按钮 / 小徽标）与 var(--radius)（卡面 / 面板 / 格子）；
+     圆点、费用徽章一律 50%。以前每类控件一个值，那本身就是「拼出来的」观感。
    ══════════════════════════════════════════════════════════ */
 
 :root {
@@ -20,20 +24,23 @@
   --desc-text: #cfc0a9;       /* 卡面描述 / 图例正文 */
 
   /* ── 主题强调色 ─────────────────────────────────────── */
+  /* 只有 --gold 是「强调」，其余五个是**语义色**：它们只需要被认出来（我方 / 敌方 /
+     可放置 / 可指定 / 可交互），不需要抢眼。全部降饱和并往金棕一系靠，
+     战斗屏上真正「亮」的只有金色一种。 */
   --gold: #d5ac62;            /* 主强调（金） */
-  --accent: #7ea6cc;          /* 主要交互蓝（费用点、聚焦态） */
-  --me: #6fa9de;              /* 我方 */
-  --foe: #d9736a;             /* 敌方 */
-  --legal: #7fa96b;           /* 可放置 */
-  --target: #d9a35e;          /* 可指定目标 */
-  --hp: #9dc388;              /* 生命值绿 */
-  --atk: #e2a171;            /* 攻击力橙 */
+  --accent: #9aa4b0;          /* 交互灰蓝（费用点、聚焦态）：只做「这里能点」的暗示 */
+  --me: #82a6c0;              /* 我方：钢蓝 */
+  --foe: #c4807a;             /* 敌方：砖红 */
+  --legal: #8d9c73;           /* 可放置：橄榄绿 */
+  --target: #c8a067;          /* 可指定目标：金棕（和 --gold 同族，两者含义本来就相连） */
+  --hp: #9cbc8b;              /* 生命值绿 */
+  --atk: #d9a882;            /* 攻击力橙 */
   /* 属性徽记（0.44）：宝石是图片，这三个值只用于徽记底光与数字描边 */
   --gem-atk: rgba(122, 186, 255, .34);
   --gem-hp: rgba(255, 110, 110, .34);
   --stat-stroke: rgba(6, 10, 20, .95);
-  --mana: #8fb8dc;            /* 费用蓝 */
-  --mark: #c1a3db;            /* 状态标记紫（淬毒 / 疾病） */
+  --mana: #8fa8bf;            /* 费用蓝 */
+  --mark: #b0a2c2;            /* 状态标记紫（淬毒 / 疾病）：压到灰紫，只做区分不做强调 */
 
   /* ── 棋盘格 ─────────────────────────────────────────── */
   --slot-line: #423628;       /* 空格虚线框 */
@@ -46,9 +53,7 @@
   --trap-bg-2: #1c1713;       /* 陷阱格斜纹 B */
   --trap-mark: #6d5c47;       /* 「陷阱格」字样 */
   --legal-bg: #1e2517;        /* 可放置格底 */
-  --legal-glow-1: rgba(127, 169, 107, .45);  /* 可放置格内发光（静态） */
-  --legal-glow-2: rgba(127, 169, 107, .28);  /* 呼吸动画：弱 */
-  --legal-glow-3: rgba(127, 169, 107, .70);  /* 呼吸动画：强 */
+  --legal-glow-1: rgba(141, 156, 115, .45);  /* 可放置格的内环（静态，不再呼吸） */
 
   /* ── 单位卡 ─────────────────────────────────────────── */
   --unit-bg-1: #2d251c;
@@ -94,6 +99,7 @@
   --banner-bg: rgba(213, 172, 98, .96);
   --banner-text: #241a05;
   --menu-bg: rgba(20, 16, 14, .97);
+  --panel-float: #241d1a;      /* 结算弹层的底：深色 / 浅色主题下就是实色，玻璃主题下才半透明 */
   /* 保留原值（规范表里写的是 rgba(0,0,0,.65)，但用它会明显改变现有弹窗遮罩） */
   --overlay: rgba(10, 8, 6, .82);
   --shadow: rgba(0, 0, 0, .45);
@@ -101,21 +107,21 @@
   --shadow-3: rgba(0, 0, 0, .55);   /* 横幅 */
 
   /* ── 目标高亮 ───────────────────────────────────────── */
-  --target-bg: rgba(217, 163, 94, .16);
-  --target-ring: rgba(217, 163, 94, .60);
-  --target-halo: rgba(217, 163, 94, 0);
-  --target-pulse-1: rgba(217, 163, 94, .45);
-  --target-pulse-2: rgba(217, 163, 94, .90);
-  --target-pulse-3: rgba(217, 163, 94, 0);
+  /* 只要三档就够：底 / 描边环 / 慢呼吸的最亮档。
+     以前还留着 halo 与 pulse-2/3 两套，那是给 0.9s 快速脉动配的；
+     脉冲一撤，它们就成了没人用的死值。 */
+  --target-bg: rgba(200, 160, 103, .16);
+  --target-ring: rgba(200, 160, 103, .60);
+  --target-pulse-1: rgba(200, 160, 103, .45);
 
   /* ── 图例 ───────────────────────────────────────────── */
-  --legend-me: #8fc0ef;
-  --legend-foe: #e8a1a1;
+  --legend-me: #8fb6d4;
+  --legend-foe: #d79b93;
   /* 战报：谁 / 动作 / 目标 三段分色（深色主题，作者 2026-10） */
-  --lg-act: rgba(214, 226, 250, .68);
+  --lg-act: rgba(226, 220, 208, .66);
   --lg-tgt: #ffd98a;
 
-  --radius: 4px;
+  --radius: 6px;
   --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
 }
 
@@ -140,18 +146,18 @@
 
   /* ── 主题强调色（浅底版本） ─────────────────────────── */
   --gold: #8a6a1f;            /* 保留金色作为主题强调，压深保证可读 */
-  --accent: #2f5d8a;
-  --me: #2a5f96;
-  --foe: #a63a2f;
-  --legal: #3f6b34;
-  --target: #94541a;
+  --accent: #47596b;          /* 交互灰蓝：浅底上仍要 ≥4.5:1，所以只压不淡 */
+  --me: #35607f;
+  --foe: #8f463c;
+  --legal: #48633c;
+  --target: #8a5c28;
   --hp: #33682f;
-  --atk: #8f4a12;
+  --atk: #8a5624;
   --gem-atk: rgba(28, 96, 200, .26);
   --gem-hp: rgba(196, 32, 32, .26);
   --stat-stroke: rgba(8, 12, 24, .92);
-  --mana: #245b8c;
-  --mark: #5b3f8a;
+  --mana: #33607d;
+  --mark: #5a4a7a;
 
   /* ── 棋盘格 ─────────────────────────────────────────── */
   --slot-line: #cbc0a6;
@@ -164,9 +170,7 @@
   --trap-bg-2: #f9f4e7;
   --trap-mark: #9a8f76;
   --legal-bg: #e7f0da;
-  --legal-glow-1: rgba(63, 107, 52, .32);
-  --legal-glow-2: rgba(63, 107, 52, .20);
-  --legal-glow-3: rgba(63, 107, 52, .55);
+  --legal-glow-1: rgba(72, 99, 60, .32);
 
   /* ── 单位卡 ─────────────────────────────────────────── */
   --unit-bg-1: #fefaf1;
@@ -212,27 +216,25 @@
   --banner-bg: rgba(214, 189, 129, .97);   /* 横幅仍是金色，配深字 */
   --banner-text: #2a2313;
   --menu-bg: rgba(251, 247, 237, .98);
+  --panel-float: #fcf8ec;      /* 见深色主题的同名变量 */
   --overlay: rgba(43, 38, 32, .45);
   --shadow: rgba(43, 38, 32, .20);
   --shadow-2: rgba(43, 38, 32, .22);
   --shadow-3: rgba(43, 38, 32, .28);
 
   /* ── 目标高亮 ───────────────────────────────────────── */
-  --target-bg: rgba(148, 84, 26, .14);
-  --target-ring: rgba(148, 84, 26, .55);
-  --target-halo: rgba(148, 84, 26, 0);
-  --target-pulse-1: rgba(148, 84, 26, .40);
-  --target-pulse-2: rgba(148, 84, 26, .75);
-  --target-pulse-3: rgba(148, 84, 26, .55);
+  --target-bg: rgba(138, 92, 40, .14);
+  --target-ring: rgba(138, 92, 40, .55);
+  --target-pulse-1: rgba(138, 92, 40, .40);
 
   /* ── 图例 ───────────────────────────────────────────── */
-  --legend-me: #2a5f96;
-  --legend-foe: #a63a2f;
+  --legend-me: #35607f;
+  --legend-foe: #8f463c;
   /* 战报：谁 / 动作 / 目标 三段分色（浅色主题，作者 2026-10） */
-  --lg-act: rgba(38, 50, 74, .64);
+  --lg-act: rgba(58, 52, 44, .62);
   --lg-tgt: #8a5312;
 
-  --radius: 4px;              /* 圆角不随主题变化，重复声明一次让浅色块自包含 */
+  --radius: 6px;              /* 圆角不随主题变化，重复声明一次让浅色块自包含 */
   --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;   /* 标题字体：衬线（纸质风格） */
 }
 
@@ -281,7 +283,7 @@ html, body {
   padding: 4px 10px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--dim);
   flex: 0 0 auto;
 }
@@ -290,7 +292,7 @@ html, body {
 .btn-menu {
   background: var(--panel-2); color: var(--text);
   border: 1px solid var(--line); border-radius: 3px;
-  padding: 3px 10px; font-size: 12px;
+  padding: 3px 10px; font-size: 11px;
 }
 
 /* ── 状态条 ───────────────────────────────────────────── */
@@ -299,7 +301,7 @@ html, body {
   align-items: center;
   gap: 10px;
   padding: 5px 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   border-top: 1px solid var(--line);
   background: var(--panel);
   flex: 0 0 auto;
@@ -307,28 +309,33 @@ html, body {
 }
 .statusbar.foe { border-left: 3px solid var(--foe); }
 .statusbar.me { border-left: 3px solid var(--me); border-top: 1px solid var(--line); }
-.statusbar.active { background: var(--panel-active); box-shadow: inset 0 0 0 2px var(--gold); }
+/* 当前行动方：只留一条金线 + 略亮的面板底。
+   以前是一整圈金色的 inset 描边，和「可放置」的内环、「可指定目标」的外环
+   挤在同一屏里比谁更亮（作者 2026-10：「同一屏最多只让一样东西发光」）。 */
+.statusbar.active { background: var(--panel-active); box-shadow: inset 0 -2px 0 var(--gold); }
 .sb-side b { color: var(--text); }
 .sb-role {
   font-style: normal;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--dim);
   margin-left: 4px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 3px;
   padding: 0 3px;
 }
 .sb-king { color: var(--foe); font-weight: 700; }
 .statusbar.me .sb-king { color: var(--hp); }
 
-/* 国王被指定为目标时高亮（「造成X点伤害」类卡片可以打脸） */
+/* 国王被指定为目标时高亮（「造成X点伤害」类卡片可以打脸）。
+   这是全屏唯一保留的慢呼吸（2.4s）：单位那边的目标环已经改成静态描边了，
+   因为棋盘上可能同时亮起十几个格子，那才是「太杂」的元凶。 */
 .sb-king.targetable {
   border: 1px solid var(--target);
-  border-radius: 5px;
+  border-radius: 3px;
   padding: 0 6px;
   margin: -1px 0;
   background: var(--target-bg);
-  animation: pulseT .9s ease-in-out infinite;
+  animation: pulseT 2.4s ease-in-out infinite;
   cursor: pointer;
 }
 .sb-mana { color: var(--mana); }
@@ -336,6 +343,7 @@ html, body {
 .pip {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--pip-off); display: inline-block;
+  transition: background .18s;
 }
 .pip.on { background: var(--accent); }
 .sb-hand { margin-left: auto; color: var(--dim); }
@@ -366,7 +374,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--dim);
   writing-mode: horizontal-tb;
   min-width: 0;
@@ -381,7 +389,7 @@ html, body {
 }
 .lane-name {
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--dim);
+  font-size: 9px; color: var(--dim);
 }
 
 .slot {
@@ -397,21 +405,24 @@ html, body {
   overflow: visible;
   display: flex;
   align-items: stretch;
+  /* 状态翻转（可放置 / 可指定目标）走 transition，不要硬切。
+     注意：格子是整块重绘出来的，所以这条 transition 只在 JS 于**活节点**上
+     翻类时看得到（棋盘铺开的 data-in、fx-* 那几支）；状态驱动的那次重建看不到。 */
+  transition: border-color .18s, box-shadow .18s, background-color .18s;
 }
 .slot.mine { border-color: var(--slot-mine); }
 .slot.foe { border-color: var(--slot-foe); }
 .slot.row-front { background: var(--slot-front); }
 .slot.occupied { border-style: solid; }
+/* 可放置格：静态强对比描边（2px 实线边 + 一圈内环），不再呼吸。
+   以前这里是 1.4s 的无限脉动，而单位那边的目标环是 0.9s 的无限脉动，
+   两者同时出现在战斗屏上 = 满屏格子一起明灭，玩家反而找不到哪个格子能用
+   （作者 2026-10 的「太杂」就是它俩）。静态描边一样清楚，还不烧帧。 */
 .slot.legal {
   border-color: var(--legal);
   border-style: solid;
   background: var(--legal-bg);
   box-shadow: inset 0 0 0 2px var(--legal-glow-1);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { box-shadow: inset 0 0 0 2px var(--legal-glow-2); }
-  50% { box-shadow: inset 0 0 0 3px var(--legal-glow-3); }
 }
 .slot.trap {
   border-style: dotted;
@@ -430,16 +441,17 @@ html, body {
   display: flex;
   flex-direction: column;
   padding: 3px 4px 24px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: linear-gradient(160deg, var(--unit-bg-1), var(--unit-bg-2));
   border: 1px solid var(--unit-line);
   cursor: pointer;
   overflow: hidden;
+  transition: border-color .18s, box-shadow .18s;
 }
 .unit.in-front { border-color: var(--unit-front-line); }
 .unit.in-back { border-color: var(--unit-back-line); background: linear-gradient(160deg, var(--unit-back-bg-1), var(--unit-back-bg-2)); }
 .u-name {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.15;
   font-weight: 600;
   white-space: nowrap;
@@ -497,17 +509,22 @@ html, body {
 }
 .u-hpbar i { display: block; height: 100%; background: var(--hp); }
 
+/* 可指定目标：静态 1px 实边 + 2px 外环 + 1px 内环。
+   同样是无限脉冲改静态：棋盘上可能同时亮十几个单位，谁在闪谁就赢注意力，
+   而这时候玩家真正要做的只是「挑一个」。慢呼吸只留给了国王那一处。 */
 .unit.targetable {
   border-color: var(--target) !important;
-  box-shadow: 0 0 0 2px var(--target-ring);
-  animation: pulseT .9s ease-in-out infinite;
+  box-shadow: 0 0 0 2px var(--target-ring), inset 0 0 0 1px var(--target-pulse-1);
 }
 @keyframes pulseT {
-  0%, 100% { box-shadow: 0 0 0 2px var(--target-pulse-1); }
-  50% { box-shadow: 0 0 0 3px var(--target-pulse-2); }
+  0%, 100% { box-shadow: 0 0 0 2px var(--target-ring); }
+  50% { box-shadow: 0 0 0 3px var(--target-pulse-1); }
 }
 
 /* ── 阶段条 ───────────────────────────────────────────── */
+/* 战斗屏的字号收敛到 9 / 11 / 13 三档（+ 飘字 17）：
+   以前这里 12.5、11.5、13、10.5、10、9.5 各来一套，一屏六种字号本身就是噪声。
+   9px = 卡面与刻度上的小字，11px = 名称与次级状态，13px = 正文与按钮。 */
 .phasebar {
   display: flex;
   align-items: center;
@@ -517,8 +534,8 @@ html, body {
   border-top: 1px solid var(--line);
   flex: 0 0 auto;
 }
-.phase-name { color: var(--gold); font-weight: 600; font-size: 12.5px; }
-.phase-status { color: var(--dim); font-size: 11.5px; }
+.phase-name { color: var(--gold); font-weight: 600; font-size: 13px; }
+.phase-status { color: var(--dim); font-size: 11px; }
 .btn-end {
   margin-left: auto;
   background: linear-gradient(180deg, var(--btn-bg-1), var(--btn-bg-2));
@@ -528,6 +545,7 @@ html, body {
   padding: 7px 16px;
   font-size: 13px;
   font-weight: 600;
+  transition: transform .08s ease;
 }
 .btn-end:disabled { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); }
 
@@ -554,7 +572,7 @@ html, body {
 
 .card {
   flex: 0 0 84px;
-  border-radius: 5px;
+  border-radius: var(--radius);
   border: 1px solid var(--card-line);
   background: linear-gradient(170deg, var(--card-bg-1), var(--card-bg-2));
   padding: 5px 6px;
@@ -572,6 +590,10 @@ html, body {
   box-shadow: 0 0 0 2px var(--gold), 3px 3px 0 var(--shadow-2);
   border-color: var(--gold);
 }
+/* 按下反馈：只有真能打出去的牌才动。不能出的牌按下去没反应是对的，
+   有反应等于骗玩家（他以为能出，结果报错）。 */
+.card.playable:active { transform: translateY(-3px); }
+.card.selected:active { transform: translateY(-5px); }
 .c-cost {
   position: absolute; top: -5px; left: -5px;
   width: 22px; height: 22px;
@@ -579,7 +601,7 @@ html, body {
   background: linear-gradient(180deg, var(--cost-bg-1), var(--cost-bg-2));
   color: var(--cost-text);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 1px 1px 0 var(--shadow-2);
 }
@@ -591,20 +613,17 @@ html, body {
 .c-stats span:first-child { color: var(--atk); }
 .c-stats span:last-child { color: var(--hp); }
 .c-kw { font-size: 9px; color: var(--gold); margin-top: 2px; line-height: 1.2; }
-.c-desc { font-size: 9.5px; color: var(--desc-text); margin-top: 3px; line-height: 1.25; flex: 1; overflow: hidden; }
+.c-desc { font-size: 9px; color: var(--desc-text); margin-top: 3px; line-height: 1.25; flex: 1; overflow: hidden; }
 
 /* ── 提示 / 横幅 ──────────────────────────────────────── */
 .hint {
-  position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: 142px;
   background: var(--hint-bg);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 5px 14px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--hint-text);
-  white-space: nowrap;
-  max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+  overflow: hidden; text-overflow: ellipsis;
   pointer-events: none;
   z-index: 30;
 }
@@ -613,8 +632,8 @@ html, body {
   background: var(--banner-bg);
   color: var(--banner-text);
   font-weight: 700;
-  font-size: 13.5px;
-  border-radius: 4px;
+  font-size: 13px;
+  border-radius: var(--radius);
   padding: 10px 18px;
   max-width: 90vw;
   text-align: center;
@@ -626,7 +645,7 @@ html, body {
 .banner small {
   display: block;
   margin-top: 4px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 400;
   opacity: .92;
   line-height: 1.35;
@@ -651,9 +670,9 @@ html, body {
   z-index: 60;
 }
 .result {
-  background: var(--panel);
+  background: var(--panel-float);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 24px 30px;
   text-align: center;
   min-width: 220px;
@@ -662,10 +681,11 @@ html, body {
 .result.win h2 { color: var(--hp); }
 .result.lose h2 { color: var(--foe); }
 .result.draw h2 { color: var(--gold); }
-.result p { color: var(--dim); font-size: 12px; margin: 0 0 16px; }
+.result p { color: var(--dim); font-size: 11px; margin: 0 0 16px; }
 .btn-restart, .btn-surrender {
   border: none; border-radius: 3px; padding: 9px 20px;
   font-size: 13px; font-weight: 600; color: var(--btn-text);
+  transition: transform .08s ease;
 }
 .btn-restart { background: linear-gradient(180deg, var(--btn-bg-1), var(--btn-bg-2)); }
 .btn-surrender { background: var(--btn-danger-bg); color: var(--btn-danger-text); }
@@ -684,9 +704,9 @@ html, body {
 .menu-head h3 { margin: 0; font-size: 14px; color: var(--gold); }
 .btn-close {
   margin-left: auto; background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--line); border-radius: 3px; padding: 5px 14px; font-size: 12px;
+  border: 1px solid var(--line); border-radius: 3px; padding: 5px 14px; font-size: 11px;
 }
-.menu-body { flex: 1; overflow-y: auto; padding: 8px 14px; font-size: 11.5px; line-height: 1.6; }
+.menu-body { flex: 1; overflow-y: auto; padding: 8px 14px; font-size: 11px; line-height: 1.6; }
 .menu-foot {
   display: flex; gap: 10px; padding: 10px 14px;
   border-top: 1px solid var(--line);
@@ -709,7 +729,7 @@ html, body {
 }
 
 /* 陷阱格（作者 2026-10 口径）：触发前敌方只看到「敌方陷阱」；触发后稍微放大展示 */
-.trap-slot { font-size: 10px; line-height: 1.15; text-align: center; color: var(--text, #ddd); }
+.trap-slot { font-size: 9px; line-height: 1.15; text-align: center; color: var(--text, #ddd); }
 .trap-slot.hidden { color: var(--trap-mark); letter-spacing: 1px; }
 .trap-slot.revealed {
   font-size: 13px;
@@ -761,188 +781,253 @@ html, body {
 /* 已经播过一次动画的飘字：保持可见，但不重启动画（作者：飘字别反复触发） */
 .fx-float-rest { animation: none; opacity: 1; }
 
+/* ══════════════════════════════════════════════════════════
+   棋盘侧补全的一批「只播一次」动画（作者 2026-10：动画太肤浅，要覆盖到每一个方面）
+
+   纪律（render.js 顶部那段写得很清楚）：#stage 每一帧都是整块重写 innerHTML，
+   凡是写在渲染字符串里的入场标记，每次重绘都会重播一遍。所以下面这些类
+   一律由 JS 在**活节点**上加、按 ms 摘掉（清单见文件末尾），
+   而且都不写 infinite、也不写 forwards：万一哪一支忘了摘，
+   也只是静静停在终态，不会变成永远播不完的动画。
+   ══════════════════════════════════════════════════════════ */
+
+/* 单位阵亡：淡出 + 轻微下沉 + 缩一点。以前只有 fx-hit（挨打抖一下 + 闪）,
+   「死掉」这一下是不存在的 —— 残影一摘，格子里的牌就凭空没了。
+   作用在格子里那张牌上（不是格子本身），标记万一没摘也只影响这一张。 */
+@keyframes fx-death {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(7px) scale(.94); }
+}
+.slot.fx-death .unit { animation: fx-death .34s ease-in forwards; }
+
+/* 回血：往上浮一下、亮一档。受击是向下抖 + 变红（fx-hit 已有），
+   治疗必须方向相反，否则玩家分不出这一下是加血还是掉血。 */
+@keyframes fx-heal {
+  0% { transform: translateY(0); filter: none; }
+  35% { transform: translateY(-3px); filter: brightness(1.35); }
+  100% { transform: translateY(0); filter: none; }
+}
+.sb-king.fx-heal { animation: fx-heal .42s ease-out; color: var(--hp); }
+.slot.fx-heal .unit { animation: fx-heal .42s ease-out; }
+
+/* 费用 / 法力变化：涨了往上弹，降了往下缩。
+   数字本身在重绘时是硬跳的、没有方向感，玩家看不出刚才是加了费还是花了费。 */
+@keyframes fx-pop-up {
+  0% { transform: translateY(2px) scale(1); }
+  45% { transform: translateY(-3px) scale(1.35); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes fx-pop-down {
+  0% { transform: translateY(-2px) scale(1); }
+  45% { transform: translateY(2px) scale(.7); }
+  100% { transform: translateY(0) scale(1); }
+}
+.pip.fx-pop-up, .sb-mana.fx-pop-up { animation: fx-pop-up .30s ease-out; }
+.pip.fx-pop-down, .sb-mana.fx-pop-down { animation: fx-pop-down .30s ease-out; }
+
+/* 阶段推进：阶段名自己往前挪一小步 + 淡入。
+   阶段名是纯文本，重绘时直接换掉，玩家看不出「推进了」这件事。 */
+@keyframes fx-phase {
+  0% { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.phasebar.fx-phase .phase-name { animation: fx-phase .30s ease-out; }
+
+/* 阵亡的第二支类：fx-death 带 forwards、一次淡出就停在「已消散」，
+   但 #stage 是整块重写的，重绘会把活节点连类一起换掉 —— 而阵亡残影（.unit.ghost）
+   要活到本路演出播完（约 1.6s，横跨两次 820ms 步进）。不给它按住的话，第二次重绘
+   会让残影「弹」回全不透明。fx-dead 是一条**静态**规则（无动画），JS 每次渲染后
+   都可以放心补上，不会重播。 */
+.slot.fx-dead .unit { opacity: 0; }
+
+/* 抽到的新牌落进卡槽那一下回弹。飞行（.fly-card）负责「从屏幕下方划过来」，
+   这一支只负责「落槽」那一下，所以叠在飞行的终点触发（见 render.js 的 dropHandPulse）。
+   只写位移不写 opacity：手牌的铺开/选中有各自的常态，回弹不该把卡闪一下。 */
+@keyframes fx-draw {
+  0% { transform: translateY(-9px) scale(1.06); }
+  58% { transform: translateY(2px) scale(.98); }
+  100% { transform: translateY(0) scale(1); }
+}
+.hand .card.fx-draw { animation: fx-draw .30s cubic-bezier(.2, .8, .3, 1); }
+
+/* 打出的牌在**原卡槽**的退场残影（作者 2026-10：本体是被重绘直接抹掉的，没有退场手感）。
+   本体是「先离开 state、再重绘」的，渲染完已经不在 DOM 里，没法给本体加类 ——
+   只能在渲染后于原位置补一块会缩掉的残影。挂 #fx-layer（和飞行的克隆卡同一层，
+   不受 #stage 重绘影响），所以不写 position: fixed / inset，只写自身定位。 */
+@keyframes fx-spend {
+  0% { opacity: .9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.78); }
+}
+.fx-spend {
+  position: absolute;
+  will-change: transform, opacity;
+  pointer-events: none;
+  animation: fx-spend .26s ease-in forwards;
+}
+.fx-spend .card { width: 100%; height: 100%; box-sizing: border-box; flex: none; }
+.fx-spend .c-desc { max-height: 44px; }
+
 /* 纸质卡牌风格补充（作者 2026-10 选定）：标题走衬线 */
 .result h2, .menu-head h3, .banner, .phase-name { font-family: var(--font-title); }
 
-/* 
-   玻璃主题（作者 2026-10）：磨砂玻璃 + 渐变光斑，设置里可切换。
-    变量表故意写全：换成玻璃时不能漏掉任何一个，否则会露出深色主题的实心板。
-    「透」全靠 body 上那几团光斑：面板是半透明的，底下得有颜色才看得出来。
-    backdrop-filter 只给大面板，20 个格子和单位不加（手机 GPU 扛不住，
-     格子/单位本身半透明已经有玻璃味了）。
-    */
+/* 玻璃主题（作者 2026-10）：设置里可切换的第三个外观。
+
+   这一版被作者批过「AI 味太重」，收敛的动作都在这里：
+   · 背景只留一团几乎看不见的冷光 + 一条干净的深色渐变（以前是 4 团高饱和彩色光斑）；
+   · backdrop-filter 只留结算弹层一处（以前顶栏 / 状态条 / 手牌区 / 设置行 / 大厅卡…
+     全都 20px 模糊 + saturate + brightness，那是安卓 GPU 上最贵的一笔账，
+     也是一屏里「什么都糊、什么都不清楚」的根源）；
+   · 面板一律靠 1px 细边 + 半透明白底分层，不再给每块面板都配高光上边和 30px 大投影；
+   · 强调色只剩 --gold，其余全部降饱和（见上面深色主题那段说明）。
+   变量表仍然故意写全：换成玻璃时不能漏掉任何一个，否则会露出深色主题的实心板。 */
 :root[data-theme="glass"] {
-  --bg: #16203a;  /* 兜底色：body 上真正的背景是渐变光斑 */
-  --bg-2: rgba(255, 255, 255, .10);  /* 顶栏 */
-  --panel: rgba(255, 255, 255, .15);  /* 大面板：半透明才看得到底下的光斑 */
-  --panel-2: rgba(255, 255, 255, .22);  /* 按钮/次级面板 */
-  --panel-active: rgba(255, 255, 255, .34);  /* 按下态 */
-  --line: rgba(255, 255, 255, .42);  /* 分隔线 */
-  --text: #f2f7ff;
-  --dim: #a9b8d6;
-  --desc-text: #dbe6ff;
-  --gold: #ffd479;  /* 玻璃版金色：亮一点，配深底 */
-  --accent: #7ad2ff;
-  --me: #6ee7b7;
-  --foe: #ff9aa8;
-  --legal: #8ef0c8;
-  --target: #ffd479;
-  --hp: #ff9090;
-  --atk: #ffcf8a;
-  --gem-atk: rgba(150, 215, 255, .46);
-  --gem-hp: rgba(255, 140, 140, .46);
+  --bg: #101728;  /* 兜底色：body 上真正的背景是那条深色渐变 */
+  --bg-2: rgba(255, 255, 255, .05);  /* 顶栏 / 阶段条 */
+  --panel: rgba(255, 255, 255, .08);  /* 面板：底子安静了，提亮一点点就够分层 */
+  --panel-2: rgba(255, 255, 255, .13);  /* 按钮 / 次级面板 */
+  --panel-active: rgba(255, 255, 255, .18);  /* 当前行动方 */
+  --line: rgba(255, 255, 255, .22);  /* 分隔线：细边就是玻璃层的分界，不再靠模糊和投影 */
+  --text: #eef2f8;
+  --dim: #9fadc4;
+  --desc-text: #ccd6e6;
+  --gold: #e0bb7c;  /* 唯一的主强调：压掉原来的荧光金，配深底照样够亮 */
+  --accent: #93a4b8;  /* 交互灰蓝：只暗示「这里能点」 */
+  --me: #8fb0c6;
+  --foe: #c9888a;
+  --legal: #9cb083;
+  --target: #d3ac74;
+  --hp: #93c39b;  /* 原来是荧光红：血条与「胜利」标题都吃这个值，红的读起来像失败 */
+  --atk: #d9a882;
+  --gem-atk: rgba(150, 215, 255, .34);
+  --gem-hp: rgba(255, 140, 140, .34);
   --stat-stroke: rgba(6, 10, 20, .90);
-  --mana: #9ad8ff;
-  --mark: #c9b6ff;
-  --slot-line: rgba(255, 255, 255, .40);  /* 格子虚线 */
-  --slot-bg: rgba(255, 255, 255, .10);  /* 格子：不模糊（20 个格子加 backdrop-filter 手机扛不住） */
-  --slot-front: rgba(255, 255, 255, .18);
-  --slot-mine: rgba(110, 231, 183, .38);
-  --slot-foe: rgba(255, 154, 168, .38);
-  --trap-line: rgba(201, 182, 255, .55);
-  --trap-bg-1: rgba(201, 182, 255, .22);
-  --trap-bg-2: rgba(201, 182, 255, .13);
-  --trap-mark: #c9b6ff;
-  --legal-bg: rgba(142, 240, 200, .20);
-  --legal-glow-1: rgba(142, 240, 200, .75);
-  --legal-glow-2: rgba(142, 240, 200, .5);
-  --legal-glow-3: rgba(142, 240, 200, .95);
-  --unit-bg-1: rgba(255, 255, 255, .26);  /* 单位卡：半透明玻璃片 */
-  --unit-bg-2: rgba(255, 255, 255, .13);
-  --unit-line: rgba(255, 255, 255, .48);
-  --unit-front-line: rgba(255, 255, 255, .38);
-  --unit-back-line: rgba(255, 255, 255, .30);
-  --unit-back-bg-1: rgba(255, 255, 255, .18);
-  --unit-back-bg-2: rgba(255, 255, 255, .09);
-  --hpbar-bg: rgba(255, 255, 255, .26);
-  --hand-bg: rgba(255, 255, 255, .11);  /* 手牌区 */
-  --card-bg-1: rgba(255, 255, 255, .30);  /* 手牌 */
-  --card-bg-2: rgba(255, 255, 255, .15);
-  --card-line: rgba(255, 255, 255, .48);
-  --card-spell-bg-1: rgba(122, 210, 255, .26);  /* 锦囊：偏青的玻璃 */
-  --card-spell-bg-2: rgba(122, 210, 255, .10);
-  --card-spell-line: rgba(122, 210, 255, .5);
-  --card-item-bg-1: rgba(201, 182, 255, .26);  /* 道具：偏紫的玻璃 */
-  --card-item-bg-2: rgba(201, 182, 255, .10);
-  --card-item-line: rgba(201, 182, 255, .5);
-  --card-dim: .58;  /* 费用不够/不可选时的透明度 */
-  --btn-bg-1: rgba(255, 255, 255, .34);
-  --btn-bg-2: rgba(255, 255, 255, .22);
-  --btn-text: #ffffff;
-  --btn-disabled-bg: rgba(255, 255, 255, .10);
-  --btn-disabled-text: rgba(255, 255, 255, .34);
-  --cost-bg-1: rgba(255, 212, 121, .95);  /* 费用徽章：磨砂金 */
-  --cost-bg-2: rgba(255, 176, 60, .90);
+  --mana: #94aec4;
+  --mark: #b3a6cf;
+  --slot-line: rgba(255, 255, 255, .16);  /* 格子虚线 */
+  --slot-bg: rgba(255, 255, 255, .04);  /* 格子：不模糊（20 个格子加 backdrop-filter 手机扛不住） */
+  --slot-front: rgba(255, 255, 255, .07);
+  --slot-mine: rgba(143, 176, 198, .34);
+  --slot-foe: rgba(201, 136, 138, .34);
+  --trap-line: rgba(179, 166, 207, .38);
+  --trap-bg-1: rgba(179, 166, 207, .12);
+  --trap-bg-2: rgba(179, 166, 207, .07);
+  --trap-mark: #9d97b5;
+  --legal-bg: rgba(156, 176, 131, .16);
+  --legal-glow-1: rgba(156, 176, 131, .60);  /* 可放置格的内环（静态） */
+  --unit-bg-1: rgba(255, 255, 255, .10);  /* 单位卡：玻璃片，但只提亮一点点 */
+  --unit-bg-2: rgba(255, 255, 255, .04);
+  --unit-line: rgba(255, 255, 255, .20);
+  --unit-front-line: rgba(255, 255, 255, .16);
+  --unit-back-line: rgba(224, 187, 124, .34);  /* 后排：金线，和主强调同族 */
+  --unit-back-bg-1: rgba(255, 255, 255, .08);
+  --unit-back-bg-2: rgba(255, 255, 255, .03);
+  --hpbar-bg: rgba(255, 255, 255, .12);
+  --hand-bg: rgba(255, 255, 255, .04);  /* 手牌区 */
+  --card-bg-1: rgba(255, 255, 255, .10);  /* 手牌 */
+  --card-bg-2: rgba(255, 255, 255, .04);
+  --card-line: rgba(255, 255, 255, .20);
+  --card-spell-bg-1: rgba(147, 167, 189, .18);  /* 锦囊：冷灰蓝（原来的青色荧光太跳） */
+  --card-spell-bg-2: rgba(147, 167, 189, .07);
+  --card-spell-line: rgba(147, 167, 189, .34);
+  --card-item-bg-1: rgba(179, 166, 207, .18);  /* 道具：灰紫 */
+  --card-item-bg-2: rgba(179, 166, 207, .07);
+  --card-item-line: rgba(179, 166, 207, .32);
+  --card-dim: .48;  /* 费用不够/不可选时的透明度 */
+  --btn-bg-1: rgba(255, 255, 255, .14);
+  --btn-bg-2: rgba(255, 255, 255, .08);
+  --btn-text: #eef2f8;
+  --btn-disabled-bg: rgba(255, 255, 255, .05);
+  --btn-disabled-text: rgba(255, 255, 255, .30);
+  --cost-bg-1: rgba(224, 187, 124, .92);  /* 费用徽章：暗金 */
+  --cost-bg-2: rgba(186, 143, 62, .90);
   --cost-text: #2a1c05;
-  --btn-danger-bg: rgba(255, 122, 138, .26);  /* 认输/投降 */
-  --btn-danger-text: #ffd7dd;
-  --pip-off: rgba(255, 255, 255, .24);  /* 未用掉的费用点 */
-  --hint-bg: rgba(122, 210, 255, .16);  /* 提示条 */
-  --hint-text: #eaf5ff;
-  --banner-bg: rgba(255, 214, 130, .93);  /* 横幅：亮玻璃纸条，必须够亮才看得清字 */
+  --btn-danger-bg: rgba(201, 136, 138, .18);  /* 认输/投降 */
+  --btn-danger-text: #f0c8c8;
+  --pip-off: rgba(255, 255, 255, .14);  /* 未用掉的费用点 */
+  --hint-bg: rgba(18, 25, 40, .88);  /* 提示条：要读得清，所以比面板实 */
+  --hint-text: #e6ecf5;
+  --banner-bg: rgba(224, 187, 124, .94);  /* 横幅：亮纸条，必须够亮才看得清字 */
   --banner-text: #241a06;
-  --menu-bg: rgba(24, 36, 62, .70);  /* 菜单：比面板更实一点，战报要读 */
-  --overlay: rgba(14, 22, 40, .52);  /* 遮罩 */
+  --menu-bg: rgba(16, 22, 36, .92);  /* 菜单 / 战报：实到不用模糊也读得清（原来 .70 是靠 blur 撑的） */
+  --panel-float: rgba(19, 26, 42, .74);  /* 结算弹层：全文件唯一还半透明到需要磨砂的那个底 */
+  --overlay: rgba(8, 12, 22, .58);  /* 遮罩 */
   --shadow: rgba(3, 8, 20, .42);
   --shadow-2: rgba(3, 8, 20, .32);
   --shadow-3: rgba(3, 8, 20, .46);
-  --target-bg: rgba(255, 212, 121, .20);  /* 可点选目标 */
-  --target-ring: rgba(255, 212, 121, .90);
-  --target-halo: rgba(255, 212, 121, .40);
-  --target-pulse-1: rgba(255, 212, 121, .55);
-  --target-pulse-2: rgba(255, 212, 121, .95);
-  --target-pulse-3: rgba(255, 212, 121, .45);
-  --legend-me: #6ee7b7;
-  --legend-foe: #ff9aa8;
+  --target-bg: rgba(211, 172, 116, .16);  /* 可点选目标 */
+  --target-ring: rgba(211, 172, 116, .70);
+  --target-pulse-1: rgba(211, 172, 116, .40);
+  --legend-me: #8fb0c6;
+  --legend-foe: #c9888a;
   /* 战报：谁 / 动作 / 目标 三段分色（玻璃主题，作者 2026-10） */
-  --lg-act: rgba(232, 240, 255, .74);
-  --lg-tgt: #ffe1a3;
-  --radius: 12px;  /* 玻璃要圆一点，纸质那一版是 4px */
+  --lg-act: rgba(226, 230, 238, .70);
+  --lg-tgt: #e8c68c;
+  --radius: 6px;  /* 圆角不再和纸质版分开：玻璃曾经把控件全抬到 12~14px，那是最明显的模板指纹 */
   --font-title: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;  /* 玻璃走现代无衬线，和纸质的衬线标题区分开 */
 }
 
-/* 渐变光斑背景：几团彩色光叠在深色渐变上，固定不随内容滚动 */
+/* 背景：一条安静的深色渐变 + 一团几乎看不出来的冷光，固定不随内容滚动。
+
+   以前这里铺了 4 团高饱和彩色光斑（青 / 紫 / 薄荷 / 白），面板再一律 20px 模糊，
+   结果整个屏幕每个方向都在发光，卡面文字和单位数字反而糊在里面读不出来
+   —— 那正是作者说的「AI 味」。现在背景只负责「暗且安静」，
+   颜色全部让给卡面、单位和那唯一一枚金色强调。 */
 :root[data-theme="glass"] body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(720px 520px at 6% -8%, rgba(122, 210, 255, .60), rgba(122, 210, 255, 0) 62%),
-    radial-gradient(620px 520px at 104% 4%, rgba(201, 182, 255, .52), rgba(201, 182, 255, 0) 58%),
-    radial-gradient(780px 560px at 44% 112%, rgba(110, 231, 183, .42), rgba(110, 231, 183, 0) 60%),
-    radial-gradient(60% 40% at 50% 0%, rgba(255, 255, 255, .10), transparent 70%),
-    linear-gradient(165deg, #1b2748 0%, #24325c 46%, #16203a 100%);
+    radial-gradient(900px 620px at 50% -12%, rgba(168, 190, 224, .10), rgba(168, 190, 224, 0) 64%),
+    linear-gradient(168deg, #131b30 0%, #101728 52%, #0b1020 100%);
   background-attachment: fixed;
 }
 
-/* 磨砂大面板：背景模糊 + 高光上边（-webkit- 前缀是给老 WebView 的） */
-:root[data-theme="glass"] .topbar,
-:root[data-theme="glass"] .statusbar,
-:root[data-theme="glass"] .hand-wrap,
-:root[data-theme="glass"] .menu-panel,
-:root[data-theme="glass"] .screen-head,
-:root[data-theme="glass"] .set-group,
-:root[data-theme="glass"] .lobby-card,
-:root[data-theme="glass"] .room-row,
-:root[data-theme="glass"] .diff-row,
-:root[data-theme="glass"] .net-banner,
-:root[data-theme="glass"] .rp-bar,
-:root[data-theme="glass"] .hint,
-:root[data-theme="glass"] .banner,
-:root[data-theme="glass"] .result,
-:root[data-theme="glass"] .choice-box,
-:root[data-theme="glass"] .unit-info .ui-card,
-:root[data-theme="glass"] .hm-btn {
-  -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
-  backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
-  border-color: rgba(255, 255, 255, .42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 10px 30px var(--shadow);
+/* 全文件唯一保留磨砂的地方：结算弹层（-webkit- 前缀是给老 WebView 的）。
+
+   为什么只留它一个：它是真的浮在棋盘上、需要透出下面那层暗色的盒子，面积也小。
+   其余面板（顶栏 / 状态条 / 手牌区 / 设置行 / 大厅卡 / 房间行 / 战报层…）全部改成
+   干净的半透明实底 + 1px 细边：
+    · 十几个面板同时 backdrop-filter，是安卓 GPU 上最贵的一笔账；
+    · 一屏之内所有面板都「模糊 + 高光上边 + 30px 大投影」，层级被抹平成一样厚，
+      谁也看不出哪个更重要 —— 均质感就是「AI 味」本身。
+   模糊从 20px 降到 12px，并去掉 saturate(1.8) brightness(1.12)：
+   那两项会把底下的暗色再提亮一次，面板自己就花了。 */
+:root[data-theme="glass"] .result {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px var(--shadow-3);
 }
 
-/* 手牌区那条阴影往上打，别把下面的手牌压暗 */
-:root[data-theme="glass"] .rp-bar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 -8px 26px var(--shadow); }
-
-/* 圆角回到玻璃该有的大小（纸质那一版被压到 3~5px，是在这个文件里写死的） */
-:root[data-theme="glass"] .card,
-:root[data-theme="glass"] .unit,
-:root[data-theme="glass"] .hint,
-:root[data-theme="glass"] .banner,
-:root[data-theme="glass"] .result,
-:root[data-theme="glass"] .btn-menu,
-:root[data-theme="glass"] .btn-close,
-:root[data-theme="glass"] .btn-end,
-:root[data-theme="glass"] .btn-restart,
-:root[data-theme="glass"] .btn-surrender,
-:root[data-theme="glass"] .choice-box,
-:root[data-theme="glass"] .choice-opt { border-radius: 14px; }
-:root[data-theme="glass"] .c-cost { box-shadow: 0 3px 12px var(--shadow-3); }
-:root[data-theme="glass"] .card.selected { box-shadow: 0 0 0 2px var(--gold), 0 12px 28px var(--shadow-3); }
-
-/*  阵营（超能力）与献祭按钮（作者 2026-10-03）  */
+/* 阵营（超能力）与献祭按钮（作者 2026-10-03） */
 /* 阵营行：和难度行同一套样式，左边加一道竖线区分「这是另一个选择」 */
 .fac-row .diff-main { border-left: 3px solid rgba(255, 120, 160, .55); }
 .set-head { margin: 18px 0 8px; font-size: 15px; opacity: .85; }
-/* 结束阶段左边的献祭按钮：恶魔阵营才会出现 */
+/* 结束阶段左边的献祭按钮：恶魔阵营才会出现。
+   原来写死了一对粉红字面量，是全文件仅剩的几处「调色板外」的颜色之一 ——
+   改用 --foe（砖红），和「对自己有损」的语义也对得上。 */
 .btn-sac {
   margin-left: auto; margin-right: 8px;
-  padding: 8px 14px; border-radius: 10px;
-  border: 1px solid rgba(255, 110, 150, .60);
-  background: rgba(255, 90, 140, .18);
-  color: inherit; font: inherit;
+  padding: 8px 14px; border-radius: 3px;
+  border: 1px solid var(--foe);
+  background: transparent;
+  color: var(--foe);
+  font: inherit;
+  transition: background .12s;
 }
-.btn-sac:active { background: rgba(255, 90, 140, .34); }
+.btn-sac:active { background: var(--panel-active); }
 
-/* 阵营超能力：手牌上的持久高亮（开局那张没有「出牌」时刻，靠这个提示玩家） */
+/* 阵营超能力：手牌上的持久高亮（开局那张没有「出牌」时刻，靠这个提示玩家）。
+   原来又是一枚橙色，和金色主强调抢；现在就用 --gold 本身，标签底同理。 */
 .card.is-superpower {
-  box-shadow: 0 0 0 2px rgba(255, 150, 90, .75), var(--shadow, 0 4px 12px rgba(0, 0, 0, .4));
+  box-shadow: 0 0 0 2px var(--gold), 0 2px 8px var(--shadow);
 }
 .card .c-sp {
   position: absolute;
   top: 2px;
   right: 4px;
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 4px;
-  border-radius: 6px;
-  background: rgba(255, 150, 90, .85);
-  color: #2a1a0a;
+  border-radius: 3px;
+  background: var(--gold);
+  color: var(--banner-text);
 }
 
 /* 召唤落点：不遮棋盘的底部选项条（作者 2026-10-04：召唤时直接在场上选一个位置放下） */
@@ -957,17 +1042,21 @@ html, body {
   gap: 6px;
   align-items: center;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
-  background: var(--menu-bg, rgba(24, 36, 62, .70));
-  backdrop-filter: blur(14px) saturate(1.4);
+  background: var(--menu-bg);
+  /* 这里原来也有一层 backdrop-filter: blur(14px)。它是压在棋盘上的，但召唤时玩家
+     正盯着棋盘挑格子，把底下的格线糊掉反而更难挑；--menu-bg 已经足够实，
+     去掉模糊既省一次全屏采样，也让格线保持清楚。 */
+  box-shadow: 0 -4px 14px var(--shadow);
 }
 .choice-bar .choice-title {
   width: 100%;
   font-size: 13px;
   opacity: .92;
 }
-.choice-bar .choice-opt { padding: 6px 10px; border-radius: 8px; }
+.choice-bar .choice-opt { padding: 6px 10px; border-radius: 3px; }
+.choice-bar .choice-opt:active { transform: translateY(1px); }
 
 /*  卡牌飞行（作者 2026-10-07）
    增手牌：从屏幕正下方曲线划入卡槽；出牌：从卡槽滑向落点格子；AI：从屏幕正上方滑入。
@@ -995,10 +1084,14 @@ html, body {
   flex: none;
 }
 .fly-card .c-desc { max-height: 44px; }
+/* 落点回弹：卡牌飞到位之后，格子自己「弹一下」再接住。
+   原来是 scale(1.05) -> scale(1) 的单向下沉，看着像格子被按扁；
+   改成先缩一下再弹过一点、最后稳住，落点才有「接住一张牌」的质感。 */
 .slot.fx-drop { animation: slotDrop .36s ease-out; }
 @keyframes slotDrop {
-  from { transform: scale(1.05); }
-  to { transform: scale(1); }
+  0% { transform: scale(.94); opacity: .55; }
+  55% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
 }
 
 /* 手牌还在飞向这一格：格子里的牌先不显示（HTML 照常渲染，只藏视觉），飞完摘掉标记再出现 */
@@ -1010,18 +1103,57 @@ html, body {
   border: 1px solid var(--accent); border-radius: var(--radius);
   background: var(--panel-2); color: var(--accent);
   font-size: 13px; font-weight: 700;
+  transition: transform .08s ease;
 }
 .btn-brew + .btn-sac { margin-left: 6px; }
-.raw-left { margin-left: 8px; color: var(--dim); font-size: 11.5px; }
+.raw-left { margin-left: 8px; color: var(--dim); font-size: 11px; }
 .card.is-raw { border-color: var(--accent); }
+/* 角标是「亮底深字」：原来拿 --panel 当文字色，可玻璃主题下 --panel 是 8% 的白，
+   压在灰蓝角标上几乎看不见（卡面上的字读不出来）。改用横幅那对「深字」色。 */
 .card .c-raw {
   position: absolute; top: 4px; right: 4px;
   padding: 1px 5px; border-radius: 3px;
-  background: var(--accent); color: var(--panel);
-  font-size: 10px; font-weight: 700;
+  background: var(--accent); color: var(--banner-text);
+  font-size: 11px; font-weight: 700;
 }
 .card.brew-picked {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   transform: translateY(-10px);
 }
+
+/* ══════════════════════════════════════════════════════════
+   按下反馈：纯 CSS，不用 JS。
+
+   手机上根本没有 hover，手指按下去必须立刻有回应，否则玩家会怀疑「点了没反应」。
+   用 transform 而不是改背景色：只翻一个合成层，不触发重绘 —— 棋盘每一帧都在重建，
+   能少一次重排就少一次。
+   只给真的能点的东西：出不了的牌按下去不动是对的（有反应等于骗玩家，他以为能出）。
+   ══════════════════════════════════════════════════════════ */
+.btn-end:active,
+.btn-menu:active,
+.btn-close:active,
+.btn-restart:active,
+.btn-surrender:active,
+.btn-brew:active,
+.sb-king.targetable:active { transform: translateY(1px); }
+
+/* ══ JS 钩子清单（由 app/js/render.js 提供，加类后按 ms 自动摘掉）══
+   · fx-death    → .slot                 单位阵亡那一次（作用在格子里那张牌/残影上，
+                                         要在残影还在场时加）                    340ms
+   · fx-dead     → .slot                 上面那支的静态「按住」（无动画，随便重加）——
+                                         残影要活到本路演出播完，中途重绘会把 fx-death
+                                         冲掉，靠它兜住，别让残影弹回不透明
+   · fx-heal     → .sb-king / .slot      国王或单位回血那一次                    420ms
+   · fx-pop-up   → .pip / .sb-mana       费用或法力增加那一次                    300ms
+   · fx-pop-down → .pip / .sb-mana       费用或法力减少那一次                    300ms
+   · fx-phase    → .phasebar             阶段推进那一次（作用在阶段名上）        300ms
+   · fx-draw     → .hand .card           抽到的新牌落进卡槽那一下（叠在飞行终点） 300ms
+   · fx-spend    → #fx-layer 里的退场残影 打出/弃置的牌在原卡槽收掉那一下       260ms
+
+   共同约定：一律在 render() 之后、拿到**活节点**再加类，到点用 setTimeout(ms) 摘掉。
+   为什么不能把标记写进渲染出来的 HTML 字符串：下一次 refresh() 会整块重写 #stage 的
+   innerHTML，写在字符串里的入场标记就会重播一遍（render.js 顶部那段注释正是这个坑）。
+   这八支也都不写 infinite；唯一带 forwards 的是 fx-death（它就是要停在「已经消散」的
+   样子，摘类由 JS 负责），fx-spend 带 forwards 是因为它的节点本来就只活那 260ms。
+   ══ */

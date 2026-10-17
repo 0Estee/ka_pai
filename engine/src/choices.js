@@ -10,15 +10,9 @@
  *   ESM 与打包器都能靠函数提升正常工作；见 combat.js 顶部说明。
  */
 
-import {
-  LANES, ROWS, SIDE, SIDE_NAME, LANE_NAME, PHASES, PHASE_ACTOR,
-  PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, KING_MAX_HP, MAX_TURNS, ADJACENT_LANES,
-  manaCapForTurn, DRAW_ON_FIRST_TURN, roleName,
-} from './constants.js';
-import { createRng, shuffle } from './rng.js';
-import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
+import { parseKeyword } from './keywords.js';
 import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
+import { isSealedByAura } from './auras.js';
 import { execActions } from './effects.js';
 import { PENDING } from './setup.js';
 import { apiFor } from './combat.js';
@@ -27,9 +21,7 @@ import { apiFor } from './combat.js';
 // 交互挂起（generator 驱动）
 // ══════════════════════════════════════════════════════════
 
-export function takeChoice(state, request) {
-  const qi = state.choiceQueue.findIndex((c) => c.type === request.type);
-  if (qi >= 0) return state.choiceQueue.splice(qi, 1)[0];
+function takeChoice(state, request) {
   /**
    * 录音模式（`state.choiceLog` 是数组时）：把**每一问的裁定**按顺序记下来。
    *
@@ -173,7 +165,7 @@ export function resolveChoice(state, choice) {
 // 触发队列
 // ══════════════════════════════════════════════════════════
 
-export function* runTriggeredEffects(state, unit, triggerName, payload = {}) {
+function* runTriggeredEffects(state, unit, triggerName, payload = {}) {
   // 被封印的单位异能不生效（卡牌「禁军」「大封印碑」「卫兵」）。
   // 一次性的 sealUnit 与「在场」式的大封印碑都要算。
   if (M.isSealed(unit) || isSealedByAura(state, unit)) return;
@@ -216,7 +208,7 @@ export function* runTriggeredEffects(state, unit, triggerName, payload = {}) {
 }
 
 /** effect.when 的判定。undefined 视为「总是发动」。 */
-export function whenMet(state, when, payload) {
+function whenMet(state, when, payload) {
   if (when === undefined || when === null) return true;
   if (when === 'fused') return !!payload.fused;
   if (typeof when === 'object') {
@@ -239,7 +231,7 @@ export function whenMet(state, when, payload) {
  * 伤害管线是同步的，所以那边只把 actions 入队（damage.queueCardActions），
  * 真正执行在这里，由 generator 链负责挂起/续跑。
  */
-export function* runCardTriggeredActions(state, side, cardId, actions, payload = {}) {
+function* runCardTriggeredActions(state, side, cardId, actions, payload = {}) {
   const def = state.cardLib[cardId] || {};
   const ctx = {
     state,
@@ -270,7 +262,7 @@ export function* runCardTriggeredActions(state, side, cardId, actions, payload =
   }
   yield* execActions(state, ctx, actions || []);
 }
-export function* runKingTriggeredEffects(state, side, triggerName, payload = {}) {
+function* runKingTriggeredEffects(state, side, triggerName, payload = {}) {
   const list = (state.players[side].kingEffects || []).filter((e) => e.trigger === triggerName);
   for (const effect of list) {
     const ctx = {

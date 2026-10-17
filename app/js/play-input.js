@@ -12,11 +12,15 @@
 
 import * as G from '../../engine/src/engine.js';
 import * as M from '../../engine/src/mechanics.js';
-import { LANES, ROWS, LANE_NAME } from '../../engine/src/constants.js';
+import { LANES, ROWS } from '../../engine/src/constants.js';
 import { matchesTargetFilter } from '../../engine/src/keywords.js';
 import { filterCtx } from '../../engine/src/auras.js';
 import * as RP from './replay.js';
 import * as Net from './multiplayer.js';
+import * as Enh from './enhance.js';
+import * as Eco from './economy.js';
+import * as Store from './store.js';
+import { TEST_CARD_LIB } from '../../engine/cards/test-cards.js';
 
 /**
  * 不需要玩家选择的目标选择器 —— 引擎自己就能确定目标。
@@ -470,6 +474,70 @@ function handleKingClick(side) {
   commitPlay(view.selectedIid, { targetKing: true });
 }
 
+// ══════════════════════════════════════════════════════════
+// 强化工坊：强化 / 精通 / 洗掉 / 星尘合成
+// ══════════════════════════════════════════════════════════
+
+/**
+ * 把一份新档案写回存档并重绘。
+ * 工坊里每个动作都会产出**新的** profile 对象（enhance.js 不改入参），
+ * 所以这里统一做「替换 + 存档 + 刷屏」，避免各分支各写一遍忘了存。
+ */
+function commitForge(nextProfile, hint) {
+  profile = nextProfile;
+  view.forgeHint = hint || '';
+  Store.saveProfile(profile);
+  refresh();
+}
+
+function forgeAction(act, cardId) {
+  const def = cardId ? TEST_CARD_LIB[cardId] : null;
+  if (!def) return;
+
+  if (act === 'forge-enhance') {
+    const r = Enh.applyEnhance(profile, def, cardId);
+    if (!r.ok) { view.forgeHint = r.reason; refresh(); return; }
+    const last = r.lvl >= Enh.ENHANCE_MAX;
+    commitForge(r.profile, `${def.name} 强化第 ${r.lvl} 次（−${r.cost} 金币）${last ? ' · 已练满，可以精通了' : ''}`);
+    return;
+  }
+
+  if (act === 'forge-master') {
+    const gate = Enh.canMaster(profile, def, cardId);
+    if (!gate.ok) { view.forgeHint = gate.reason; refresh(); return; }
+    // 锦囊没有三选一：直接减费
+    if (def.type === 'spell') {
+      const r = Enh.applyMastery(profile, def, cardId, null);
+      if (!r.ok) { view.forgeHint = r.reason; refresh(); return; }
+      commitForge(r.profile, `${def.name} 精通：费用降低（−${r.cost} 星尘）`);
+      return;
+    }
+    // 单位：抽三个技能给他选，选完才真正扣星尘
+    view.forgePick = { cardId, name: def.name, options: Enh.drawSkills() };
+    view.forgeHint = '';
+    refresh();
+    return;
+  }
+
+  if (act === 'forge-wash') {
+    const r = Enh.applyWash(profile, def, cardId);
+    if (!r.ok) { view.forgeHint = r.reason; refresh(); return; }
+    commitForge(r.profile, `${def.name} 洗掉了一次精通（星尘不退），要重新强化 ${Enh.ENHANCE_MAX} 次才能再精通`);
+  }
+}
+
+/** 三选一里点了某个技能 */
+function forgePickSkill(skillId) {
+  const pick = view.forgePick;
+  if (!pick) return;
+  const def = TEST_CARD_LIB[pick.cardId];
+  const r = Enh.applyMastery(profile, def, pick.cardId, skillId);
+  if (!r.ok) { view.forgeHint = r.reason; view.forgePick = null; refresh(); return; }
+  const skill = Enh.SKILL_BY_ID[skillId];
+  view.forgePick = null;
+  commitForge(r.profile, `${pick.name} 精通：获得「${skill ? skill.name : skillId}」（−${r.cost} 星尘）`);
+}
+
 function handleAction(act, el) {
   const id = el && el.dataset ? el.dataset.id : undefined;
 
@@ -506,6 +574,34 @@ function handleAction(act, el) {
   if (act === 'lan-join-manual') { joinByManualAddress(); return; }
   if (act === 'lan-start') { hostStartMatch(); return; }
   if (act === 'lan-quit') { quitRoom(); return; }
+
+  // ── 强化工坊（开始游戏 → 强化工坊）
+  if (act === 'open-forge') {
+    screen = 'forge';
+    view.forgeGroup = view.forgeGroup === 'type' ? 'type' : 'initial';
+    view.forgePick = null;
+    view.forgeHint = '';
+    refresh();
+    return;
+  }
+  if (act === 'back-play') { screen = 'play'; view.forgePick = null; refresh(); return; }
+  if (act === 'forge-group') {
+    view.forgeGroup = el.dataset.key === 'type' ? 'type' : 'initial';
+    refresh();
+    return;
+  }
+  if (act === 'forge-enhance' || act === 'forge-master' || act === 'forge-wash') {
+    forgeAction(act, id);
+    return;
+  }
+  if (act === 'forge-pick') { forgePickSkill(el.dataset.skill); return; }
+  if (act === 'forge-pick-cancel') { view.forgePick = null; refresh(); return; }
+  if (act === 'forge-buy-dust') {
+    const r = Eco.buyDust(profile, 1);
+    if (!r.ok) { view.forgeHint = r.reason; refresh(); return; }
+    commitForge(r.profile, `用 ${Eco.DUST_PER_GOLD} 金币合成了 ${r.gained} 星尘`);
+    return;
+  }
 
   // ── 回放列表
   if (act === 'replay-open') { openReplay(id); return; }

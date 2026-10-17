@@ -8,20 +8,15 @@
  * 依赖方向：mechanics ← setup ← play ← choices/combat
  */
 
-import {
-  LANES, ROWS, SIDE, SIDE_NAME, LANE_NAME, PHASES, PHASE_ACTOR,
-  PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, KING_MAX_HP, MAX_TURNS, ADJACENT_LANES,
-  manaCapForTurn, DRAW_ON_FIRST_TURN, roleName,
-} from './constants.js';
-import { createRng, shuffle } from './rng.js';
-import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
+import { LANES, ROWS, LANE_NAME, PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, roleName } from './constants.js';
+import { parseKeyword, hasKw, canPlaceInLane } from './keywords.js';
 import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
+import { hasRooted, hasKeyword, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
-import { instantiateUnit, probeFromDef } from './setup.js';
+import { instantiateUnit, probeFromDef, enhanceFor } from './setup.js';
 import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
 import { isOver, getActor, checkGameOver, triggerInHandEffects, applyHandStatDelta, advance } from './turns.js';
-import { apiFor, applySummonModify } from './combat.js';
+import { apiFor } from './combat.js';
 import { flushTriggers, driveGenerator } from './choices.js';
 import { isRawMaterial, comboTokenFor, returnRawMaterials, alchemyUnlock, alchemyTideOn, checkFlameLotus } from './factions.js';
 
@@ -50,7 +45,10 @@ export function costOf(state, handCard) {
   const handDelta = owner ? (owner.handCostDelta || 0) : 0;
   // 按「本局这张牌被用过几次」涨费（剑道令牌「连斩」U410：第 1 张不加费，之后每张 +1）
   const perUse = def.perUseCost && owner ? (owner.usedCount[def.id] || 0) * def.perUseCost : 0;
-  return Math.max(0, def.cost + (handCard.costDelta || 0) + handDelta + perUse);
+  // 强化工坊的「精通」减费（锦囊）：按这边自己的强化表算 —— 双方牌库共享，
+  // 同一张锦囊在两人手里可以是不同费用。
+  const enhanceCost = owner ? enhanceFor(state, owner.side, def.id).cost : 0;
+  return Math.max(0, def.cost + enhanceCost + (handCard.costDelta || 0) + handDelta + perUse);
 }
 
 /**
@@ -144,7 +142,7 @@ export function canPlaceUnit(state, side, probe, lane, row, opts = {}) {
  * @param {object} state
  * @param {number} side
  * @param {number} iid                手牌实例 id
- * @param {object} opts               { lane, row, targetUid, choices }
+ * @param {object} opts               { lane, row, targetUid }
  */
 export function playCard(state, side, iid, opts = {}) {
   if (isOver(state)) throw new Error('对局已结束');
@@ -197,8 +195,6 @@ export function playCard(state, side, iid, opts = {}) {
   // 手上带这条异能的牌先结算一次。放在「移出手牌之后」，
   // 所以它自己被派出去的那一次不会触发它自己。
   triggerInHandEffects(state, side);
-
-  if (Array.isArray(opts.choices)) state.choiceQueue.push(...opts.choices);
 
   const ctx = {
     state,
@@ -358,7 +354,7 @@ function* applyInHandSpellWatchers(state, ctx) {
 }
 
 /** 「有队友被打出时:」的观察者（卡牌「人间大炮」） */
-export function notifyAllyPlayed(state, played, side) {
+function notifyAllyPlayed(state, played, side) {
   for (const u of M.allUnits(state)) {
     if (u.removed || u === played || u.side !== side) continue;
     if (!(u.effects || []).some((e) => e.trigger === 'onAllyPlayed')) continue;
@@ -371,7 +367,7 @@ export function notifyAllyPlayed(state, played, side) {
 
 /** 「对方打出锦囊牌时:」的观察者（卡牌「拳击手」加身材、「苍耳」反伤） */
 
-export function notifyEnemyCastSpell(state, def, casterSide) {
+function notifyEnemyCastSpell(state, def, casterSide) {
   for (const u of M.allUnits(state)) {
     if (u.removed || u.side === casterSide) continue;
     if (!(u.effects || []).some((e) => e.trigger === 'onEnemyCastSpell')) continue;

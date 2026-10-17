@@ -8,15 +8,7 @@
  * 依赖方向：mechanics ← amounts ← targets/actions
  */
 
-import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
-import { matchesTargetFilter } from './keywords.js';
-import { filterCtx, hasRooted, getKeyword } from './auras.js';
-import {
-  dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
-  drawCards, gainMana, gainManaCap, laneUnits, allUnitsInLane, allUnits, log, freezeUnit,
-  canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
-  sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword,
-} from './mechanics.js';
+import { allUnits } from './mechanics.js';
 
 /** 把单位包成「目标引用」 */
 export const asUnit = (u) => (u ? { kind: 'unit', unit: u } : null);

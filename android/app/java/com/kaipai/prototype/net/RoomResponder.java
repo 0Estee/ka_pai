@@ -29,8 +29,9 @@ public final class RoomResponder {
     private Thread thread;
     private volatile boolean running = false;
 
-    // 房间状态由 NativeBridge 随游戏进程更新 —— 协议 §6 要求开局后 started=true，
+    // 开局状态由调用方更新 —— 协议 §6 要求开局后 started=true，
     // 否则客人会看到一个"点得进去但其实已经开打"的房间。
+    // 人数在应答阶段（还没握手）拿不到真实值，恒为 1。
     private volatile boolean started = false;
     private volatile int players = 1;
 
@@ -42,10 +43,6 @@ public final class RoomResponder {
 
     public void setStarted(boolean v) {
         this.started = v;
-    }
-
-    public void setPlayers(int n) {
-        this.players = n <= 0 ? 1 : n;
     }
 
     /**
@@ -113,10 +110,6 @@ public final class RoomResponder {
         m.put("started", started);
         m.put("version", (long) HttpGameServer.VERSION);
         return Json.encode(m);
-    }
-
-    public boolean isRunning() {
-        return running;
     }
 
     public void stop() {

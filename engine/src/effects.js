@@ -1,7 +1,7 @@
 /**
  * 门面：效果 DSL 解释器的对外出入口。
  *
- * ⚠ 本文件只做转发，实现已按职责拆到：
+ * ⚠ 本文件只有 `export … from`，不放任何实现 —— 实现已按职责拆到：
  *   targets.js  目标选择器（describeTarget / resolveTargets）
  *   actions.js  动作执行（execActions / execAction）
  *   amounts.js  动态数值与阵营（resolveAmount / resolveSide / asUnit / asKing）
@@ -13,14 +13,7 @@
  * 实现（targets/actions/amounts）不反向 import 本文件，避免自引用。
  */
 
-import { describeTarget, resolveTargets } from './targets.js';
-import { execActions, execAction, evalCondition } from './actions.js';
-import { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
-import { log } from './mechanics.js';
-
-export {
-  describeTarget, resolveTargets,
-  execActions, execAction, evalCondition,
-  resolveAmount, resolveSide, asUnit, asKing,
-  log,
-};
+export { describeTarget, resolveTargets } from './targets.js';
+export { execActions, execAction, evalCondition } from './actions.js';
+export { resolveAmount, resolveSide, asUnit, asKing } from './amounts.js';
+export { log } from './mechanics.js';

@@ -630,7 +630,6 @@ test('封印光环：大封印碑在场时，敌方被封印的单位连自己�
   const banner = deploy(s, 1, 'U102', 'plainL', 'back');   // 敌方战棋：给同线队友 +1 攻
   const mate = deploy(s, 1, 'W03', 'plainL', 'front');     // 它的队友 2/4
   assert.equal(effectiveAtk(s, mate), 2, '战棋被大封印碑罩住，光环不该再给队友加攻');
-  assert.ok(banner, '（战棋本身仍在场，只是它的光环失效）');
 });
 
 test('封印：一次性封印同样停掉被封印单位的光环（D62）', () => {
@@ -665,7 +664,6 @@ test('封印：被封印单位的「祝福 / 装甲 / 无敌」都不再生效�
   M.dealDamage(s3, deploy(s3, 0, 'W04', 'plainR', 'front'), { kind: 'unit', unit: okOne }, 5);
   assert.equal(okOne.hp, 4 - 2, '没封印时祝福仍然把 5 封成 2');
 });
-//   不反向依赖的模块（例如 board.js 或新增一个纯函数模块），再让两边都引用它。
 
 test('国王附着被动：战略纵深让友方单位被消灭时抽一张（D27 / U09）', () => {
   const s = game();
@@ -2149,7 +2147,6 @@ test('U458 妒忌：对攻击力最高的敌人造成 5 点伤害，召唤一张
 test('U459 恶意（令牌）：随机弃置敌方一张牌并复制进手牌，再抽一张', () => {
   const s = factionGame('sin');
   forcePhase(s, 1, 'spell');
-  s.players[1].hand[0].cardId;
   const foeHand0 = s.players[1].hand.length;
   const myHand0 = s.players[0].hand.length;
   const deck0 = s.deck.length;

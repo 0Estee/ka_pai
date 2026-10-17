@@ -5,7 +5,7 @@
  * 棋盘规模很小（4 路 × 5 排 + 手牌），整块重绘的开销远低于维护差量更新的复杂度。
  */
 
-import { LANES, LANE_NAME, ROWS, SIDE_NAME } from '../../engine/src/constants.js';
+import { LANES, LANE_NAME, ROWS } from '../../engine/src/constants.js';
 import { KEYWORD_DEFS } from '../../engine/src/keywords.js';
 import { effectiveAtk, hasRooted } from '../../engine/src/auras.js';
 import * as G from '../../engine/src/engine.js';
@@ -21,7 +21,7 @@ const PHASE_LABEL = {
   TURN_END: '回合结束',
 };
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** 词条 → 卡面短标签（带参数时显示 装甲1） */
 function keywordLabels(state, unit) {
@@ -77,8 +77,6 @@ function unitHTML(state, unit, view) {
     'unit',
     unit.row === 'front' ? 'in-front' : 'in-back',
     isTarget ? 'targetable' : '',
-    view.lastDamaged.includes(unit.uid) ? 'flash-damage' : '',
-    unit.uid === view.lastKilled ? 'flash-die' : '',
   ].filter(Boolean).join(' ');
 
   // 显示有效攻击力（含光环），否则玩家看到的数字和实际打出的伤害对不上
@@ -87,10 +85,13 @@ function unitHTML(state, unit, view) {
   // 「会被谁打、打多少」—— 只给我方单位算，让玩家在开战前就能预判
   const preview = state ? attackPreview(state, unit) : null;
 
+  // 卡面分层：名字 / 词条 / 标记 / 属性徽记 / 预览 / 血条，最多六层，同一屏要摆 40 张。
+  // 空词条行原来是照渲染一个空盒子的（不占高，但每张牌都多一个空节点）；
+  // 没有词条就不输出这一层 —— 大多数普通单位本来就没有词条。
   return `
     <div class="${classes}" data-uid="${unit.uid}">
       <div class="u-name">${esc(unit.name)}</div>
-      <div class="u-kw">${kws.length ? esc(kws.join(' · ')) : ''}</div>
+      ${kws.length ? `<div class="u-kw">${esc(kws.join(' · '))}</div>` : ''}
       ${marks.length ? `<div class="u-marks">${esc(marks.join(' '))}</div>` : ''}
       <div class="u-bottom">
         ${statBadge('atk', atk)}
@@ -102,17 +103,24 @@ function unitHTML(state, unit, view) {
 }
 
 /**
- * 我方单位在开战时这一击会打向谁 —— 只算攻击力 > 0 的我方单位。
+ * 开战时这一击会打向谁 —— 只算攻击力 > 0 的单位。
  *
  * 交战优先级是 前排 → 后排 → 国王（裁决 D17），所以这里跟
  * engine 的 enemyCombatTarget 保持同一套判断。
+ *
+ * 卡面上这一行只在「前排空着」时才画（作者 2026-10 的「对战界面不要太杂」）：
+ * 前排有单位时，它就在自家前排正上方那一格，谁挨这一下抬眼可见，
+ * 再叠一行 9px 箭头只是把棋盘已经讲清的事再说一遍；同屏 40 张牌，重复的成本是
+ * 「每一张都多一层文字」。真正说不清的是前排空着的那两种情形（打后排 / 直接打国王），
+ * 那才是这一行存在的理由。
  */
 function attackPreview(state, unit) {
   if (unit.side !== 0 && unit.side !== 1) return '';
   if (effectiveAtk(state, unit) <= 0) return '';
   const foe = 1 - unit.side;
-  const target = state.board[unit.lane].units[foe].front
-    || state.board[unit.lane].units[foe].back;
+  // 贴脸前排占着这一路：目标不言自明，这一行不画（见函数头的说明）
+  if (state.board[unit.lane].units[foe].front) return '';
+  const target = state.board[unit.lane].units[foe].back;
   const dmg = effectiveAtk(state, unit);
   if (target) return `→ ${target.name} ${dmg}`;
   return `→ 国王 ${dmg}`;
@@ -343,7 +351,7 @@ function handHTML(state, view) {
 }
 
 /** 把锦囊的 actions 粗略翻译成人话（只在卡牌定义没写 text 时兜底） */
-export function spellDescription(def) {
+function spellDescription(def) {
   const parts = [];
   for (const a of def.actions || []) {
     switch (a.op) {
@@ -498,6 +506,11 @@ function gameOverHTML(state, view) {
           <i class="coin"></i>
           <span class="reward-total">共 ${s.gold} 金币</span>
         </div>
+        <div class="reward-sub">
+          <span><i class="dust"></i> +${s.reward.dust || 0} 星尘</span>
+          <span>表现分 +${s.reward.perf || 0}</span>
+          <span>Lv.${s.levelAfter} · 累计 ${s.perf || 0}</span>
+        </div>
         <ul class="reward-lines">
           ${s.reward.lines.map((l) => `<li>${esc(l)}</li>`).join('')}
         </ul>
@@ -519,7 +532,6 @@ function gameOverHTML(state, view) {
     </div>`;
 }
 
-export { PHASE_LABEL };
 /**
  * 陷阱格的渲染（作者 2026-10 口径）：
  *    未触发的陷阱：**只有主人看得见卡名与效果**；敌方视角只显示「敌方陷阱」；

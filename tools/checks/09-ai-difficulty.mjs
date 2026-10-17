@@ -120,6 +120,79 @@ check('「不可能」的推演不污染共享卡库，也不影响别的难度�
   }
 });
 
+// ── 推演的成本：两份「只写不读」的流水账不再深拷贝 ──────────
+// 作者 2026-10：`cloneForSim` 现在把 `log`（战报）与 `choiceLog`（裁定流水）交给
+// 克隆体一个**空数组**，而不是递归深拷贝 —— 这两个是只增不减的历史，
+// 一局几百条，实测占 cloneForSim 总耗时的 77%（244 条日志的局面：0.192ms → 0.049ms）。
+// 这条检查盯住那个优化的**前提**：推演确实没有任何一处读它们。
+// 哪天有人让 AI 去「看战报」做判断，克隆就必须改回深拷贝（给空数组会读到假的空历史），
+// 这里会先炸 —— 而不是等到胜率莫名其妙变差才发现。
+check('推演跳过的两份流水账确实没人读（要改变这一点就得把深拷贝改回来）', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'ai.js'), 'utf8');
+  if (!src.includes('JOURNAL_KEYS')) {
+    throw new Error('ai.js 里找不到 JOURNAL_KEYS（克隆跳过的那两份流水账）');
+  }
+  // ① ai.js 自己不许读它们
+  src.split('\n').forEach((line, i) => {
+    if (line.trim().startsWith('*') || line.trim().startsWith('//')) return;   // 注释里提到没关系
+    if (/\bstate\.log\b|\bstate\.choiceLog\b/.test(line)) {
+      throw new Error(`app/js/ai.js:${i + 1} 读了流水账（推演读了它就不能再跳过深拷贝）: ${line.trim()}`);
+    }
+  });
+  // ② 引擎侧只许往战报里 push，不许读
+  const dir = path.join(ROOT, 'engine', 'src');
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.js'))) {
+    const lines = fs.readFileSync(path.join(dir, f), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (/\bstate\.log\b/.test(line) && !/state\.log\.push/.test(line) && !/^\s*[*//]/.test(line)) {
+        throw new Error(`engine/src/${f}:${i + 1} 读了 state.log（同上）: ${line.trim()}`);
+      }
+    });
+  }
+});
+
+// ── 评估权重必须**可注入**（所有「哪一档更强」的结论都靠它量）──
+// 「不可能」的每一条强度结论都是拿 `__aiLeague(..., params)` 扫出来的：
+// params 会被并进难度对象，直接覆盖评估函数里那些 `W.wXxx === undefined ? 默认值 : W.wXxx`。
+// 一旦哪个权重被写死，扫描会**静默**失效（跑出来的差异全是噪声）—— 那比不测更糟。
+// 判据：拿一个必然改变决策的注入值去打同一批种子，战绩必须变。
+// 实测（n=12，种子 1-12，写死 0 档）：默认 7/4/1 → 把「单位值」反过来算（wAtk/wHpEval = -5）1/11/0。
+check('评估函数的权重可被 params 覆盖（参数扫描的前提）', () => {
+  const n = 12;
+  const base = api.__aiLeague('impossible', 'nightmare', n, { planLevel: 0 }, null, 1);
+  const flip = api.__aiLeague('impossible', 'nightmare', n, { planLevel: 0, wAtk: -5, wHpEval: -5 }, null, 1);
+  if (base.p0 === flip.p0 && base.p1 === flip.p1 && base.draw === flip.draw) {
+    throw new Error('把 wAtk / wHpEval 反过来算，战绩却一模一样 —— 评估权重没有真的接进推演');
+  }
+});
+
+// ── 「不可能」的留手判定：交给推演，而不是手调阈值 ──────────
+// agent 2026-10 的实测改动。原来 aiTakeTurn 用 `pick.score < P.passThreshold` 决定留手，
+// 阈值 -1 是手调的常数，而**它才是这一档最大的短板**：
+//   写死第 0 档打噩梦，n=240 种子 1-240：111/128/1（46.3%）→ 117/122/1（48.8%）
+//   另取一段互不重叠的种子，n=120 种子 500-619：55/64/1（45.8%）→ 59/60/1（49.2%）
+// 现在改成「把『这一手都不出』也推演一遍，和最优出牌用同一把尺子比」（rolloutPass）。
+// 为什么不干脆再手调一个更低的阈值：这套游戏里手调阈值**已经被推翻两次**
+// （「困难」档的注释里有记录：-100 在旧卡池 +2.3 点，卡池换大后反而变亏）。
+// 交给推演就没有这个失效模式。
+// 判据：把留手门槛从 -100（几乎每步都留手）翻到 +100（几乎从不留手），战绩必须天差地别 ——
+// 参数没接进决策的话两者会一模一样。实测（n=12，种子 1-12，写死 0 档）：默认 7/4/1，门槛 -100 时 0/12/0。
+check('「不可能」的留手判定接进了决策，且默认开着', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'ai.js'), 'utf8');
+  if (!src.includes('rolloutPass: true')) {
+    throw new Error('「不可能」档没有默认打开 rolloutPass（留手判定又变回手调阈值了）');
+  }
+  const n = 12;
+  const hold = api.__aiLeague('impossible', 'nightmare', n, { planLevel: 0, rolloutPass: true, passMargin: -100 }, null, 1);
+  const play = api.__aiLeague('impossible', 'nightmare', n, { planLevel: 0, rolloutPass: true, passMargin: 100 }, null, 1);
+  if (hold.p0 === play.p0 && hold.p1 === play.p1) {
+    throw new Error('留手门槛 -100 与 +100 的战绩一模一样 —— rolloutPass 没有接进决策');
+  }
+  if (hold.p0 >= play.p0) {
+    throw new Error(`几乎每步都留手（${hold.p0} 胜）没有比几乎从不留手（${play.p0} 胜）更差 —— 留手判定没起作用`);
+  }
+});
+
 // 强度只用同侧对照比差值（__aiLeague 的 p0 不是 50%）。
 // 实测（120 局  两组互不重叠的种子）：不可能打普通 94%，同侧对照普通打普通 49%；
 // 这里用 n=40 只做「明显更强」的下限断言，避免门禁跑太久。

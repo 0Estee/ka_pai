@@ -11,6 +11,10 @@
 
 import { api, check, elements } from './harness.mjs';
 
+// 这一节的用例要按卡面原值断言攻/血：AI 的强化（enhance.js 的 aiForge）会按难度
+// 随机给敌方的牌加成，normal 起步就可能让 6 血靶子变成 6.4，所以固定成「简单」（不强化）。
+api.setDifficulty('easy');
+
 /**
  * 摆一只单位到指定位置（模拟「它已经在场上了」）。
  *
@@ -64,8 +68,7 @@ function sceneAtAsk() {
 }
 
 check('界面：强化士兵轮到出手时弹出选目标面板（含敌方单位与国王）', () => {
-  const { state, beast, scout } = sceneAtAsk();
-  void beast; void scout;
+  const { state } = sceneAtAsk();
 
   const html = elements.get('stage').innerHTML;
   if (!html.includes('choice-mask')) {

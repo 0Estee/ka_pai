@@ -1,6 +1,10 @@
 /**  战斗可视化：每一次攻击都要在棋盘上看得见 */
 import { api, elements, timers, check } from './harness.mjs';
 
+// 这一节的用例要按卡面原值断言攻/血：AI 的强化（enhance.js 的 aiForge）会按难度
+// 随机给敌方的牌加成，normal 起步就可能让 6 血靶子变成 6.4，所以固定成「简单」（不强化）。
+api.setDifficulty('easy');
+
 console.log('\n 战斗可视化：每一次攻击都看得见');
 
 /**

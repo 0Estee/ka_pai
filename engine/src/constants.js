@@ -29,9 +29,6 @@ export const ROWS = ['front', 'back'];
 /** 默认不可放置的线路（除非拥有 两栖 / 水生） */
 export const DEFAULT_FORBIDDEN_LANES = ['water'];
 
-/** 阵营 / 玩家编号。first = 先手，second = 后手。后手是固定的角色，不轮换。 */
-export const SIDE = { FIRST: 0, SECOND: 1 };
-
 /**
  * 玩家编号的中性名称。
  *
@@ -55,14 +52,6 @@ export const PHASES = [
   'TURN_END',     // 回合结束
 ];
 
-/** 阶段 → 该阶段允许行动的玩家；null 表示非行动阶段 */
-export const PHASE_ACTOR = {
-  DEPLOY_FIRST: SIDE.FIRST,
-  DEPLOY_SECOND: SIDE.SECOND,
-  SPELL_FIRST: SIDE.FIRST,
-  SPELL_SECOND: SIDE.SECOND,
-};
-
 /** 阶段 → 该阶段允许打出的卡牌类型 */
 export const PHASE_ALLOWED_CARD_TYPE = {
   DEPLOY_FIRST: 'unit',
@@ -73,9 +62,6 @@ export const PHASE_ALLOWED_CARD_TYPE = {
 
 /** 卡牌类型 */
 export const CARD_TYPE = { UNIT: 'unit', SPELL: 'spell', TRAP: 'trap' };
-
-/** 锦囊子类 */
-export const SPELL_KIND = { ITEM: 'item', ATTACK: 'attack' };
 
 /** 国王初始生命值 */
 export const KING_MAX_HP = 20;

@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, api, elements, timers, check } from './harness.mjs';
 
+// 这一节的用例要按卡面原值断言攻/血：AI 的强化（enhance.js 的 aiForge）会按难度
+// 随机给敌方的牌加成，normal 起步就可能让 6 血靶子变成 6.4，所以固定成「简单」（不强化）。
+api.setDifficulty('easy');
+
 console.log('\n 提示条：锦囊放大展示与伤害掉字');
 
 /**
@@ -75,18 +79,6 @@ check('掉字不会被格子裁掉，也不会被相邻格子盖住', () => {
   if (!m) throw new Error('.fx-float 没有 z-index：相邻格子的背景会盖住掉字');
   if (Number(m[1]) < 2) throw new Error('.fx-float 的 z-index 太小：' + m[1]);
 });
-
-
-function pumpTimers(rounds) {
-  for (let i = 0; i < rounds; i++) {
-    const pending = [...timers.entries()];
-    if (!pending.length) break;
-    for (const [id, t] of pending) {
-      timers.delete(id);
-      try { t.fn(); } catch { /* 桩里其它定时器抛错不影响这条断言 */ }
-    }
-  }
-}
 
 /** 只把「横幅自己 2 秒后消失」这件事提前，别把特效那条长定时器也一起烧掉 */
 function fireBannerTimer() {

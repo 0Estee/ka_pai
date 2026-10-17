@@ -1,0 +1,239 @@
+/**  强化 / 精通 + 星尘经济（作者 2026-10-17 的成长系统需求） */
+import { api, check, elements } from './harness.mjs';
+
+const NL = String.fromCharCode(10);
+console.log(NL + ' 强化 / 精通');
+
+const stage = () => elements.get('stage').innerHTML;
+
+/**
+ * 卡牌库从一局真对局里拿：`TEST_CARD_LIB` 是模块里的 const，
+ * 传统脚本求值后不会挂到 window 上（只有 function 声明会），所以不能直接读全局。
+ */
+function grabLib() {
+  api.__go('home');
+  api.setDifficulty('normal');
+  api.__nav('choose-ai', {});
+  api.__nav('start-ai', {});
+  api.__pause(true);
+  const st = api.__game();
+  if (!st || !st.cardLib) throw new Error('拿不到卡牌库（没能开局）');
+  return st.cardLib;
+}
+const lib = grabLib();
+api.__go('home');
+
+/** 找一张能进工坊的单位 / 锦囊 */
+const unitId = Object.keys(lib).find((id) => {
+  const d = lib[id];
+  return d.type === 'unit' && !d.token && !d.faction;
+});
+/** 原费 ≥3 的锦囊（精通一次 −1 费）；≤2 的走另一条规则 */
+const spellId = Object.keys(lib).find((id) => {
+  const d = lib[id];
+  return d.type === 'spell' && !d.token && !d.faction && (Number(d.cost) || 0) >= 3;
+});
+const cheapSpellId = Object.keys(lib).find((id) => {
+  const d = lib[id];
+  return d.type === 'spell' && !d.token && !d.faction && (Number(d.cost) || 0) <= 2;
+});
+
+/** 全新档案（自带一点钱，方便连续强化） */
+function fresh(gold = 1000, dust = 0) {
+  return { v: 1, gold, dust, perf: 0, forge: { v: 1, cards: {} } };
+}
+
+check('工坊列表：可强化牌全部列出，首字母分组把「其他」排到最后', () => {
+  const w = api.workshopCards(lib, fresh(), 'initial');
+  if (w.groups.length < 5) throw new Error('首字母分组太少：' + w.groups.length);
+  if (w.groups[0].label === '其他') throw new Error('「其他」组排在了最前面');
+  if (w.groups[w.groups.length - 1].label !== '其他') throw new Error('「其他」组没有排到最后');
+  const total = w.groups.reduce((n, g) => n + g.cards.length, 0);
+  if (total !== w.cards.length) throw new Error('分组卡片数和对不上：' + total + ' vs ' + w.cards.length);
+  const byType = api.workshopCards(lib, fresh(), 'type');
+  if (byType.groups.length !== 2) throw new Error('按类型应当只有 2 组，实际 ' + byType.groups.length);
+});
+
+check('强化 9 次：费用 12/16/…/44 共 252 金，单位 +1.0 攻 +1.0 血（第 9 次 +0.2）', () => {
+  const def = lib[unitId];
+  let p = fresh(1000);
+  const want = [12, 16, 20, 24, 28, 32, 36, 40, 44];
+  for (let i = 0; i < 9; i++) {
+    const r = api.applyEnhance(p, def, unitId);
+    if (!r.ok) throw new Error('第 ' + (i + 1) + ' 次强化失败：' + r.reason);
+    if (r.cost !== want[i]) throw new Error('第 ' + (i + 1) + ' 次价格 ' + r.cost + '，应为 ' + want[i]);
+    p = r.profile;
+  }
+  if (p.gold !== 1000 - 252) throw new Error('九次强化总花费不对，余 ' + p.gold);
+  if (api.enhanceValue(8) !== 0.8) throw new Error('第八次后累计应为 0.8，实际 ' + api.enhanceValue(8));
+  if (api.enhanceValue(9) !== 1) throw new Error('第九次后累计应为 1.0，实际 ' + api.enhanceValue(9));
+  const st = api.statsFor(def, api.recordFor(p, unitId));
+  if (st.atk !== (Number(def.atk) || 0) + 1) throw new Error('强化后攻击 ' + st.atk);
+  if (st.hp !== (Number(def.hp) || 0) + 1) throw new Error('强化后生命 ' + st.hp);
+  if (st.lvl !== 9) throw new Error('强化次数没记上：' + st.lvl);
+  const again = api.applyEnhance(p, def, unitId);
+  if (again.ok) throw new Error('第 10 次强化不应当成功（上限 9）');
+});
+
+check('锦囊强化 9 次数值不变（只是攒精通的资格）', () => {
+  const def = lib[spellId];
+  let p = fresh(1000);
+  const before = api.statsFor(def, api.recordFor(p, spellId));
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, spellId).profile;
+  const after = api.statsFor(def, api.recordFor(p, spellId));
+  if (after.cost !== before.cost) throw new Error('锦囊强化不该改费用：' + before.cost + ' -> ' + after.cost);
+  if (after.atk !== null || after.hp !== null) throw new Error('锦囊不该有攻/血');
+  if (after.lvl !== 9) throw new Error('强化次数没记上');
+});
+
+check('单位精通：失去强化数值换技能，星尘 20/40，最多 2 次，洗掉要重新练 9 次', () => {
+  const def = lib[unitId];
+  let p = fresh(1000, 100);
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, unitId).profile;
+  const r1 = api.applyMastery(p, def, unitId, 'w_atk');
+  if (!r1.ok) throw new Error('首次精通失败：' + r1.reason);
+  p = r1.profile;
+  if (p.dust !== 80) throw new Error('首次精通应扣 20 星尘，余 ' + p.dust);
+  const st = api.statsFor(def, api.recordFor(p, unitId));
+  if (st.lvl !== 0) throw new Error('精通后强化应清零，实际 lvl=' + st.lvl);
+  if (st.atk !== (Number(def.atk) || 0) + 1) throw new Error('精通后应只剩技能 +1 攻，实际 ' + st.atk);
+  if (api.canMaster(p, def, unitId).ok) throw new Error('刚精通完不该马上能再精通（强化已清零）');
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, unitId).profile;
+  const r2 = api.applyMastery(p, def, unitId, 'g_hp');
+  if (!r2.ok) throw new Error('第二次精通失败：' + r2.reason);
+  if (r2.cost !== 40) throw new Error('第二次精通应扣 40 星尘，实际 ' + r2.cost);
+  p = r2.profile;
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, unitId).profile;
+  if (api.canMaster(p, def, unitId).ok) throw new Error('第三次精通不应当被允许（上限 2）');
+  const w = api.applyWash(p, def, unitId);
+  if (!w.ok) throw new Error('洗掉精通失败：' + w.reason);
+  p = w.profile;
+  const after = api.statsFor(def, api.recordFor(p, unitId));
+  if (after.masteries !== 1) throw new Error('洗掉一次后应剩 1 个精通，实际 ' + after.masteries);
+  if (after.lvl !== 0) throw new Error('洗掉精通不该退还强化次数');
+  const gate = api.canMaster(p, def, unitId);
+  if (gate.ok) throw new Error('洗掉后不重新强化 9 次不该能精通');
+  if (!String(gate.reason).includes('9')) throw new Error('提示里应当说要重新强化 9 次：' + gate.reason);
+});
+
+check('锦囊精通：每次 −1 费，原费 ≤2 的只 −0.25，最多 2 次', () => {
+  const def = lib[spellId];
+  let p = fresh(1000, 100);
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, spellId).profile;
+  const r1 = api.applyMastery(p, def, spellId, null);
+  if (!r1.ok) throw new Error('锦囊首次精通失败：' + r1.reason);
+  p = r1.profile;
+  let st = api.statsFor(def, api.recordFor(p, spellId));
+  if (st.cost !== (Number(def.cost) || 0) - 1) throw new Error('第一次精通后费用 ' + st.cost);
+  for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, spellId).profile;
+  p = api.applyMastery(p, def, spellId, null).profile;
+  st = api.statsFor(def, api.recordFor(p, spellId));
+  if (st.cost !== (Number(def.cost) || 0) - 2) throw new Error('第二次精通后费用 ' + st.cost);
+
+  const cheap = lib[cheapSpellId];
+  let q = fresh(1000, 100);
+  for (let i = 0; i < 9; i++) q = api.applyEnhance(q, cheap, cheapSpellId).profile;
+  q = api.applyMastery(q, cheap, cheapSpellId, null).profile;
+  const cs = api.statsFor(cheap, api.recordFor(q, cheapSpellId));
+  if (cs.cost !== (Number(cheap.cost) || 0) - 0.25) throw new Error('廉价锦囊第一次精通应 −0.25，实际 ' + cs.cost);
+});
+
+check('金币上限 1000（溢出换星尘）、星尘上限 500、10 金合成 1 星辰', () => {
+  const a = api.capGold(1200, 0);
+  if (a.gold !== 1000) throw new Error('1200 金应压到 1000，实际 ' + a.gold);
+  if (a.dust !== 20) throw new Error('溢出 200 金应换 20 星尘，实际 ' + a.dust);
+  const b = api.capGold(5000, 490);
+  if (b.dust !== 500) throw new Error('星尘应封顶 500，实际 ' + b.dust);
+  const c = api.buyDust(fresh(25, 0), 1);
+  if (!c.ok) throw new Error('买星尘失败：' + c.reason);
+  if (c.profile.gold !== 15 || c.profile.dust !== 1) throw new Error('10 金换 1 星尘不对：' + c.profile.gold + '/' + c.profile.dust);
+});
+
+check('等级只看表现分（perf），不看金币', () => {
+  const rich = { v: 1, gold: 1000, dust: 0, perf: 0 };
+  if (api.levelProgress(rich.perf).level !== 1) throw new Error('0 表现分应当是 Lv.1');
+  const hi = api.levelProgress(9000);
+  if (hi.level <= 1) throw new Error('9000 表现分应当升级，实际 Lv.' + hi.level);
+  const r = api.rewardFor({ winner: 0, humanSide: 0, turn: 9, humanKingHp: 20, mode: 'ai' });
+  if (!(r.perf > 0)) throw new Error('胜局应当有表现分，实际 ' + r.perf);
+  if (typeof r.dust !== 'number' || r.dust <= 0) throw new Error('对局应当产出星尘，实际 ' + r.dust);
+});
+
+check('AI 的强化按难度递增，并且同种子完全确定（不消耗对局 rng）', () => {
+  const count = (diff) => Object.keys(api.aiForge(lib, { seed: 12345, difficulty: diff }).forge.cards).length;
+  const easy = count('easy');
+  const normal = count('normal');
+  const hard = count('hard');
+  const imp = count('impossible');
+  if (easy !== 0) throw new Error('简单难度不该强化，实际 ' + easy + ' 张');
+  if (!(easy <= normal && normal <= hard && hard <= imp)) {
+    throw new Error('难度递增不成立：easy=' + easy + ' normal=' + normal + ' hard=' + hard + ' impossible=' + imp);
+  }
+  const a = JSON.stringify(api.aiForge(lib, { seed: 777, difficulty: 'hard' }));
+  const b = JSON.stringify(api.aiForge(lib, { seed: 777, difficulty: 'hard' }));
+  if (a !== b) throw new Error('同种子两次生成的 AI 强化不一致');
+});
+
+check('工坊界面：能打开、能按类型切换、能买到星尘', () => {
+  const p = api.__profile();
+  const keep = { gold: p.gold, dust: p.dust, perf: p.perf, forge: p.forge };
+  try {
+    p.gold = 640; p.dust = 35; p.perf = 812; p.forge = { v: 1, cards: {} };
+    api.__go('home');
+    api.__nav('start-game', {});
+    if (!stage().includes('data-act="open-forge"')) throw new Error('开始游戏页没有强化工坊入口');
+    api.__nav('open-forge', {});
+    if (api.__screen() !== 'forge') throw new Error('没进工坊屏：' + api.__screen());
+    const n = (stage().match(/class="forge-card/g) || []).length;
+    const want = api.workshopCards(lib, p, 'initial').cards.length;
+    if (n !== want) throw new Error('工坊只画了 ' + n + ' 张，应为 ' + want);
+    if (!stage().includes('10 金 → 1 星尘')) throw new Error('页面上没有合成星尘的说明');
+    api.__nav('forge-group', { key: 'type' });
+    if ((stage().match(/class="forge-card/g) || []).length !== want) throw new Error('切到按类型后卡片数变了');
+    const before = p.dust;
+    api.__nav('forge-buy-dust', {});
+    // commitForge 是**重新绑定** profile 变量（新对象），所以要重新取一次
+    const p2 = api.__profile();
+    if (p2.dust !== before + 1) throw new Error('买星尘没生效：' + before + ' -> ' + p2.dust);
+  } finally {
+    p.gold = keep.gold; p.dust = keep.dust; p.perf = keep.perf; p.forge = keep.forge;
+    api.__go('home');
+  }
+});
+
+check('强化学到对局里：开局把增量交给引擎，回放也带着同一份', () => {
+  const p = api.__profile();
+  const keep = { gold: p.gold, dust: p.dust, perf: p.perf, forge: p.forge };
+  try {
+    let q = fresh(1000);
+    for (let i = 0; i < 9; i++) q = api.applyEnhance(q, lib[unitId], unitId).profile;
+    p.forge = q.forge;
+    api.setDifficulty('normal');
+    api.__nav('choose-ai', {});
+    api.__nav('start-ai', {});
+    api.__pause(true);
+    const st = api.__game();
+    if (!st) throw new Error('没能开局');
+    const mine = st.enhance && st.enhance[st.humanSide || 0];
+    if (!mine || !mine[unitId]) throw new Error('我方增量表里没有强化过的牌');
+    if (mine[unitId].atk !== 1 || mine[unitId].hp !== 1) {
+      throw new Error('增量不对：atk=' + mine[unitId].atk + ' hp=' + mine[unitId].hp);
+    }
+    // 引擎侧真吃到增量：同一张牌从手牌打出去时，实例攻/血要带上 +1
+    const hand = st.players[st.humanSide || 0].hand.find((c) => c.cardId === unitId);
+    if (hand) {
+      const view = api.__playTurns ? null : null;
+      const placed = api.__place(st.humanSide || 0, unitId, 'mountain', 0);
+      if (placed) {
+        const unit = Object.values(st.units || {}).find((u) => u.cardId === unitId);
+        if (unit) {
+          if (unit.atk !== (Number(lib[unitId].atk) || 0) + 1) throw new Error('下场的单位攻击没吃到强化：' + unit.atk);
+          if (unit.hp !== (Number(lib[unitId].hp) || 0) + 1) throw new Error('下场的单位生命没吃到强化：' + unit.hp);
+        }
+      }
+    }
+  } finally {
+    p.gold = keep.gold; p.dust = keep.dust; p.perf = keep.perf; p.forge = keep.forge;
+    api.__go('home');
+  }
+});

@@ -11,6 +11,7 @@
 import * as G from '../../engine/src/engine.js';
 import * as Store from './store.js';
 import * as Eco from './economy.js';
+import * as Enh from './enhance.js';
 import * as RP from './replay.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 import { aiTakeTurn, difficultyByKey, applyDifficultyBonus, installAiTargetPicker } from './ai.js';
@@ -60,19 +61,30 @@ function newGame() {
   const deck = buildTestDeck(80, seed);
 
   /**
-   * 本局阵营（作者 2026-10-03 的「超能力」规则）：对局开始前自选，本局可用该阵营的超能力。
-   * 现在只有一个阵营，AI 就先和玩家同阵营（镜像对局）。以后加阵营时这里改成让 AI 自己选。
-   * 必须和建局参数、录制都对齐：重放时要靠它重建「谁抽得到哪些超能力」。
-   */
-  /**
-   * 与 AI 对战时 AI 的阵营随机（作者 2026-10-11）。
-   * 用局内种子选，同一局永远同一个阵营 —— 回放与联机锁步靠这个；
-   * 阵营本来就会写进录制（RP.newRecording 的 factions 字段）。
+   * 本局阵营（作者 2026-10-03 的「超能力」规则）：玩家在难度页自选，本局可用该阵营的超能力。
+   *
+   * AI 的阵营随机（作者 2026-10-11），用**局内种子**选 —— 同一局永远是同一个阵营。
+   * 阵营必须和建局参数、录制都对齐：重放靠它重建「谁抽得到哪些超能力」，
+   * 而且它本来就写进录制（RP.newRecording 的 factions 字段）。
    * 联机不走这里：双方阵营由 session.beginGame 各自报上来。
    */
   const factionKeys = Object.keys(G.FACTIONS);
   const aiFaction = factionKeys[seed % factionKeys.length];
   const factions = [myFaction, aiFaction];
+
+  /**
+   * 双方的「强化 / 精通」增量表（增强玩法，见 app/js/enhance.js）。
+   *
+   * 玩家这一侧来自档案（profile.forge），AI 那一侧按**难度 + 局内种子**确定性生成：
+   *  · 难度越高，AI 被强化的牌越多（简单完全不强化，不可能 85% 的牌都有强化）
+   *  · 用哈希派生而不是 state.rng —— 不消耗对局随机数，回放/锁步才不会因为
+   *    「AI 强化多抽了几个随机数」而整体错位。
+   * 这张表和 deck / factions 一样属于**建局参数**，所以也要进录制与联机的 start 消息。
+   */
+  const aiForge = Enh.aiForge(TEST_CARD_LIB, { seed, difficulty });
+  const enhance = [];
+  enhance[me()] = Enh.buildSideEnhance(TEST_CARD_LIB, profile);
+  enhance[AI] = Enh.buildSideEnhance(TEST_CARD_LIB, aiForge);
 
   state = G.createGame({
     seed,
@@ -80,6 +92,7 @@ function newGame() {
     deck,
     cardLib: TEST_CARD_LIB,
     factions,
+    enhance,
   });
   /**
    * 记下**开局发牌之前**的牌库与 rng。
@@ -127,6 +140,8 @@ function newGame() {
     //（回放格式 v3 加的字段，见 replay.js 的 build()）。
     humanSide: state.humanSide,
     factions,
+    // 强化增量：不存的话重放出来双方单位都是卡面原值（见 replay.js 的 enhance 注释）
+    enhance,
     // 开局发牌前的一刻（牌库 + rng），重放时靠它把起点复原（见上面 `opening` 的说明）
     opening,
   });
@@ -156,11 +171,11 @@ function newGame() {
  */
 function doAction(action) {
   if (session) return session.submit(action);
-  applyLocalAction(action, false);
+  applyLocalAction(action);
   return true;
 }
 
-function applyLocalAction(action, fromRemote) {
+function applyLocalAction(action) {
   // 出牌前先把卡牌定义抓下来（打出后这张牌就离开手牌了）
   const playedDef = action.k === 'p'
     ? state.cardLib[((state.players[action.s].hand.find((c) => c.iid === action.i)) || {}).cardId]
@@ -197,11 +212,6 @@ function applyLocalAction(action, fromRemote) {
 /** 引擎推进的唯一入口 —— 顺手记进回放 / 广播给对手 */
 function advanceGame() {
   doAction({ k: 'a' });
-}
-
-/** 打出一张牌（玩家或 AI）—— 单机记回放，联机广播 */
-function playCardAction(side, iid, opts) {
-  return doAction({ k: 'p', s: side, i: iid, o: opts || {} });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -261,11 +271,6 @@ function tick() {
      * `state.pending` 被设上，界面渲染出选项，玩家点完由 resolveChoice 接着算。
      * 所以这里不再需要「开战前拦一下」的应用层待办（原来的 view.pendingPlan）。
      *
-     * 万一还是带着挂起请求走到这里（例如联机对手的操作先到），
-     * 直接返回等界面把它答完 —— 推进会被 engine.advance 里的
-     * 「存在待处理的交互请求，无法推进」拦下并抛错。
-     */
-    /**
      * 万一还是带着挂起请求走到这里（例如联机对手的操作先到），
      * 直接返回等界面把它答完 —— 推进会被 engine.advance 里的
      * 「存在待处理的交互请求，无法推进」拦下并抛错。
@@ -374,12 +379,14 @@ function settleIfNeeded() {
   const record = RP.finishRecording(recording, state);
   const humanKingHp = state.players[me()].kingHp;
 
-  // ── 金币结算
+  // ── 金币 / 星尘 / 表现分结算
   const r = Eco.applyResult(profile, {
     winner: state.winner,
     humanSide: me(),
     turn: state.turn,
     humanKingHp,
+    // 本局消灭的敌方单位数（引擎在 destroyUnit 里记的，见 engine/src/board.js）
+    kills: state.stats && state.stats.killsBySide ? state.stats.killsBySide[me()] : 0,
     // 联机是真人对手，走 pvp 系数（economy.js 的 MODE_MULTIPLIER）
     mode: session ? 'pvp' : 'ai',
   });
@@ -414,6 +421,8 @@ function settleIfNeeded() {
     levelBefore: r.levelBefore,
     levelAfter: r.levelAfter,
     gold: profile.gold,
+    dust: profile.dust,
+    perf: profile.perf,
   };
   view.settle = lastSettle;
 }
@@ -446,7 +455,7 @@ function summarizeLog(from) {
 
 export {
   startNewGame, newGame, doAction, applyLocalAction, advanceGame,
-  playCardAction, tick, settleIfNeeded, summarizeLog,
+  tick, settleIfNeeded, summarizeLog,
 };
 /**
  * 「放大展示」（作者 2026-10 口径）：

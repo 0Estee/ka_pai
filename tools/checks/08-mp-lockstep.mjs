@@ -9,7 +9,9 @@ check('一局的真实操作序列喂给两个引擎，全程保持一致', () =
   const rec = api.__replays()[0];
   if (!rec || !rec.actions.length) throw new Error('没有可用的操作序列');
 
-  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, rec.actions, rec.bonuses || [], rec.factions || []);
+  // 第 7 个参数传**完整录制**：锁步要照它逐字段重建（shuffled / opening / choiceLog），
+  // 少了任何一项，重建的那一局和录的那一局就会从某一步起对不上（偶发失败的老根）。
+  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, rec.actions, rec.bonuses || [], rec.factions || [], rec);
   if (!r.ok) throw new Error(`第 ${r.divergedAt} 步开始不一致（共 ${r.steps} 步）` + (r.error ? `  错误：${r.error}` : ''));
   if (r.winnerA !== rec.winner || r.winnerB !== rec.winner) {
     throw new Error(`重放终局对不上：录的是 ${rec.winner}，两个引擎跑出 ${r.winnerA}/${r.winnerB}`);
@@ -33,8 +35,57 @@ check('认输也是一条操作：喂给两个引擎，终局一致、指纹一�
   const rec = api.__replays()[0];
   if (!rec || rec.actions.length < 4) throw new Error('没有可用的操作序列');
   const actions = rec.actions.slice(0, 6).concat([{ k: "s", s: 0 }]);
-  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, actions, rec.bonuses || [], rec.factions || []);
+  const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, actions, rec.bonuses || [], rec.factions || [], rec);
   if (!r.ok) throw new Error('认输这一步开始分叉（第 ' + r.divergedAt + ' 步 / 共 ' + r.steps + ' 步）' + (r.error ? '  错误：' + r.error : ''));
   if (r.winnerA !== 1 || r.winnerB !== 1) throw new Error('认输（0 号位认输）后两个引擎的胜者应当都是 1，实际 ' + r.winnerA + '/' + r.winnerB);
   if (r.hashA !== r.hashB) throw new Error('认输之后两端指纹不同（终局文案或状态字段两端不一致）');
+});
+
+/**
+ * 把「重建方式与回放不一致」那个**偶发**失败固化下来。
+ *
+ * 老实现里 `lockstepCheck` 自己另写了一份「建局」，和 `replay.js` 的正规回放对不上
+ * （少 `opening`、少 `choiceLog` 裁定流），于是重建的那一局和录的那一局抽牌顺序不同，
+ * 报 `第 N 步开始不一致 ... 手牌中没有 iid=xx`。它是否触发取决于喂进去的那一局
+ * （实测 40 局里错 3 局），所以只跑「本次进程随机播出来的那一局」（上面那条）
+ * 永远抓不稳 —— 干净基线连跑 8 次也可能全过。
+ *
+ * 这里摁住种子、跑固定的一批：7 / 19 / 31 正是老实现必然分叉的三个，
+ * 其余用来加宽覆盖。一旦重建方式退回「自己另写一份」，这一条立刻红。
+ *
+ * 种子怎么摁住：`game-flow.js` 的 `seed = (Date.now() ^ Math.random()*0xffffffff) >>> 0`，
+ * 把 `Date.now()` 摁成 0、`Math.random()` 摁成 `(seed+0.5)/0xffffffff` 即可。
+ */
+function playFixedSeed(seed) {
+  // 只换掉沙箱里的 Math / Date 两个全局引用，跑完立刻还原 —— 不动真正的
+  // Math.random / Date.now，否则会污染同一进程里后面的检查。
+  const realMath = api.Math;
+  const realDate = api.Date;
+  const fakeMath = Object.create(realMath);       // 其余 Math.* 照旧走原型
+  fakeMath.random = () => (seed + 0.5) / 0xffffffff;
+  api.Math = fakeMath;
+  api.Date = new Proxy(realDate, { get: (t, p) => (p === 'now' ? () => 0 : t[p]) });
+  try {
+    const before = api.__replays().length;
+    api.__newGame();
+    api.__autoPlay();
+    if (api.__replays().length !== before + 1) throw new Error('这一局没打完 / 没能存进回放列表');
+    const rec = api.__replays()[0];
+    if (rec.seed !== seed) throw new Error(`种子没摁住：想要 ${seed}，实际 ${rec.seed}`);
+    return rec;
+  } finally {
+    api.Math = realMath;
+    api.Date = realDate;
+  }
+}
+
+check('按种子遍历若干局：每一局喂给两个引擎都保持一致', () => {
+  const seeds = [7, 19, 31, 42, 53, 64, 77, 88, 99, 111, 123, 202, 512, 2025];
+  const bad = [];
+  for (const seed of seeds) {
+    const rec = playFixedSeed(seed);
+    const r = api.__mp.lockstepCheck(rec.seed, rec.firstPlayer, rec.deck, rec.actions, rec.bonuses || [], rec.factions || [], rec);
+    if (!r.ok) bad.push(`seed=${seed} 第 ${r.divergedAt}/${r.steps} 步：${r.error || '两个引擎指纹不同'}`);
+  }
+  if (bad.length) throw new Error(`${bad.length}/${seeds.length} 局分叉：` + bad.join('；'));
 });

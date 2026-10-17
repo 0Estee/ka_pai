@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 局域网联机：传输层 + 锁步会话。
  *
  * 协议见 `docs/联机协议.md`。核心思想：
@@ -19,7 +19,7 @@ const POLL_TIMEOUT = 20000;
 /** WebSocket 握手超时 —— 旧版服务端不会有 /ws，不能让界面干等 */
 const WS_OPEN_TIMEOUT_MS = 4000;
 /** 掉线后等待重连的上限（毫秒）—— 协议 §7 */
-export const RECONNECT_LIMIT_MS = 60000;
+const RECONNECT_LIMIT_MS = 60000;
 
 // ══════════════════════════════════════════════════════════
 // 原生桥（Android）与运行模式
@@ -61,11 +61,6 @@ export function queryParam(name) {
   } catch {
     return '';
   }
-}
-
-/** 我这一方的玩家编号：主机固定 0，客人固定 1（先手由 seed 决定，与此无关） */
-export function mySide() {
-  return netMode() === 'guest' ? 1 : 0;
 }
 
 function parseJson(s, fallback) {
@@ -120,11 +115,6 @@ export class Transport {
     this.who = who;           // 'host' | 'guest'
     this.since = 0;
     this.stopped = false;
-  }
-
-  async roomInfo() {
-    const r = await fetch('/api/room', { cache: 'no-store' });
-    return r.json();
   }
 
   async send(msg) {
@@ -248,34 +238,43 @@ export class Session {
     this.peerName = '';
     /** 对手选的阵营（联机开局要用它建局，见 lan.js 的 hostStartMatch） */
     this.peerFaction = '';
-    this.roomName = '';
+    /**
+     * 对手的强化/精通增量表（`{cardId:{atk,hp,cost,kw}}`，来自 hello 消息）。
+     *
+     * 联机要求「双方各自强化自己的牌」：主机开局时把**自己**的与**对手报上来的**
+     * 拼成 `[{...}, {...}]` 交给 createGame，再随 start 广播给客人 ——
+     * 两端因此拿到完全相同的 enhance，单位落地数值与锦囊费用才不会分叉。
+     */
+    this.peerEnhance = null;
     this.step = 0;
     this.running = false;
     this.looping = false;
 
-    /** 对方最近一次报告的指纹，用于校验 */
-    this.peerHash = null;
     this.conflict = null;
   }
 
-  getName() {
-    return this.isHost ? '主机' : '客人';
-  }
-
   /** 主机把开局参数广播出去 */
-  async beginGame({ seed, firstPlayer, deck, factions }) {
-    this.applyStart({ seed, firstPlayer, deck, factions });
+  async beginGame({ seed, firstPlayer, deck, factions, enhance }) {
+    this.applyStart({ seed, firstPlayer, deck, factions, enhance });
     await this.transport.start();
-    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions });
+    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions, enhance });
     this.onUpdate();
   }
 
-  applyStart({ seed, firstPlayer, deck, factions }) {
+  applyStart({ seed, firstPlayer, deck, factions, enhance }) {
     // 先把开局参数交回上层记下来（客人要靠它录回放）。
     // 以前只有主机在 hostStartMatch 里自己记，客人这边的 recordingSeed/recordingDeck
     // 一直是空的 —— 客人那侧存出来的回放会是一副残局。
-    this.onSeedDeck(seed, firstPlayer, deck, factions);
-    this.state = G.createGame({ seed, firstPlayer, deck, cardLib: this.cardLib, factions: (factions || []).slice() });
+    this.onSeedDeck(seed, firstPlayer, deck, factions, enhance);
+    this.state = G.createGame({
+      seed,
+      firstPlayer,
+      deck,
+      cardLib: this.cardLib,
+      factions: (factions || []).slice(),
+      // 双方的强化增量（主机算好后随 start 广播过来；缺省就没有强化）
+      enhance: enhance || null,
+    });
     G.startGame(this.state);
     // 联机时**两边都是真人**，没有 AI 替谁做决定：
     // 效果中途要选目标（「抉择」「打出:指定目标」）时必须挂起等人点，
@@ -349,6 +348,8 @@ export class Session {
         this.peerName = msg.name || '';
         // 进房间时互相报一次阵营，主机开局才能按各自的阵营建局
         if (msg.faction) this.peerFaction = msg.faction;
+        // 同一份 hello 里还报「我这边强化了哪些牌」——主机开局要把它算进 enhance
+        if (msg.enhance && typeof msg.enhance === 'object') this.peerEnhance = msg.enhance;
         return true;
 
       case 'faction':
@@ -415,11 +416,9 @@ export class Session {
     const ok = await this.tryWebSocket();
     if (!this.running) return;
     if (!ok) {
-      this.usingWs = false;
       this.loop();
       return;
     }
-    this.usingWs = true;
   }
 
   /** 连上返回 true；连不上（或被挡）返回 false，由调用方回落到长轮询 */
@@ -485,12 +484,6 @@ export class Session {
       this.setStatus('closed');
       this.running = false;
     }
-  }
-
-  stop() {
-    this.running = false;
-    try { if (this.ws) this.ws.close(); } catch { /* 忽略 */ }
-    this.ws = null;
   }
 
   async loop() {

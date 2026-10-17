@@ -162,3 +162,115 @@ check('弃置：同一张牌只飞一次（重绘不重放）', () => {
   const added = api.__cardFlightSeq() - before;
   if (added !== 0) throw new Error('重绘又记了 ' + added + ' 笔弃置飞行，游标没推进');
 });
+
+/**
+ * 卡牌在手牌里的「落槽 / 退场」（作者 2026-10 补的两支）：
+ *   抽到的新牌落进卡槽那一下回弹（.hand .card.fx-draw）—— 叠在飞行终点；
+ *   打出的牌从手牌消失那一下的原位退场残影（#fx-layer 里的 .fx-spend）——
+ *   本体是「先离开 state、再重绘」的，等渲染完已经不在 DOM 里，
+ *   只能在原位置补一块会缩掉的残影（位置由 render.js 的 noteHandRects 每帧量下来）。
+ *
+ * 门禁的 DOM 桩没有 querySelectorAll / createElement / getBoundingClientRect，
+ * 所以这里临时补几个假的：它们只用来记账（谁给谁加了什么类 / 谁被 append 了），
+ * 用完立刻还原。记账统一写进 fxAdded —— 别按「每次调用新建一个数组」来记：
+ * render.js 会把 #fx-layer 缓存在模块里，第二次用例复用的还是第一次那个假节点，
+ * 按闭包记就会把账记到上一个数组去。
+ */
+let fxAdded = [];
+function fxFakeNode(sel) {
+  const cls = new Set();
+  const node = {
+    __sel: sel,
+    className: '',
+    id: '',
+    innerHTML: 'card-face',
+    style: {},
+    classList: {
+      add: (c) => { cls.add(c); fxAdded.push({ sel, cls: c }); },
+      remove: (c) => cls.delete(c),
+      contains: (c) => cls.has(c),
+      toggle: () => {},
+    },
+    setAttribute() {}, getAttribute() { return null; }, dataset: {},
+    getBoundingClientRect() { return { left: 12, top: 34, width: 64, height: 88 }; },
+    remove() {},
+    appendChild(el) { fxAdded.push({ sel: 'appendChild', cls: (el && el.className) || (el && el.id) || '' }); },
+  };
+  node.closest = (s) => fxFakeNode(s);
+  return node;
+}
+
+/** 临时把 document / #stage 的 DOM 能力换成假节点；返回还原函数 */
+function withFakeDom() {
+  const stage = elements.get('stage');
+  const doc = api.document;
+  const saved = { q: doc.querySelector, qa: doc.querySelectorAll, create: doc.createElement, body: doc.body };
+  stage.querySelector = (sel) => fxFakeNode(sel);
+  stage.querySelectorAll = (sel) => [fxFakeNode(sel)];
+  // dropHandPulse 找手牌卡走的是 document.querySelector（真机上 #stage 就在 document 里）——
+  // 桩里这一支原本恒返回 null，落槽回弹就永远加不上。只在问手牌卡时给节点，其余照旧 null，
+  // 免得把别的「拿不到就安静跳过」的路径也带偏。
+  doc.querySelector = (sel) => (String(sel).includes('.hand .card[data-iid=') ? fxFakeNode(sel) : null);
+  doc.querySelectorAll = (sel) => (String(sel).includes('.hand .card[data-iid=') ? [fxFakeNode(sel)] : []);
+  doc.createElement = (tag) => fxFakeNode(tag);
+  doc.body = { appendChild(el) { fxAdded.push({ sel: 'body', cls: (el && el.className) || (el && el.id) || '' }); } };
+  return () => {
+    delete stage.querySelector;
+    delete stage.querySelectorAll;
+    doc.querySelector = saved.q;
+    doc.querySelectorAll = saved.qa;
+    doc.createElement = saved.create;
+    doc.body = saved.body;
+  };
+}
+
+check('源码 / CSS：fx-draw 与 fx-spend 两支都接上了', () => {
+  if (!renderSrc.includes('function dropHandPulse(')) throw new Error('render.js 缺少 dropHandPulse');
+  if (!renderSrc.includes("el.classList.add('fx-draw')")) throw new Error('render.js 没有给手牌卡加 fx-draw');
+  if (!renderSrc.includes('dropHandPulse(f.iid)')) throw new Error('抽牌落槽回弹没有接到飞行终点');
+  if (!renderSrc.includes('function spawnHandGhost(')) throw new Error('render.js 缺少 spawnHandGhost');
+  if (!renderSrc.includes("el.className = 'fx-spend'")) throw new Error('render.js 没有造 .fx-spend 残影');
+  if (!renderSrc.includes('function noteHandRects(')) throw new Error('render.js 缺少 noteHandRects（没有它残影拿不到位置）');
+  for (const r of ['.hand .card.fx-draw', '@keyframes fx-draw', '.fx-spend', '@keyframes fx-spend']) {
+    if (!cssSrc.includes(r)) throw new Error('style.css 缺少规则：' + r);
+  }
+});
+
+check('fx-draw：抽到的新牌落槽时给手牌卡加一次回弹（飞行没播成也要有）', () => {
+  const doc = api.document;
+  const restore = withFakeDom();
+  try {
+    api.__newGame();
+    api.__pause(true);
+    fxAdded = [];
+    api.__demoHand(['U05', 'U07', 'U10']);
+  } finally { restore(); }
+  const hits = fxAdded.filter((a) => a.cls === 'fx-draw' && a.sel.includes('.hand .card[data-iid='));
+  if (hits.length < 3) throw new Error('换了 3 张手牌，只有 ' + hits.length + ' 张给了落槽回弹');
+});
+
+check('fx-spend：打出的牌在原卡槽位置补一块退场残影', () => {
+  const restore = withFakeDom();
+  let ok = true;
+  try {
+    api.__newGame();
+    api.__pause(true);
+    fxAdded = [];
+    const r = api.__demoUnitTarget();   // 走真实的「选牌 → 点格子」，打出一张 U208
+    if (!r || r.error) { ok = false; throw new Error('构造出牌现场失败：' + (r && r.error)); }
+  } finally { restore(); }
+  if (ok && !fxAdded.some((a) => a.cls === 'fx-spend')) throw new Error('打出的牌离开了手牌，却没有在原位补退场残影');
+});
+
+check('fx-spend：整副换手牌不会误播（只认少掉 1~2 张）', () => {
+  const restore = withFakeDom();
+  try {
+    api.__newGame();
+    api.__pause(true);
+    api.__demoHand(['U05', 'U07', 'U10']);   // 先建立一份手牌
+    fxAdded = [];
+    api.__demoHand(['U12', 'U15', 'U16']);   // 整副换掉：不该当「打出一张」来演
+  } finally { restore(); }
+  if (fxAdded.some((a) => a.cls === 'fx-spend')) throw new Error('整副换手牌被当成了「打出一张」，误播了退场残影');
+});
+

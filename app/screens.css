@@ -12,6 +12,21 @@
  * 用 var(x, fallback) 兜底，万一某个变量漏了也不会变成透明/黑色。
  */
 
+/* ── 本文件自己的圆角档位（作者 2026-10-15 收敛）──────────────
+   这里原本散着 3 / 4 / 8 / 10 / 14 / 16 / 999 七种圆角，同屏几个面板能排出三个半径，
+   看着就像"每块都是不同的人随手写的"。现在只留两档，再加一个只给状态徽章的胶囊：
+     · 小控件（输入框 / 迷你按钮 / 标签 / 关键词行）  3px
+     · 面板 / 行 / 主按钮                            跟主题的 --radius
+       （纸质 4px、玻璃 12px —— 档位由 style.css 定，这里不再各写各的）
+     · 「可加入 / 已开始」「Lv.」这类状态徽章          胶囊
+   集中成变量而不是散在几十条规则里，是为了以后调档只改这一处。
+   注意这是圆角不是颜色，颜色仍然只从 style.css 的变量来。 */
+:root {
+  --scr-r-sm: 3px;
+  --scr-r: var(--radius, 8px);
+  --scr-pill: 999px;
+}
+
 /* ══════════════════════════════════════════════════════════
    对局内的可读性修补
    ══════════════════════════════════════════════════════════ */
@@ -35,18 +50,17 @@
   margin-top: 1px;
 }
 
-/* 选了牌之后的提示要显眼 —— 原来它排在手牌**下面**，
-   390×844 的屏幕上直接被挤出可视区，玩家看到的就是「打锦囊没有提示」*/
-/* 提示已经移到手牌**上方**（DOM 里排在 hand-wrap 之前），
-   所以要取消 style.css 里的 fixed 定位 —— 否则它会浮在 `bottom:142px`，
-   既不跟随新位置，又会和「开战」横幅、手牌挤在一起。 */
+/* 选了牌之后的提示要显眼 —— 它排在 hand-wrap **之前**，靠文档流定位，
+   不需要任何定位属性。原来它排在手牌**下面**，390×844 的屏幕上直接被
+   挤出可视区，玩家看到的就是「打锦囊没有提示」。
+
+   2026-10-15 收敛：选中态原来写成「金边 + 金底 + 金字 + 加粗」四重强调，
+   还顺手换了 padding（6px 10px ↔ .hint 的 5px 14px）和圆角（--radius ↔ .hint 的 4px）——
+   于是每选一张牌，这行字都要横着挪 4px、两个角再跳一下，看着就是"界面在抖"。
+   现在只改颜色和底色：不写 padding、不写 border-radius、不另加边框，
+   尺寸完全由 .hint 那份（style.css）决定，选牌前后一个字都不会动。
+   同屏"最亮的东西"留给被选中的那张牌本身（描边在 style.css），这行只负责把话说清楚。 */
 .hint {
-  position: static;
-  left: auto;
-  bottom: auto;
-  transform: none;
-  max-width: none;
-  white-space: normal;
   text-align: center;
   margin: 0 8px 4px;
 }
@@ -54,12 +68,10 @@
 .hint-active {
   color: var(--gold, #e8b84b);
   font-weight: 600;
+  /* 底色用主题的次级面板色，不再自己调一份 rgba 金：那份金和两个主题里的 --gold
+     都对不上（深色主题的金其实偏褐），换主题时会露馅 */
+  background: var(--panel-2, #1b2431);
   border-color: var(--gold, #e8b84b);
-  background: rgba(232, 184, 75, .1);
-  padding: 6px 10px;
-  border-radius: var(--radius, 8px);
-  border: 1px solid var(--gold, #e8b84b);
-  margin: 0 8px 4px;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -67,7 +79,9 @@
    ══════════════════════════════════════════════════════════ */
 
 
-/* 按钮右侧的小字（当前难度 / 说明） */
+/* 按钮右侧的小字（当前难度 / 说明）。
+   菜单这一层的字号只留两档：行名 14、说明 11 —— 原来难度页里 15 / 14 / 11 / 11 / 11
+   五种字号挤在一行，扫过去没有主次。 */
 .hm-sub {
   margin-left: auto;
   font-size: 11px;
@@ -84,26 +98,33 @@
   width: 100%;
   text-align: left;
   padding: 12px 14px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel, #151c26);
   color: var(--text, #e6edf6);
   font-family: inherit;
   cursor: pointer;
+  /* 按下 / 选中都是"换一档底色"，不是发光；transition 让它不会硬切 */
+  transition: background-color .15s ease, border-color .15s ease;
 }
-.diff-row:active { transform: scale(.99); }
+.diff-row:active { background: var(--panel-active, var(--panel-2, #1b2431)); }
+
+/* 选中态：金边 + 底色高一档。
+   原来这里是金色渐变（rgba(232,184,75,.18) → .05），和首页主按钮那处是同一份写法 ——
+   同一屏里两样东西一样亮，"开始对战"就不再是唯一的主按钮了。金色渐变只留 .hm-primary 一处。 */
 .diff-row.on {
   border-color: var(--gold, #e8b84b);
-  background: linear-gradient(160deg, rgba(232, 184, 75, .16), rgba(232, 184, 75, .04));
+  background: var(--panel-2, #1b2431);
 }
 .diff-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
 }
-.diff-check { color: var(--gold, #e8b84b); }
+/* 选中那行的 ✓ 已经不画了（screens.js 不再渲染它，这里曾经有的 .diff-check 规则上轮也整块撤掉）。
+   理由：勾和金边说的是同一件事，第三个金色信号只会让这一行更吵。所以这一屏的选中态
+   只剩 `.diff-row.on` 一处表达 —— 改它之前先确认主按钮还压得住。 */
 .diff-tag { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; line-height: 1.4; }
 .diff-cheat {
   margin-top: 6px;
@@ -138,6 +159,9 @@
   inset: 0;
   background: var(--overlay, rgba(0, 0, 0, .62));
 }
+/* 这是一张要滚动的长文面板：玻璃主题下尤其不能给它磨砂 ——
+   滚动时底下的光斑跟着抖，字会看不住（见文件后半段的玻璃收敛）。
+   浮起来的观感靠那条 3px 硬投影（纸质主题同款），不是靠模糊。 */
 .unit-info .ui-card {
   position: relative;
   width: 100%;
@@ -145,7 +169,7 @@
   max-height: 78vh;
   overflow-y: auto;
   padding: 14px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel, #151c26);
   color: var(--text, #e6edf6);
@@ -186,7 +210,7 @@
   font-size: 12px;
   line-height: 1.45;
   padding: 5px 8px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   background: var(--panel-2, #1b2431);
   border-left: 2px solid var(--gold, #e8b84b);
 }
@@ -196,7 +220,7 @@
   font-size: 12.5px;
   line-height: 1.55;
   padding: 9px 10px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   background: var(--panel-2, #1b2431);
   border: 1px solid var(--line, #2a3646);
 }
@@ -204,7 +228,7 @@
   display: inline-block;
   margin-right: 6px;
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: var(--scr-r-sm);
   font-size: 10px;
   background: var(--gold, #e8b84b);
   color: #201603;
@@ -218,14 +242,16 @@
   width: 100%;
   margin-top: 12px;
   padding: 10px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel-2, #1b2431);
   color: var(--text, #e6edf6);
   font-family: inherit;
   font-size: 14px;
   cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
 }
+.unit-info .ui-close:active { background: var(--panel-active, var(--panel-2, #1b2431)); }
 
 /* ══════════════════════════════════════════════════════════
    局域网：房间列表 / 大厅
@@ -239,15 +265,19 @@
   text-align: left;
   padding: 12px 14px;
   margin-bottom: 8px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel, #151c26);
   color: var(--text, #e6edf6);
   font-family: inherit;
   cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
 }
-.room-row:active { transform: scale(.99); }
-.room-row.room-full { opacity: .5; }
+.room-row:active { background: var(--panel-active, var(--panel-2, #1b2431)); }
+/* 已开战的房间：整行压暗、按钮同时 disabled（screens.js 里写死的）。
+   每次扫描刷新出来的都是新节点，所以这里不做 transition —— 让它安静地暗着，
+   新出现的行要滑一下的话走 .fx-row 那个钩子（见文件末尾清单）。 */
+.room-row.room-full { opacity: .5; cursor: default; }
 .room-main { flex: 1; min-width: 0; }
 .room-name { font-size: 14px; font-weight: 700; }
 .room-sub { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; font-variant-numeric: tabular-nums; }
@@ -256,14 +286,14 @@
   font-size: 11px;
   color: var(--legal, #3ddc84);
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--scr-pill);
   padding: 2px 8px;
 }
 .room-full .room-badge { color: var(--dim, #8b9bb0); }
 
 .lobby-card {
   border: 1px solid var(--line, #2a3646);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   background: var(--panel, #151c26);
   padding: 16px;
   text-align: center;
@@ -287,14 +317,17 @@
 .lobby-status {
   font-size: 13px;
   padding: 8px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   background: var(--bg-2, #0f151d);
 }
 .lobby-connected { color: var(--legal, #3ddc84); }
 .lobby-reconnecting { color: var(--target, #ffab40); }
 .lobby-closed { color: var(--foe, #ff6b6b); }
 
-/* 联机等待重连时盖在棋盘上的提示 */
+/* 联机等待重连时盖在棋盘上的提示。
+   它是 fixed + translate(-50%,-50%) 居中的，所以入场那下（.fx-pop）不能共用弹层那份
+   从中心缩放的通用关键帧 —— 那会把 translate 冲掉、把横幅甩到屏幕左边去，
+   单独给它一份带着 translate 的 toast-in（见文件末尾的动画段）。 */
 .net-banner {
   position: fixed;
   left: 50%;
@@ -302,15 +335,18 @@
   transform: translate(-50%, -50%);
   z-index: 60;
   padding: 14px 20px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   background: var(--panel, #151c26);
   border: 1px solid var(--target, #ffab40);
   color: var(--target, #ffab40);
   font-size: 13px;
   text-align: center;
   line-height: 1.6;
-  box-shadow: 3px 3px 0 var(--shadow, rgba(0, 0, 0, .5));
+  box-shadow: 2px 2px 0 var(--shadow, rgba(0, 0, 0, .5));
 }
+/* 状态冲突（同一房号两局同时推进之类）比"掉线等重连"更严重，用敌色区分，
+   但只有描边和字变色，不再叠第二层底或发光 */
+.net-banner.net-bad { border-color: var(--foe, #ff6b6b); color: var(--foe, #ff6b6b); }
 
 
 /* ══════════════════════════════════════════════════════════
@@ -328,7 +364,7 @@
 .reward {
   margin: 10px 0 12px;
   padding: 10px 12px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: var(--bg-2, #0f151d);
   text-align: left;
@@ -363,14 +399,16 @@
 }
 .btn-home {
   padding: 8px 14px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
   background: transparent;
   color: var(--text, #e6edf6);
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
 }
+.btn-home:active { background: var(--panel-2, #1b2431); border-color: var(--dim, #8b9bb0); }
 
 /* ══════════════════════════════════════════════════════════
    首页
@@ -392,12 +430,14 @@
   align-items: center;
   gap: 8px;
 }
+/* 右上角的 HUD 保持安静：金只出现在数字上，不做描边发光、不做投影 ——
+   首页"最亮的那一个"是下面那颗金色主按钮，HUD 抢了它就没主次了。 */
 .hud-gold {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--scr-pill);
   background: var(--panel, #151c26);
   border: 1px solid var(--line, #2a3646);
   font-size: 13px;
@@ -419,7 +459,7 @@
   align-items: flex-end;
   gap: 3px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--scr-pill);
   background: var(--panel, #151c26);
   border: 1px solid var(--line, #2a3646);
 }
@@ -478,23 +518,34 @@
   gap: 12px;
   width: 100%;
   padding: 15px 18px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   border: 1px solid var(--line, #2a3646);
-  background: linear-gradient(160deg, var(--panel-2, #1b2431), var(--panel, #151c26));
+  background: var(--panel, #151c26);
   color: var(--text, #e6edf6);
   font-size: 16px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  transition: transform .08s ease, border-color .15s ease;
+  /* 原来每个按钮都带一层 panel-2 → panel 的渐变，看着"每颗按钮都有自己的光"；
+     现在和难度行 / 房间行一样是实色面板，唯一那道光留给下面的主按钮 */
+  transition: background-color .12s ease, border-color .15s ease, transform .08s ease;
 }
 .hm-btn:active { transform: scale(.985); }
+/* 按下时换一档底色，不只是缩一下 —— 手感是"按进去了"。
+   主按钮的底色是它自己的金渐变，别被这条盖掉，所以排掉 .hm-primary。 */
+.hm-btn:not(.hm-primary):active {
+  background: var(--panel-active, var(--panel-2, #1b2431));
+  border-color: var(--dim, #8b9bb0);
+}
 .hm-ico {
   width: 22px;
   text-align: center;
   color: var(--dim, #8b9bb0);
   font-size: 16px;
 }
+/* 唯一的主按钮：金边 + 金渐变 + 金字。
+   全站只有这一处金色渐变（难度页的选中行原本也抄了一份，已经收掉）——
+   一屏之内只允许一个东西被"一眼找到"。 */
 .hm-primary {
   border-color: var(--gold, #e8b84b);
   background: linear-gradient(160deg, rgba(232, 184, 75, .18), rgba(232, 184, 75, .05));
@@ -533,6 +584,8 @@
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
 }
+/* 页头。屏幕切换时它跟 hint 一起滑一点点进来（规则在文件末尾的动画段），
+   这里只写它的静止样子：动画只碰 transform / opacity，不碰 padding 和边框。 */
 .screen-head {
   display: flex;
   align-items: center;
@@ -541,18 +594,21 @@
   border-bottom: 1px solid var(--line, #2a3646);
   background: var(--panel, #151c26);
 }
-.screen-head h2 { margin: 0; font-size: 15px; color: var(--text, #e6edf6); }
+/* 标题比行名大一档：标题 16 / 行名 14 / 说明 11。
+   原来标题 15、行名 14，两档只差 1px，扫过去分不出谁是这一屏的主语。 */
+.screen-head h2 { margin: 0; font-size: 16px; color: var(--text, #e6edf6); }
 .btn-back {
   padding: 6px 10px;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r-sm);
   border: 1px solid var(--line, #2a3646);
   background: transparent;
   color: var(--dim, #8b9bb0);
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
 }
-.btn-back:active { background: var(--panel-2, #1b2431); }
+.btn-back:active { background: var(--panel-2, #1b2431); color: var(--text, #e6edf6); }
 
 .screen-body {
   flex: 1;
@@ -566,7 +622,7 @@
 /* ── 设置 ────────────────────────────────────────────────── */
 .set-group {
   border: 1px solid var(--line, #2a3646);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   background: var(--panel, #151c26);
   overflow: hidden;
 }
@@ -581,11 +637,14 @@
 .set-desc { font-size: 11px; color: var(--dim, #8b9bb0); margin-top: 3px; line-height: 1.4; }
 .set-tip { font-size: 11px; color: var(--dim, #8b9bb0); text-align: center; padding: 6px; }
 
-/* 分段控件（深色 / 浅色） */
+/* 分段控件（深色 / 浅色 / 玻璃）。
+   注意：主题切换走的是 setTheme → refresh，整页重绘，选中那一格每次都是新节点，
+   所以 .on 的底色变化用 transition 补不出过渡 —— 这里的 transition 是给按下态用的。
+   想让"换主题"本身平滑换色，那是 style.css 那层的事（这里不接这个活）。 */
 .seg {
   display: inline-flex;
   border: 1px solid var(--line, #2a3646);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   overflow: hidden;
   flex: none;
 }
@@ -597,10 +656,13 @@
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
 }
+.seg-item:active { background: var(--panel-2, #1b2431); color: var(--text, #e6edf6); }
 .seg-item.on {
   background: var(--accent, #58a6ff);
-  color: #fff;
+  /* 原来是写死的 #fff，接上主题的按钮文字色（三套主题都定义了这个变量） */
+  color: var(--btn-text, #fff);
   font-weight: 700;
 }
 
@@ -624,7 +686,7 @@
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--line, #2a3646);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--scr-r);
   background: var(--panel, #151c26);
   margin-bottom: 8px;
 }
@@ -651,13 +713,17 @@
   flex: 1;
   min-width: 0;
   padding: 6px 8px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   border: 1px solid var(--line, #2a3646);
   background: var(--bg-2, #0f151d);
   color: var(--text, #e6edf6);
   font-size: 12px;
   font-family: inherit;
+  transition: border-color .12s ease;
 }
+/* 聚焦时只换描边颜色：这是手机上唯一能看出"输入框是被选中的那一个"的信号，
+   而且不新开一层底、不加发光 */
+.rp-input:focus { border-color: var(--accent, #58a6ff); }
 .rp-bad { font-size: 11px; color: var(--foe, #ff6b6b); }
 
 /* 操作按钮排在备注下面一行 —— 竖排三个按钮会把整行撑得很高 */
@@ -669,7 +735,7 @@
 }
 .rp-mini {
   padding: 5px 9px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel-2, #1b2431);
   color: var(--text, #e6edf6);
@@ -677,9 +743,15 @@
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color .12s ease, border-color .12s ease;
 }
-.rp-mini:active { transform: scale(.96); }
-.rp-mini.danger { color: var(--foe, #ff6b6b); border-color: rgba(255, 107, 107, .45); }
+.rp-mini:active {
+  transform: scale(.96);
+  background: var(--panel-active, var(--panel-2, #1b2431));
+}
+/* 危险按钮的描边跟着字色走（currentColor），不再自己调一份 rgba 红 ——
+   换主题时它不会再和 --foe 对不上 */
+.rp-mini.danger { color: var(--foe, #ff6b6b); border-color: currentColor; }
 .rp-mini:disabled { opacity: .35; cursor: not-allowed; }
 
 /* ══════════════════════════════════════════════════════════
@@ -735,6 +807,12 @@
   border: 2px solid var(--panel, #151c26);
   cursor: pointer;
 }
+/* 按住拇指时放大一点。
+   进度是补不了过渡的：这条 bar 每次步进都被 render.js 用 innerHTML += 重建，
+   thumb 的位置来自新节点的 value，没有"前一帧"可插值。
+   所以这里只做能做的：让"我正在拖"这件事有即时反馈。
+   ::-webkit-slider-thumb 上的 :active 只有 WebKit/Blink 认，本项目只跑 Android WebView，够用。 */
+.rp-seek:active::-webkit-slider-thumb { transform: scale(1.2); }
 
 .rp-bar-ctl {
   display: flex;
@@ -743,7 +821,7 @@
 }
 .rp-btn {
   padding: 6px 10px;
-  border-radius: 3px;
+  border-radius: var(--scr-r-sm);
   border: 1px solid var(--line, #2a3646);
   background: var(--panel-2, #1b2431);
   color: var(--text, #e6edf6);
@@ -751,8 +829,12 @@
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color .12s ease, border-color .12s ease;
 }
-.rp-btn:active { transform: scale(.96); }
+.rp-btn:active {
+  transform: scale(.96);
+  background: var(--panel-active, var(--panel-2, #1b2431));
+}
 .rp-btn-play {
   flex: 1;
   border-color: var(--accent, #58a6ff);
@@ -779,23 +861,31 @@
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
 }
+/* 抉择 / 拟定目标这一层是玻璃主题下保留磨砂的两处之一（见文件后半段）：
+   它盖在棋盘正上方，背后的格子和光斑本来就花，压一层 10px 的模糊字才读得住。 */
 .choice-box {
   width: 100%; max-width: 380px;
   background: var(--panel, #1b1f2a);
   border: 1px solid var(--line, #39415a);
-  border-radius: 4px; padding: 16px;
+  border-radius: var(--scr-r); padding: 16px;
   box-shadow: 3px 3px 0 var(--shadow, rgba(0, 0, 0, .5));
 }
-.choice-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; text-align: center; }
+.choice-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; text-align: center; }
 .choice-list { display: flex; flex-direction: column; gap: 8px; }
 .choice-opt {
   display: block; width: 100%; padding: 12px 14px;
   font-size: 14px; line-height: 1.4; text-align: left;
   color: inherit; background: var(--panel-2, rgba(255, 255, 255, .06));
-  border: 1px solid var(--line, #39415a); border-radius: 4px;
+  border: 1px solid var(--line, #39415a); border-radius: var(--scr-r-sm);
   cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
 }
-.choice-opt:active { background: rgba(255, 255, 255, .14); }
+/* 按下换主题的按下态色，不再写一份 rgba 白 —— 那份白在浅色主题下是"越按越亮"，
+   和深色主题正好相反 */
+.choice-opt:active {
+  background: var(--panel-active, rgba(255, 255, 255, .14));
+  border-color: var(--accent, #58a6ff);
+}
 
 /* ── 手动连接（搜不到房间时的兜底）─────────────────────────
    UDP 广播在很多路由器上会被拦（AP 隔离/访客网络），扫描永远是空的。
@@ -810,68 +900,107 @@
   padding: 11px 12px; margin-bottom: 8px;
   font-size: 15px; letter-spacing: .5px;
   color: inherit; background: var(--panel-2, rgba(255, 255, 255, .07));
-  border: 1px solid var(--line, #39415a); border-radius: 4px;
+  border: 1px solid var(--line, #39415a); border-radius: var(--scr-r-sm);
+  transition: border-color .12s ease;
 }
 .lan-input::placeholder { color: inherit; opacity: .35; }
-.lan-err { margin-top: 8px; font-size: 12px; line-height: 1.5; color: #ff8b8b; }
+/* 聚焦只换描边色（和 .rp-input 同一套做法），不新开底、不加发光 */
+.lan-input:focus { border-color: var(--accent, #58a6ff); }
+.lan-err { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--foe, #ff8b8b); }
 
-/* 联机大厅：金币不足时的说明（联机没有保底，扣到 0 就只能打 AI） */
+/* 联机大厅：金币不足时的说明（联机没有保底，扣到 0 就只能打 AI）。
+   原来用的是 --target 系的橙 —— 而那三个 --target-bg / --target-ring 变量在 style.css 里
+   根本没定义，一直靠 fallback 里写死的橙色在渲染；于是"警示"在联机页是橙、在首页是红，
+   同一件事两套说法。现在跟 .hf-warn / .rp-bad / .lan-err / .rp-err 统一成一个色，
+   配一条 1px 细边把这块从正文里框出来 —— 不再填一层底、不再叠第二道描边。 */
 .lobby-broke {
   margin: 14px 0 10px; padding: 12px 14px;
   font-size: 13px; line-height: 1.6;
-  color: var(--target, #ffd08b); background: var(--target-bg, rgba(255, 176, 60, .12));
-  border: 1px solid var(--target-ring, rgba(255, 176, 60, .35)); border-radius: 4px;
+  color: var(--foe, #ff8b8b);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--scr-r-sm);
 }
 
 
 /* 纸质卡牌风格补充（作者 2026-10 选定）：标题走衬线 */
 .home-logo, .screen-head h2 { font-family: var(--font-title); }
 
-/*  玻璃主题补充（作者 2026-10）
-   这个文件里写死的方角/实心色在这里收回来；磨砂只补 style.css 没盖到的面。 */
-:root[data-theme="glass"] .home-logo { text-shadow: 0 2px 20px rgba(122, 210, 255, .72); }
+/* ══════════════════════════════════════════════════════════
+   玻璃主题：把"每块都磨砂一遍"收回来（作者 2026-10-15）
+   ══════════════════════════════════════════════════════════
+   上一版给下面这一长串全都挂了同一份
+     blur(20px) saturate(1.8) brightness(1.12) + inset 0 1px 0 白高光 + 30px 大投影，
+   于是按钮 / 行 / 面板 / 徽记一个味道 —— 这正是"模板感"的来源：
+   玻璃味来自 --panel 本身半透明、底下的光斑透上来，不是每块都各自模糊一次。
+   逐块磨砂还贵：手机上每多一个 backdrop-filter，滚动就多一层重采样。
 
-:root[data-theme="glass"] .coin {
-  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .95), rgba(255, 212, 121, .75) 44%, rgba(255, 168, 60, .55));
-  border: 1px solid rgba(255, 255, 255, .60);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .70), 0 4px 14px var(--shadow);
-}
+   现在：
+    · 磨砂只留两处 —— 抉择弹层、掉线横幅：它们浮在棋盘上方，背后的格子本来就花，
+      压一层模糊字才读得住。降到 10px，去掉 saturate / brightness
+      （这两样会把底下的彩色光斑拧成霓虹色）；
+    · 其余一律收回：面板 + 主题的 1px 细边。玻璃主题的"透"由 --panel 那份半透明保证，
+      原来额外刷的那层 rgba(255,255,255,.38) 白边是多余的 ——
+      --line 在玻璃里本来就是 rgba(255,255,255,.42)，同一件事写了两遍；
+    · 白内高光和 30px 大投影一起去掉：那是"每块面板都发一层光"的根；
+    · 圆角不再另写一套（原来 10px / 16px 满文件点），统一走文件开头的 --scr-r。
 
+   注意：style.css 里还有一份命中同样这些选择器的磨砂规则，本文件在它之后加载，
+   所以"收回"必须在这里显式写 backdrop-filter: none —— 只是不写，是撤不掉它那份的。
+   （战斗屏的 .topbar / .statusbar / .hand-wrap 那三处的磨砂在 style.css 里，不归这里管。） */
+:root[data-theme="glass"] .menu-panel,
+:root[data-theme="glass"] .screen-head,
+:root[data-theme="glass"] .set-group,
 :root[data-theme="glass"] .hm-btn,
 :root[data-theme="glass"] .seg,
 :root[data-theme="glass"] .seg-item,
+:root[data-theme="glass"] .room-row,
 :root[data-theme="glass"] .diff-row,
 :root[data-theme="glass"] .lobby-card,
-:root[data-theme="glass"] .room-row,
 :root[data-theme="glass"] .lobby-status,
+:root[data-theme="glass"] .rp-bar,
 :root[data-theme="glass"] .rp-input,
 :root[data-theme="glass"] .rp-mini,
 :root[data-theme="glass"] .rp-btn,
 :root[data-theme="glass"] .choice-opt,
 :root[data-theme="glass"] .lan-input,
 :root[data-theme="glass"] .lan-manual,
+:root[data-theme="glass"] .unit-info .ui-card,
 :root[data-theme="glass"] .unit-info .ui-kws li,
 :root[data-theme="glass"] .unit-info .ui-effect,
-:root[data-theme="glass"] .ui-label {
-  -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
-  backdrop-filter: blur(20px) saturate(1.8) brightness(1.12);
-  border-color: rgba(255, 255, 255, .38);
+:root[data-theme="glass"] .ui-label,
+:root[data-theme="glass"] .hint,
+:root[data-theme="glass"] .banner,
+:root[data-theme="glass"] .result {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: var(--line, #4a3d34);
+  box-shadow: none;
 }
 
-:root[data-theme="glass"] .seg,
-:root[data-theme="glass"] .seg-item,
-:root[data-theme="glass"] .rp-input,
-:root[data-theme="glass"] .rp-mini,
-:root[data-theme="glass"] .rp-btn,
-:root[data-theme="glass"] .choice-opt,
-:root[data-theme="glass"] .lan-input,
-:root[data-theme="glass"] .lan-manual,
-:root[data-theme="glass"] .lobby-status,
-:root[data-theme="glass"] .unit-info .ui-kws li,
-:root[data-theme="glass"] .unit-info .ui-effect,
-:root[data-theme="glass"] .ui-label { border-radius: 10px; }
-:root[data-theme="glass"] .choice-box { border-radius: 16px; }
-:root[data-theme="glass"] .unit-info .ui-card { border-radius: 16px; }
+/* 只留这两处磨砂：都浮在棋盘上方，字要压得住背后的格子和光斑 */
+:root[data-theme="glass"] .choice-box,
+:root[data-theme="glass"] .net-banner {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* 浮在棋盘 / 手牌上的那几样：去掉磨砂后还得留住那点"浮"感。
+   每一样写回它基础规则里的投影（纸质主题同款硬投影），而不是 30px 大模糊 ——
+   大模糊在 5 寸屏上只是把边缘糊掉，而"每块都有一层柔光"本身就是模板感的来源。
+   必须写在这里：玻璃那份规则会盖掉基础规则的投影，光删是撤不掉的。
+   .rp-bar 贴底，往下压没意义，所以它只留往上那一道；
+   .hint / .result 基础规则里本来就没有投影，这里也不给它们加。 */
+:root[data-theme="glass"] .banner { box-shadow: 2px 2px 0 var(--shadow-3, rgba(0, 0, 0, .5)); }
+:root[data-theme="glass"] .net-banner { box-shadow: 2px 2px 0 var(--shadow, rgba(0, 0, 0, .5)); }
+:root[data-theme="glass"] .rp-bar { box-shadow: 0 -2px 0 var(--shadow, rgba(0, 0, 0, .5)); }
+/* 这两个是压着内容看的弹层，基础规则给的 3px 硬投影要保持住 */
+:root[data-theme="glass"] .choice-box,
+:root[data-theme="glass"] .unit-info .ui-card { box-shadow: 3px 3px 0 var(--shadow, rgba(0, 0, 0, .5)); }
+
+/* 标题和硬币的玻璃装饰（20px 蓝光标题、径向高光硬币）直接删掉：
+   发光的东西只该是"这一屏的主按钮"，标题和一枚 12px 的硬币没资格抢；
+   硬币于是回到深色主题那枚扁平硬币（基础规则里的 .coin），不用另写一份。 */
 /*  屏幕切换与开局入场动画（作者 2026-10-05，第二轮修正） 
    前进：新页面的菜单项从右侧逐个滑入；返回：从左侧逐个滑入，方向相反。
    整页不平移、旧页面不做整页退场  上一版那样两屏同时动，看上去就是画面重叠。
@@ -911,3 +1040,233 @@
 
 /* 还没轮到出场的格子：占着位置但不可见，所以铺开不会改变布局、也不会让棋盘跳一下 */
 .board-row[data-in="0"], .hand .card[data-in="0"] { opacity: 0; visibility: hidden; }
+
+/* ══════════════════════════════════════════════════════════
+   屏幕切换：整页还是不动，只给"页框"一点位移（作者 2026-10-15）
+   ══════════════════════════════════════════════════════════
+   render.js 换屏时给 #stage 挂 nav-forward / nav-back，900ms 后摘掉；同屏刷新不挂。
+   所以这里用类选择器是安全的 —— 这个类只在"刚换过屏"那段时间存在，
+   而菜单项的 data-nav 标记仍然只出现在切换那一次渲染里，两者分工不变。
+
+   位移只给 6px：页头是整宽的一条，动多了就又变成"整页在滑"，
+   而整页平移是被否掉过的（两屏同时动，看起来就是画面重叠）。
+   菜单项那 48px 的滑入仍然只给按钮 / 行 —— 页框和按钮不该是同一个幅度。
+
+   一个小代价：换屏后 900ms 内若刚好有一次重绘，新生的页头会再滑一下；
+   6px / 0.22s 基本看不出来，比"整页动画被重绘反复重放"划算得多。 */
+@keyframes head-in-right { from { transform: translateX(6px); opacity: .55; } to { transform: translateX(0); opacity: 1; } }
+@keyframes head-in-left { from { transform: translateX(-6px); opacity: .55; } to { transform: translateX(0); opacity: 1; } }
+
+#stage.nav-forward .screen-head, #stage.nav-forward .hint { animation: head-in-right .22s ease-out both; }
+#stage.nav-back .screen-head, #stage.nav-back .hint { animation: head-in-left .22s ease-out both; }
+
+/* ══════════════════════════════════════════════════════════
+   零散的一次性事件（作者 2026-10-15）
+   ══════════════════════════════════════════════════════════
+   为什么这些必须由 JS 加类：整个 #stage 是整块重写的，入场动画写在渲染出来的 HTML 上
+   就会每重绘一次重放一次。data-nav / data-in 已经用"属性翻转"解决了菜单项与开局的
+   "只播一次"，而扫到新房间 / 金币变了 / 警示冒出来这类零散事件没有对应的属性，
+   只能由 JS 在活节点上翻一个类。
+
+   纪律：这些类只加在活节点上（渲染完 querySelector 找到再加），按下面清单的毫秒数摘掉。
+   关键帧的 to 一律落在元素常态（transform 回 0 / opacity 回 1 / 阴影收回），
+   所以就算 JS 忘了摘，也只是停在常态，不会变成一个永远播不完的动画。 */
+@keyframes pop-in { from { transform: scale(.96) translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* 联机横幅是 translate(-50%,-50%) 居中的：共用 pop-in 会把 translate 冲掉、
+   把它甩到屏幕左边，所以它单独一份带着 translate 的关键帧 */
+@keyframes toast-in { from { transform: translate(-50%, -50%) scale(.94); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes row-in { from { transform: translateX(10px); } to { transform: none; } }
+@keyframes num-pop { from { transform: scale(1.12); } to { transform: scale(1); } }
+@keyframes warn-in { from { transform: translateY(-3px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rp-flash { from { box-shadow: 0 0 0 2px var(--accent, #58a6ff); } to { box-shadow: 0 0 0 0 transparent; } }
+
+.fx-pop { animation: pop-in .24s cubic-bezier(.2, .85, .3, 1) both; }
+.net-banner.fx-pop { animation-name: toast-in; }
+/* 房间行只做位移、不淡入：「已开始」的行常态只有 .5 亮度，
+   关键帧里带上 opacity 会让它先亮到 1、再啪地暗回去 */
+.fx-row { animation: row-in .30s cubic-bezier(.2, .85, .3, 1) both; }
+.fx-num { animation: num-pop .32s cubic-bezier(.2, .85, .3, 1) both; }
+.fx-warn { animation: warn-in .26s ease-out both; }
+.fx-rp { animation: rp-flash .28s ease-out both; }
+
+/* ══ JS 钩子清单（类由 app/js/render.js 在 render() 之后加，按 ms 自动摘掉；
+      元素本身仍由 screens.js / ui.js 正常渲染，动画标记绝不写进渲染字符串）══
+     · fx-pop  → .net-banner / .choice-box / .unit-info .ui-card / .result
+                 弹层刚渲染出来、拿到活节点的那一刻加             240ms
+     · fx-row  → .room-row：新扫到的房间，或从「可加入」翻成「已开始」的那一行 300ms
+     · fx-num  → .hud-gold / .hud-lv / .reward-gold：金币或等级变了的那一下  320ms
+     · fx-warn → .hf-warn / .lobby-broke / .rp-bad / .rp-err / .lan-err
+                 （警示文案出现时；文案本身照旧由各屏正常渲染）     260ms
+     · fx-rp   → .rp-btn-play：播放 ↔ 暂停翻转的那一下               280ms
+
+   退场一律不做，也不打算做：这些节点是 JS 当场摘掉的，CSS 根本没时间演；
+   为了让"渐隐"晚 200ms 摘节点，只会让「对手已离开」这类提示该消失还赖着 —— 那更糟。
+   回放那根 .rp-seek 同理：每次步进都是新节点，拇指位置没有"前一帧"可插值，
+   所以进度条只做了按住时放大（见 .rp-seek:active），别指望它自己滑过去。
+   ══ 清单结束 ══ */
+
+/* ══════════════════════════════════════════════════════════
+   星尘 HUD（第二种货币，只在首页与工坊出现）
+   ══════════════════════════════════════════════════════════ */
+
+.hud-dust {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--scr-pill);
+  background: var(--panel, #151c26);
+  border: 1px solid var(--line, #2a3646);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #e6edf6);
+  font-variant-numeric: tabular-nums;
+}
+/* 菱形 = 星尘。金币是圆的、金的是币，星尘是方的、冷的 —— 一眼分得开 */
+.dust {
+  width: 10px; height: 10px;
+  display: inline-block;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: var(--accent, #58a6ff);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25);
+}
+
+/* ══════════════════════════════════════════════════════════
+   强化工坊
+   ══════════════════════════════════════════════════════════ */
+
+.forge-wallet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.forge-seg { margin-bottom: 10px; }
+.forge-hint {
+  font-size: 11px;
+  color: var(--gold, #e8b84b);
+  text-align: center;
+  padding: 4px;
+}
+.forge-list { display: flex; flex-direction: column; gap: 12px; }
+.forge-group-head {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--dim, #8b9bb0);
+  padding: 2px 2px 6px;
+}
+
+.forge-card {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #2a3646);
+  border-radius: var(--scr-r);
+  background: var(--panel, #151c26);
+  margin-bottom: 8px;
+}
+.fc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.fc-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--text, #e6edf6); }
+.fc-name { font-weight: 700; }
+.fc-tag {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: var(--scr-r-sm);
+  border: 1px solid var(--line, #2a3646);
+  color: var(--dim, #8b9bb0);
+}
+.fc-mast {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: var(--scr-pill);
+  border: 1px solid var(--gold, #e8b84b);
+  color: var(--gold, #e8b84b);
+}
+.fc-stats { display: flex; align-items: baseline; gap: 8px; font-size: 11px; color: var(--dim, #8b9bb0); font-variant-numeric: tabular-nums; }
+.fc-stat-atk { color: var(--atk, #e06c5a); }
+.fc-stat-hp { color: var(--hp, #6bbf73); }
+.fc-was { font-size: 9px; color: var(--dim, #8b9bb0); opacity: .7; }
+
+/* 九格强化进度：亮一格 = 强化过一次（第 9 格是那个 +0.2 的大步） */
+.fc-pips { display: flex; gap: 3px; }
+.fc-pips > i {
+  width: 12px; height: 3px;
+  border-radius: 2px;
+  background: var(--panel-2, #1b2431);
+}
+.fc-pips > i.on { background: var(--gold, #e8b84b); }
+
+.fc-tip { font-size: 9px; color: var(--dim, #8b9bb0); }
+
+.fc-ops {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+}
+.fc-btn {
+  padding: 7px 10px;
+  border-radius: var(--scr-r);
+  border: 1px solid var(--line, #2a3646);
+  background: var(--panel-2, #1b2431);
+  color: var(--text, #e6edf6);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.fc-btn:active { border-color: var(--dim, #8b9bb0); }
+.fc-btn:disabled { opacity: .42; cursor: default; }
+/* 精通是这条链的终点，用金色描边把它和普通强化分开（不发光、不加底色） */
+.fc-btn-mast { border-color: var(--gold, #e8b84b); color: var(--gold, #e8b84b); background: transparent; }
+/* 洗掉是撤销动作：小一号、灰一点，别和两个主要按钮抢 */
+.fc-btn-wash { padding: 4px 8px; font-size: 9px; border-color: transparent; background: transparent; color: var(--dim, #8b9bb0); }
+.fc-btn-buy { flex: none; }
+
+/* ── 精通三选一 ─────────────────────────────────────────── */
+.skill-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+.skill-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--scr-r);
+  /* 稀有度颜色从 --rar 进来（JS 按档位写内联变量），边框是唯一的有色信号 */
+  border: 1px solid var(--rar, var(--line, #2a3646));
+  background: var(--panel, #151c26);
+  color: var(--text, #e6edf6);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .12s ease;
+}
+.skill-opt:active { background: var(--panel-2, #1b2431); }
+.skill-rar {
+  flex: none;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: var(--scr-pill);
+  border: 1px solid var(--rar, var(--line, #2a3646));
+  color: var(--rar, var(--dim, #8b9bb0));
+}
+.skill-name { flex: none; font-size: 13px; font-weight: 700; }
+.skill-text { margin-left: auto; font-size: 11px; color: var(--dim, #8b9bb0); text-align: right; }
+
+/* 结算面板的第二行：星尘 / 表现分（金币是主角，这两项是次要信息） */
+.reward-sub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -2px 0 8px;
+  font-size: 11px;
+  color: var(--dim, #8b9bb0);
+  font-variant-numeric: tabular-nums;
+}
+.reward-sub .dust { width: 8px; height: 8px; margin-right: 2px; }

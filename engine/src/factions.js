@@ -36,7 +36,7 @@ export const FACTIONS = {
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */
-export const SUPERPOWER_THRESHOLDS = [15, 9, 3];
+const SUPERPOWER_THRESHOLDS = [15, 9, 3];
 
 /**
  * 某方还没抽到的超能力（同阵营、非令牌、没抽过）。
@@ -58,7 +58,7 @@ export function superpowerPool(state, side) {
  * 抽一张超能力进手牌；池子空了返回 null（不会重复抽）。
  * 与 stats.js 的 drawCards 走同一条「进手牌」写法（iid + nextIid）。
  */
-export function drawSuperpower(state, side, opts) {
+function drawSuperpower(state, side, opts) {
   const p = state.players[side];
   if (!p || !p.faction) return null;
   const pool = superpowerPool(state, side);
@@ -127,7 +127,7 @@ export function queueDelayedSummon(state, side, cardId, delay, spot) {
 export const RAW_MATERIAL_IDS = ['U426', 'U427', 'U428', 'U429'];
 
 /** 原料堆构成：金沙 x3、厄毒之尘 x3、陨铁 x4、硫磺 x4（共 14 张） */
-export const RAW_PILE_MAKEUP = [
+const RAW_PILE_MAKEUP = [
   { cardId: 'U426', count: 3 },
   { cardId: 'U427', count: 3 },
   { cardId: 'U428', count: 4 },
@@ -158,7 +158,7 @@ export function isRawMaterial(def) {
 }
 
 /** 一副新的原料堆 */
-export function makeRawPile() {
+function makeRawPile() {
   const pile = [];
   for (const m of RAW_PILE_MAKEUP) for (let i = 0; i < m.count; i++) pile.push(m.cardId);
   return pile;
@@ -182,7 +182,7 @@ export function rawPileOf(state, side) {
 }
 
 /** 抽一张原料进手牌；堆空了返回 null */
-export function drawRawMaterial(state, side) {
+function drawRawMaterial(state, side) {
   const p = state.players[side];
   if (!p || p.faction !== 'alchemy') return null;
   const pile = ensureRawPile(state, side);
@@ -298,7 +298,7 @@ export function isFlameCard(def) {
 }
 
 /** 一副新的异火堆 */
-export function makeFlamePile() {
+function makeFlamePile() {
   const pile = [];
   for (const m of FLAME_PILE_MAKEUP) for (let i = 0; i < m.count; i++) pile.push(m.cardId);
   return pile;

@@ -6,16 +6,8 @@
  * 依赖方向：mechanics/auras ← setup/turns ← view
  */
 
-import {
-  LANES, ROWS, SIDE, SIDE_NAME, LANE_NAME, PHASES, PHASE_ACTOR,
-  PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, KING_MAX_HP, MAX_TURNS, ADJACENT_LANES,
-  manaCapForTurn, DRAW_ON_FIRST_TURN, roleName,
-} from './constants.js';
-import { createRng, shuffle } from './rng.js';
-import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
-import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura } from './auras.js';
-import { execActions } from './effects.js';
+import { LANES, ROWS, SIDE_NAME, LANE_NAME } from './constants.js';
+import { effectiveAtk, hasRooted } from './auras.js';
 import { getActor } from './turns.js';
 
 // ══════════════════════════════════════════════════════════

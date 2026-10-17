@@ -247,9 +247,21 @@ function Get-ProbeTitle($url) {
   # 必须 `2>&1 | Out-String`：写成 `$x = & chrome ... 2>$null` 会拿到空字符串
   # （Chrome 的 stdout 在「赋值 + 重定向」这个组合下会被丢掉），
   # 于是三条断言全部静默失败 —— 看起来像页面坏了，其实是探针没读到东西。
-  $dom = (& $chrome --headless=new --disable-gpu --no-sandbox --no-first-run --hide-scrollbars `
-    --disable-extensions --disable-background-networking --disable-sync `
-    --virtual-time-budget=9000 --user-data-dir="$prof" --dump-dom $url 2>&1 | Out-String)
+  #
+  # 还有第三个坑（PowerShell 5.1 才会踩）：原生程序的 stdout 是按
+  # [Console]::OutputEncoding 解码的，默认是系统 ANSI(936/GBK)；
+  # Chrome 的 --dump-dom 输出的是 UTF-8，于是标题里的中文变成乱码，
+  # 与脚本里的 UTF-8 字面量永远不相等 —— 断言全红但不是页面坏了。
+  # 这里临时把控制台输出编码切成 UTF-8（不写 BOM），跑完恢复。
+  $prevEnc = [Console]::OutputEncoding
+  try {
+    [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+    $dom = (& $chrome --headless=new --disable-gpu --no-sandbox --no-first-run --hide-scrollbars `
+      --disable-extensions --disable-background-networking --disable-sync `
+      --virtual-time-budget=9000 --user-data-dir="$prof" --dump-dom $url 2>&1 | Out-String)
+  } finally {
+    [Console]::OutputEncoding = $prevEnc
+  }
   Remove-Item $prof -Recurse -Force -ErrorAction SilentlyContinue
   return [regex]::Match($dom, '<title>([^<]*)</title>').Groups[1].Value
 }

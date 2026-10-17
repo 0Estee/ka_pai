@@ -166,30 +166,6 @@ public final class HttpGameServer {
         return port;
     }
 
-    public boolean isRunning() {
-        return running;
-    }
-
-    public void setRoomName(String room) {
-        if (room != null && !room.isEmpty()) this.roomName = room;
-    }
-
-    public String getRoomName() {
-        return roomName;
-    }
-
-    public void setHostName(String name) {
-        if (name != null && !name.isEmpty()) this.hostName = name;
-    }
-
-    public String getHostName() {
-        return hostName;
-    }
-
-    public boolean isStarted() {
-        return started;
-    }
-
     /** 当前在线人数：主机 + 已出现的客人（主机房间天然算 1 人）。 */
     public int getPlayers() {
         synchronized (lock) {
@@ -200,10 +176,6 @@ public final class HttpGameServer {
     /** 必须在持有 lock 时调用。 */
     private int playersLocked() {
         return 1 + (guest.seen && !guest.left ? 1 : 0);
-    }
-
-    public String getUrl() {
-        return "http://127.0.0.1:" + port + "/";
     }
 
     /** 停服：唤醒所有挂起的长轮询，否则它们要等满 timeout 才退，关房间会卡一下。 */

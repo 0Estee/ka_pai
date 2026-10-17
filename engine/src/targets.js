@@ -9,13 +9,8 @@
 
 import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
 import { matchesTargetFilter, isFrozen } from './keywords.js';
-import { filterCtx, hasRooted, getKeyword } from './auras.js';
-import {
-  dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
-  drawCards, gainMana, gainManaCap, laneUnits, allUnitsInLane, allUnits, log, freezeUnit,
-  canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
-  sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword,
-} from './mechanics.js';
+import { filterCtx } from './auras.js';
+import { laneUnits, allUnitsInLane, allUnits } from './mechanics.js';
 import { asUnit, asKing } from './amounts.js';
 
 /** 目标引用的可读名（用于日志与提示） */
@@ -42,7 +37,7 @@ export function describeTarget(t) {
  *   把开关开成什么」，回放/锁步时那个开关与原局不一致，同一问就会有
  *   「原局挂起、回放自动答」的分叉；「这一方是不是真人」则两边永远一样。
  */
-export function askHumanFor(state, ctx, selector) {
+function askHumanFor(state, ctx, selector) {
   if (!selector || selector.askHuman !== true) return false;
   const human = state.humanSide === undefined ? 0 : state.humanSide;
   return ctx.controller === human;

@@ -13,18 +13,11 @@
  *   且没有任何加载期就要取值的顶层 const，所以 ESM 与拍平后都成立。
  */
 
-import {
-  LANES, ROWS, SIDE, SIDE_NAME, LANE_NAME, PHASES, PHASE_ACTOR,
-  PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, KING_MAX_HP, MAX_TURNS, ADJACENT_LANES,
-  manaCapForTurn, DRAW_ON_FIRST_TURN, roleName,
-} from './constants.js';
-import { createRng, shuffle } from './rng.js';
-import { parseKeyword, getKw, hasKw, canPlaceInLane } from './keywords.js';
+import { LANES, LANE_NAME, ADJACENT_LANES } from './constants.js';
 import * as M from './mechanics.js';
-import { effectiveAtk, hasRooted, hasKeyword, getKeyword, isSealedByAura, syncStatAuras } from './auras.js';
-import { execActions } from './effects.js';
+import { hasKeyword, getKeyword, syncStatAuras } from './auras.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
-import { isOver, getActor, checkGameOver, endTurnNow } from './turns.js';
+import { isOver, checkGameOver, endTurnNow } from './turns.js';
 import { flushTriggers, flushTriggersGen } from './choices.js';
 import { resolveHunt, canPlaceUnit, legalPlacements } from './play.js';
 
@@ -466,12 +459,6 @@ export function apiFor(state) {
       M.log(st, { type: 'summon-to-hand', cardId, side, costDelta: hc.costDelta || 0 });
     },
 
-    /**
-     * 「额外攻击一次」——立刻用这个单位打一次（卡牌「咖啡豆」「狂犬病」「黑龙」）。
-     * 走开战结算的同一套原语（applyAttackBatch），所以伤害修正、溅射、穿透、
-     * 死亡结算、触发队列全都和正常交战一致。
-     * 每单位每回合最多一次（裁决 B10）。
-     */
     /**
      * 「额外攻击一次」——立刻用这个单位打一次（卡牌「咖啡豆」「狂犬病」「黑龙」）。
      * 走开战结算的同一套原语（applyAttackBatch），所以伤害修正、溅射、穿透、

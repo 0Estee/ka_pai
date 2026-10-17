@@ -2,7 +2,7 @@
  * 测试卡牌库（占位用，即用即弃）
  *
  * ⚠️ 这不是正式卡牌设计。它的唯一目的是让规则引擎能跑起来并被验证。
- *    每个词条各出一张卡，方便单独测试该词条的结算。
+ *    每个词条尽量各出一张卡，方便单独测试该词条的结算。
  *    你出正式卡牌时，直接替换本文件即可，引擎代码不用改。
  *
  * ── 卡牌定义 schema ──────────────────────────────────────
@@ -46,8 +46,6 @@ import { createRng, shuffle } from '../src/rng.js';
 import { USER_CARDS } from './user-cards.js';
 import { USER_CARDS_B3 } from './user-cards-b3.js';
 
-export { USER_CARDS, USER_CARDS_B3 };
-
 /** 作者设计的全部卡牌（第二批 U01~U17 + 第三批 U20~） */
 export const AUTHOR_CARDS = [...USER_CARDS, ...USER_CARDS_B3];
 
@@ -73,10 +71,6 @@ export const DEMO_CARDS = [
     keywords: ['disease'],
   },
   {
-    id: 'K11', name: '赌命刺客', type: 'unit', cost: 3, atk: 2, hp: 3,
-    keywords: ['crit:2'],
-  },
-  {
     id: 'K16', name: '投石车', type: 'unit', cost: 4, atk: 3, hp: 3,
     keywords: ['splash:1'],
   },
@@ -87,10 +81,6 @@ export const DEMO_CARDS = [
   {
     id: 'K18', name: '破阵枪骑', type: 'unit', cost: 4, atk: 3, hp: 3,
     keywords: ['pierce:1'],
-  },
-  {
-    id: 'K18b', name: '破阵枪骑·贰', type: 'unit', cost: 5, atk: 3, hp: 3,
-    keywords: ['pierce:2'],
   },
 
   // ── 替代式词条（受伤修正）────────────────────────────────
@@ -125,14 +115,6 @@ export const DEMO_CARDS = [
     keywords: ['nimble'], // 原「飞行」
   },
   {
-    id: 'K10', name: '魔免石像', type: 'unit', cost: 3, atk: 3, hp: 3,
-    keywords: ['spellImmune'],
-  },
-  {
-    id: 'K12', name: '扎根古树', type: 'unit', cost: 2, atk: 2, hp: 2,
-    keywords: ['rooted'],
-  },
-  {
     id: 'K13', name: '不灭圣灵', type: 'unit', cost: 5, atk: 1, hp: 3,
     keywords: ['invincible'],
   },
@@ -161,44 +143,6 @@ export const DEMO_CARDS = [
     effects: [{
       trigger: 'onDealDamage',
       actions: [{ op: 'damage', amount: 1, target: { kind: 'chosenEnemyUnit' } }],
-    }],
-  },
-
-  // ── 锦囊 ────────────────────────────────────────────────
-  {
-    id: 'S01', name: '火球术', type: 'spell', spellKind: 'attack', cost: 2,
-    actions: [{
-      op: 'damage', amount: 3,
-      target: { kind: 'chosenEnemyUnit', filter: 'spellTargetable', prompt: '选择伤害目标' },
-    }],
-  },
-  {
-    id: 'S02', name: '处决', type: 'spell', spellKind: 'attack', cost: 4,
-    actions: [{
-      op: 'destroy',
-      target: { kind: 'chosenEnemyUnit', filter: 'spellTargetable', prompt: '选择要消灭的单位' },
-    }],
-  },
-  {
-    id: 'S03', name: '战号', type: 'spell', spellKind: 'item', cost: 1,
-    actions: [{ op: 'gainManaCap', amount: 1 }],
-  },
-  {
-    id: 'S04', name: '洞察', type: 'spell', spellKind: 'item', cost: 1,
-    actions: [{ op: 'draw', amount: 2 }],
-  },
-  {
-    id: 'S05', name: '献祭仪式', type: 'spell', spellKind: 'item', cost: 2,
-    actions: [
-      { op: 'sacrifice', target: { kind: 'chosenOwnUnit', prompt: '选择要献祭的友方单位' } },
-      { op: 'draw', amount: 2 },
-    ],
-  },
-  {
-    id: 'S06', name: '治疗术', type: 'spell', spellKind: 'item', cost: 1,
-    actions: [{
-      op: 'heal', amount: 3,
-      target: { kind: 'chosenOwnUnit', prompt: '选择治疗目标' },
     }],
   },
 ];
@@ -266,7 +210,7 @@ export function buildTestDeck(size = 30, seed = 0) {
   for (let c = 0; c < copies; c++) {
     for (const card of pool) deck.push(card.id);
   }
-  // 演示卡：单位 2 份、锦囊 1 份
+  // 演示卡：单位 2 份
   for (const card of DEMO_CARDS) {
     const n = card.type === 'unit' ? 2 : 1;
     for (let i = 0; i < n; i++) if (deck.length < size) deck.push(card.id);

@@ -65,7 +65,7 @@ export function cardSetId(cardLib) {
 // ══════════════════════════════════════════════════════════
 
 /** 开一份新的录制。seed / firstPlayer / deck 必须和 createGame 用的完全一致。 */
-export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanSide, opening, factions }) {
+export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanSide, opening, factions, enhance }) {
   return {
     v: REPLAY_VERSION,
     cardSet,
@@ -98,6 +98,15 @@ export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanS
      * 而超能力是**发牌之后第一件事**就进手牌的，往后每一步都会分叉。
      */
     factions: (factions || []).slice(),
+    /**
+     * 双方的强化/精通增量表（`[{cardId:{atk,hp,cost,kw}}]`，下标 = 座位号）。
+     *
+     * 强化会改**单位的攻/血**和**锦囊的费用**，所以它和 bonuses 一样是「建局参数」
+     * 而不是「操作」：不存进录制，重放时双方的单位数值与卡牌费用就全回到卡面原值，
+     * 之后任何一步都可能因为「多/少了这 1 点血」而分叉。
+     * 联机同理，通过 start 消息一起广播（见 multiplayer.js 的 beginGame）。
+     */
+    enhance: enhance ? enhance.map((side) => ({ ...(side || {}) })) : null,
     // 难度给 AI 的额外优势（[{side, hand, manaPerTurn, kingHp}]），重放时要原样加回去
     bonuses: (bonuses || []).map((b) => ({ ...b })),
     /**
@@ -106,11 +115,25 @@ export function newRecording({ seed, firstPlayer, deck, cardSet, bonuses, humanS
      */
     choiceLog: [],
     actions: [],
-    // 下面这些在 finish() 时填
+    /**
+     * 这一局开始 / 结束的时刻（毫秒时间戳），**只用于显示**（回放列表里的日期）。
+     *
+     * ⚠ 绝不许参与任何游戏逻辑、也绝不许进 `replayDigest` —— 回放/锁步的前提是
+     * 「同一串操作 → 同一局面」，时间戳（每局都不同）一旦进去，校验当场分叉。
+     * 所以它只走「录制 → 存档」这条路，从不被 `createReplayPlayer` 读。
+     *
+     * 为什么以前没有：上一轮清理把 `startedAt` / `endedAt` 当成「从不写入的死字段」
+     * 删掉了（真正该删的是没人再用的旧名 `startedPt` / `endedPt`），
+     * 结果回放列表的日期永远渲染不出来（那里的读侧正是 `rec.endedAt || rec.startedAt`）。
+     *
+     * ⚠ 补回来时必须**一起走进 `finishRecording` 的存档对象** —— 见那里的注释：
+     * 内存里那份 recording 是完整的，只有「录完 → 存进档案 → 再播」这条路才暴露
+     * 缺字段（这正是当年没被发现的原因）。
+     */
     startedAt: Date.now(),
+    // 下面这些在 finish() 时填
     endedAt: null,
     winner: null,
-    winReason: '',
     turns: 0,
     settled: false,
   };
@@ -132,11 +155,6 @@ export function recPlay(rec, side, iid, opts) {
   rec.actions.push({ k: 'p', s: side, i: iid, o: compactOpts(opts) });
 }
 
-export function recAdvance(rec) {
-  if (!rec || rec.actions.length >= MAX_ACTIONS) return;
-  rec.actions.push({ k: 'a' });
-}
-
 /**
  * 把 aiTakeTurn 交回来的整批动作记进回放。
  * 出牌走 recPlay；炼药（ai.js 里带 brew 标记的那条）走 {k:'b'} 
@@ -148,11 +166,6 @@ export function recAiActions(rec, side, list) {
     if (a.brew) recAction(rec, { k: 'b', s: side, i: a.brew });
     else recPlay(rec, side, a.iid, a.opts);
   }
-}
-
-export function recChoice(rec, choice) {
-  if (!rec || rec.actions.length >= MAX_ACTIONS) return;
-  rec.actions.push({ k: 'c', v: choice });
 }
 
 /**
@@ -211,17 +224,25 @@ export function recAction(rec, action) {
 
 /** 收尾：填入结果。返回可以直接存进档案的纯数据对象。 */
 export function finishRecording(rec, state) {
-  rec.endedAt = Date.now();
   rec.winner = state.winner;
-  rec.winReason = state.winReason || '';
   rec.turns = state.turn;
   rec.settled = true;
+  // 终局时刻。和 startedAt 成对，只给回放列表显示日期用（不进任何游戏状态）。
+  rec.endedAt = Date.now();
   return {
     v: rec.v,
     cardSet: rec.cardSet,
     seed: rec.seed,
     firstPlayer: rec.firstPlayer,
     deck: rec.deck,
+    /**
+     * 这一局的起止时刻（毫秒）。**必须搬进存档对象** —— 少了它，存档里的回放
+     * 又变回「没日期」：内存那份 recording 有，序列化出去的这份没有，
+     * 而回放列表读的是后者（旧存档没有这两个字段 → 读到 undefined，
+     * 由显示侧兜底，不在这里补默认值，免得把「没记」伪装成「记了」）。
+     */
+    startedAt: rec.startedAt,
+    endedAt: rec.endedAt,
     /**
      *  下面这四个字段**以前漏了**，而它们是 `createReplayPlayer` 重建这一局时
      *   必须要读的  漏掉的后果是「**存档里的回放**播不对」：
@@ -242,11 +263,10 @@ export function finishRecording(rec, state) {
     factions: rec.factions || [],
     choiceLog: rec.choiceLog,
     bonuses: rec.bonuses || [],
+    // 强化增量也必须在存档对象里（见 newRecording 里 enhance 的注释）
+    enhance: rec.enhance || null,
     actions: rec.actions,
-    startedAt: rec.startedAt,
-    endedAt: rec.endedAt,
     winner: rec.winner,
-    winReason: rec.winReason,
     turns: rec.turns,
   };
 }
@@ -276,13 +296,6 @@ export function incompatibleReason(record, cardLib) {
   return '';
 }
 
-/** 人话描述结果 */
-export function describeWinner(record) {
-  if (record.winner === null || record.winner === undefined) return '未完成';
-  if (record.winner === 'draw') return '平局';
-  return record.winner === 0 ? '玩家0 胜' : '玩家1 胜';
-}
-
 // ══════════════════════════════════════════════════════════
 // 播放
 // ══════════════════════════════════════════════════════════
@@ -299,39 +312,6 @@ export function createReplayPlayer(record, cardLib) {
   let error = '';
   /** `state.choiceLog` 的读数游标：录那一局时引擎自己答的每一问，按顺序装回来 */
   let replayCursor = 0;
-
-  /**
-   * 录制流里紧跟着的那条答案 —— **只在这一问确实需要它的时候**才消费。
-   *
-   * 判据（`applicableAnswer`）：答案与某个选项完全相同，或者带着
-   * `index` / `uid` / `king` / `lane` / `row` 这类**答案特征字段**。
-   *
-   * 为什么必须验一下才消费：录制流里的 `{k:'c'}` 来自**真人那一侧**的提问，
-   * 而回放里「引擎自己答掉、本来不进录制」的提问（AI 那一侧的选目标）
-   * 也会经过这个口子。如果不验，一条 AI 侧的提问就会白白吃掉后面那条
-   * 属于真人的答案，之后整条流**错位**，报出更难查的错。
-   * 对了不上就**不消费**：留给 `applyOne` 的 `{k:'c'}` 分支去处理（那里会明确报错）。
-   */
-  function recordedAnswer(req) {
-    const ans = record.actions[index];
-    if (!ans || ans.k !== 'c') return undefined;
-    if (!applicableAnswer(req, ans.v)) return undefined;
-    index++;
-    return ans.v;
-  }
-
-  /**
-   * 录制里那条答案**是不是真的对应这一问**？
-   *
-   * 判据：与某个选项完全相同（快照进 cardLib 的对象会走 JSON 比较），
-   * 或者带着 `index` / `uid` / `king` / `lane` 这类**答案特征字段**。
-   */
-  function applicableAnswer(req, v) {
-    if (!v || typeof v !== 'object') return false;
-    const key = (o) => JSON.stringify(o);
-    for (const o of req.options || []) if (key(o) === key(v)) return true;
-    return ['index', 'uid', 'king', 'lane', 'row'].some((k) => v[k] !== undefined);
-  }
 
   /**
    * `state.chooser`：驱动器在每个提问上做的裁定 —— 「这一问是谁答的」。
@@ -402,6 +382,8 @@ export function createReplayPlayer(record, cardLib) {
       firstPlayer: record.firstPlayer,
       deck: (record.deck || []).slice(),
       factions: (record.factions || []).slice(),
+      // 强化增量：不传的话重放出来的单位是卡面原值，第 N 步必分叉
+      enhance: record.enhance || null,
       cardLib,
       // 录制里存的就是**洗好的**牌库，不能再洗（见 newRecording 的 `shuffled`）
       shuffleDeck: !record.shuffled,
@@ -493,7 +475,6 @@ export function createReplayPlayer(record, cardLib) {
       })
       : null;
     globalThis.__log = [];
-    if (typeof window !== 'undefined') window.__missLog = [];
     /**
      * **哪一方是真人，必须和录那一局时一致**：引擎靠它决定哪些提问会挂起等人
      * （`noAuto` 与「抉择」）。以前这里写死成 -1（两侧都不是真人），于是真人那一侧
@@ -676,15 +657,6 @@ export function createReplayPlayer(record, cardLib) {
 
     reset() { build(); },
   };
-}
-
-/** 估算一条回放占多少字节（存进档案前提示用） */
-export function estimateBytes(record) {
-  try {
-    return JSON.stringify(record).length * 2;
-  } catch {
-    return 0;
-  }
 }
 
 /**

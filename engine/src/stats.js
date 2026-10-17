@@ -9,10 +9,9 @@
  * 依赖方向：board ← damage ← stats
  */
 
-import { LANES, ROWS, SIDE, KING_MAX_HP, REBIRTH_HP } from './constants.js';
-import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, parseKeyword } from './keywords.js';
-import { chance, shuffle } from './rng.js';
-import { log, findUnit, laneUnits, allUnitsInLane, allUnits, destroyUnit } from './board.js';
+import { getKw, parseKeyword } from './keywords.js';
+import { shuffle } from './rng.js';
+import { log, allUnits } from './board.js';
 import { queueTrigger, checkNimble } from './damage.js';
 import { alchemyOnDraw } from './factions.js';
 

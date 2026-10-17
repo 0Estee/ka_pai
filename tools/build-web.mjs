@@ -16,6 +16,12 @@
  *   import './x.js';
  *   export function f() {}   export const c = 1;   export class C {}
  *   export { a, b };
+ *   export { a, b } from './x.js';
+ *
+ * 最后那条是给 engine/src 的三个门面（engine / mechanics / effects）用的：
+ * 所有模块本来就拼在同一个作用域里，所以 `export {…} from` 只是**登记**
+ * 「这个名字从我这儿取」，一行代码都不用产出 —— 门面因此不必再把每个
+ * 导出名抄两遍（import 块一遍、export 块一遍）。
  *
  * 输出：
  *   app/dist/modules/NN-<组>-<文件>.js   一个源模块一个 classic script，按依赖顺序编号
@@ -67,6 +73,22 @@ function parseModule(absPath) {
   src = src.replace(
     /^[ \t]*import\s+['"]([^'"]+)['"];?[ \t]*$/gm,
     (_, from) => { imports.push({ sideEffect: true, from }); return ''; },
+  );
+
+  // ── export { a, b as c } from '...'
+  //    必须先于下面那条匹配，否则会被当成普通 export 块漏掉一半。
+  //    只登记依赖与导出名：拼平之后名字本来就在同一个作用域里，不需要产出代码。
+  src = src.replace(
+    /^[ \t]*export\s*\{([\s\S]*?)\}\s*from\s*['"]([^'"]+)['"];?[ \t]*$/gm,
+    (_, names, from) => {
+      const pieces = names.split(',').map((s) => s.trim()).filter(Boolean);
+      for (const piece of pieces) {
+        const n = piece.split(/\s+as\s+/).pop().trim();
+        if (n) exportNames.add(n);
+      }
+      imports.push({ names: pieces, from, reexport: true });
+      return '';
+    },
   );
 
   // ── export { a, b as c };
@@ -190,6 +212,40 @@ if (collisions.length > 0) {
     `打包失败：有 ${collisions.length} 个顶层名字在多个模块里重复。\n`
     + `${lines.join('\n')}\n`
     + '所有模块会被拼进同一个作用域，重名会静默覆盖（曾经导致无限递归）。请改名。',
+  );
+}
+
+/**
+ * 校验 `export { … } from './x.js'` 里的名字，目标模块真的导出了。
+ *
+ * 拼平之后这些名字只是普通变量，写错一个字母不会在打包期报错 ——
+ * 要等运行时生成命名空间对象 `const G = { 错名 }` 才炸 ReferenceError，
+ * 栈里还看不出是哪个门面写错了。所以在这里先拦下来。
+ */
+function findBadReexports(order) {
+  const bad = [];
+  for (const absPath of order) {
+    for (const imp of modules.get(absPath).imports) {
+      if (!imp.reexport) continue;
+      const targetMod = modules.get(path.resolve(path.dirname(absPath), imp.from));
+      for (const piece of imp.names) {
+        const srcName = piece.split(/\s+as\s+/)[0].trim();
+        if (!targetMod || !targetMod.exportNames.has(srcName)) {
+          bad.push(`  · "${srcName}"  ← ${path.relative(ROOT, absPath).replace(/\\/g, '/')}`
+            + ` 从 ${imp.from} 转出，但那边没有导出这个名字`);
+        }
+      }
+    }
+  }
+  return bad;
+}
+
+const badReexports = findBadReexports(order);
+if (badReexports.length > 0) {
+  throw new Error(
+    `打包失败：有 ${badReexports.length} 个转出（export … from）指向不存在的导出。\n`
+    + `${badReexports.join('\n')}\n`
+    + '拼平后这些名字只是普通变量，写错不会在这里报错，要到运行时才炸。请改对。',
   );
 }
 

@@ -13,12 +13,17 @@ import * as Net from './multiplayer.js';
 import { TEST_CARD_LIB } from '../../engine/cards/test-cards.js';
 import { difficultyByKey, DIFFICULTIES } from './ai.js';
 import { FACTIONS } from '../../engine/src/engine.js';
-import { render } from './ui.js';
+/**
+ * HTML 转义只有一个实现，在 ui.js —— 打包器把各模块拍进同一作用域，
+ * 再写第二份同名常量会直接报重名。改转义规则只改 ui.js 那处。
+ */
+import { render, esc } from './ui.js';
 import {
   homeHTML, settingsHTML, replayListHTML, replayBarHTML,
   playMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
-  setNavDir,
+  workshopHTML, setNavDir,
 } from './screens.js';
+import * as Enh from './enhance.js';
 
 /** 建立一份新的界面状态 */
 function makeView() {
@@ -30,8 +35,6 @@ function makeView() {
     legalLanes: [],
     legalKingTargets: [],
     playableIids: [],
-    lastDamaged: [],
-    lastKilled: null,
     /** 正在查看详情的场上单位 uid（点场上卡牌打开，null = 没打开） */
     infoUid: null,
     hint: '',
@@ -39,6 +42,12 @@ function makeView() {
     busy: false,
     busyText: '',
     settle: null,
+    /** 工坊：分组方式（'initial' 首字母 / 'type' 类型） */
+    forgeGroup: 'initial',
+    /** 工坊：正在三选一的精通（null = 没在选） */
+    forgePick: null,
+    /** 工坊：上一次操作的一句反馈（金币不够、练满、洗掉…） */
+    forgeHint: '',
   };
 }
 
@@ -353,7 +362,6 @@ let flightSeq = 0;         // 单调计数：环形缓冲被截断时，门禁�
  * 于是每次重绘只是照当前状态画一遍：飞行途中重绘不会提前露出，飞完摘掉标记就显示。
  * 兜底：动画没播成（拿不到落点 / DOM 桩）或计时器到点，都会把牌子放出来，绝不永久藏住。
  */
-let flyPendingSlots = [];
 const flightHideTimers = {};
 
 function slotKeyOf(lane, side, row) {
@@ -366,7 +374,6 @@ function hideSlotForFlight(f) {
   if (!key || !view) return;
   if (!view.flyPending) view.flyPending = {};
   view.flyPending[key] = true;
-  if (!flyPendingSlots.includes(key)) flyPendingSlots.push(key);
   clearTimeout(flightHideTimers[key]);
   flightHideTimers[key] = setTimeout(() => {
     delete flightHideTimers[key];
@@ -376,7 +383,6 @@ function hideSlotForFlight(f) {
 
 function revealFlightSlot(key, defer) {
   if (!key) return;
-  flyPendingSlots = flyPendingSlots.filter((k) => k !== key);
   if (!view || !view.flyPending || !view.flyPending[key]) return;
   delete view.flyPending[key];
   if (defer) {
@@ -396,7 +402,6 @@ function clearFlightHides() {
     clearTimeout(flightHideTimers[key]);
     delete flightHideTimers[key];
   }
-  flyPendingSlots = [];
   for (const key of Object.keys((view && view.flyPending) || {})) delete view.flyPending[key];
 }
 
@@ -577,7 +582,7 @@ function faceHTML(cardId) {
     : '';
   return '<div class="card fly-face' + cls + '">'
     + '<div class="c-cost">' + (def.cost == null ? 0 : def.cost) + '</div>'
-    + '<div class="c-name">' + escMain(def.name || '') + '</div>'
+    + '<div class="c-name">' + esc(def.name || '') + '</div>'
     + stat
     + '</div>';
 }
@@ -646,6 +651,7 @@ function spawnFlight(f) {
     if (done) return;
     done = true;
     if (f.kind === 'play') dropSlotPulse(f);
+    if (f.kind === 'draw') dropHandPulse(f.iid);   // 落槽那一下的回弹，叠在飞行的终点
     try { el.remove(); } catch (e) {}
     if (f.hides) revealFlightSlotOf(f, false);
   };
@@ -661,8 +667,12 @@ function flyCard(f) {
   let animated = false;
   try { animated = spawnFlight(f); } catch (e) { animated = false; }
   noteFlight(f, animated);
-  // 动画没播成（没有 DOM / 拿不到落点）就别把牌藏着了，直接显示出来
-  if (!animated && f.hides) revealFlightSlotOf(f, true);
+  // 动画没播成（没有 DOM / 拿不到落点）就别把牌藏着了，直接显示出来；
+  // 抽牌的落槽回弹也在这里补一次 —— 没有飞行时它就是唯一的反馈
+  if (!animated) {
+    if (f.kind === 'draw') dropHandPulse(f.iid);
+    if (f.hides) revealFlightSlotOf(f, true);
+  }
 }
 
 /**
@@ -741,6 +751,313 @@ function flushCardFlights() {
   for (const f of queued) flyCard(f);
 }
 
+// ══════════════════════════════════════════════════════════
+// 瞬态动画钩子（fx-*）：只在「真的发生了」的那一帧给活节点加一次类
+//
+// 为什么非得这么绕：`refresh()` 每帧整块重写 #stage 的 innerHTML（见文件顶部那段），
+// 所以 fx-* 类一律**不能**写进渲染出来的 HTML —— 那会在每次重绘时重放一遍。
+// 这里的做法统一是「先扫、后画、再摘」：
+//   scanTransientFx()  渲染**前**扫出这一帧真正发生的事件（对比上一帧的值 / 扫 state.log 游标）；
+//   各种 apply*Fx()     渲染**后** querySelector 拿到活节点、classList.add，到点 setTimeout 摘掉。
+// 门禁的 DOM 桩没有 querySelectorAll / querySelector / closest：这些函数一律安静退回，
+// 绝不在只有桩的情况下改变渲染结果，也绝不抛异常。
+//
+// 事件的来源分两类：
+//   · 「本帧发生」由**上一帧快照**比出来（法力 / 阶段 / 金币 / 房间状态 / 回放播放态）——
+//     项目里没有通用 diff，就自己存一份上一帧的值；state 换对象（新局）时整份丢掉，
+//     否则新局开局会拿旧局的数字比一次、白白播一段假动画；
+//   · 「刚写进日志」由 state.log 游标扫出来（阵亡 / 治疗），做法照抄 scanCardFlights；
+//   · 「手牌少了一张」由上一帧的 iid 集合比出来（出牌 / 弃牌的退场残影）。
+// ══════════════════════════════════════════════════════════
+
+const FX_POP_MS = 240;     // 弹层入场（screens.css 的 .fx-pop）
+const FX_ROW_MS = 300;     // 房间行（.fx-row）
+const FX_NUM_MS = 320;     // 金币 / 等级（.fx-num）
+const FX_WARN_MS = 260;    // 警示文案（.fx-warn）
+const FX_RP_MS = 280;      // 回放 播放↔暂停（.fx-rp）
+const FX_DEATH_MS = 340;   // 阵亡（.fx-death）
+const FX_HEAL_MS = 420;    // 回血（.fx-heal）
+const FX_MANA_MS = 300;    // 费用 / 法力涨跌（.fx-pop-up / .fx-pop-down）
+const FX_PHASE_MS = 300;   // 阶段推进（.fx-phase）
+const FX_DRAW_MS = 300;    // 抽到的牌落进卡槽（.fx-draw）
+const FX_SPEND_MS = 260;   // 打出牌的原位退场残影（.fx-spend）
+
+let fxPrevGame = null;      // 上一帧的对局快照 { state, phase, mana }; state 换对象即作废
+let fxLogCursor = -1;       // state.log 的扫描游标（< 0 = 还没定基线）
+let fxScanned = null;       // 本帧扫出来的待播事件；渲染后消费一次
+const fxDying = new Map();  // uid -> 正在消散的残影（渲染后按它补类）
+let fxHandIids = [];        // 上一帧的手牌 iid：少掉的那个 = 打出去/弃掉的牌
+const fxHandRects = new Map(); // iid -> { rect, html }：手牌卡最近一次实测的位置
+let fxPresent = new Set();  // 上一帧存在的一次性弹层选择器（弹层「刚出现」才播）
+let fxLastGold = null;      // 首页 HUD：上一帧的金币 / 等级
+let fxLastLevel = null;
+let fxLastRooms = new Map();// 房间列表：上一帧的 key -> 状态
+let fxLastPlaying = null;   // 回放控制条：上一帧的 播放/暂停
+
+/** 桩里没有 querySelector(All)：安静退回空列表，绝不抛异常 */
+function fxNodes(root, sel) {
+  try {
+    if (root && typeof root.querySelectorAll === 'function') {
+      return Array.prototype.slice.call(root.querySelectorAll(sel));
+    }
+  } catch (e) { /* DOM 桩 */ }
+  return [];
+}
+
+function fxNode(root, sel) {
+  try {
+    if (root && typeof root.querySelector === 'function') return root.querySelector(sel);
+  } catch (e) { /* DOM 桩 */ }
+  return null;
+}
+
+/** 加一次类、到点摘掉。节点是 querySelector 现拿的活节点，绝不拼进渲染字符串 */
+function fxPulse(nodes, cls, ms) {
+  const list = [];
+  for (const el of nodes || []) {
+    try { if (el && el.classList) { el.classList.add(cls); list.push(el); } } catch (e) { /* 桩 */ }
+  }
+  if (!list.length) return;
+  setTimeout(() => {
+    for (const el of list) { try { el.classList.remove(cls); } catch (e) { /* 桩 */ } }
+  }, ms);
+}
+
+/**
+ * 渲染前扫「这一帧发生了什么」。
+ *
+ * 法力 / 阶段：和上一帧快照比。法力用**真值**（p.mana），不是界面上的 visibleMana ——
+ *   动画要对齐「钱真的变了」那一刻；对手藏起来的花费本来就不该被玩家看出来。
+ * 阵亡 / 治疗：扫 state.log 的新增量（带 uid / 位置）。
+ * 打出牌退场：比**手牌 iid 集合** —— 少掉的那个就是打出去（或弃掉）的那一张。
+ *   为什么不用 state.log 的 deploy/cast 来认：那两条日志不带 iid，而手牌 iid 是唯一的，
+ *   而且「本体离开手牌」这件事本身就等于「手牌少了一个 iid」，比日志更直接。
+ *   一次少 ≥3 张（换手牌 / 重开）不认 —— 那不是「打出一张」，是整副换掉了。
+ */
+function scanTransientFx() {
+  fxScanned = null;
+  // 回放有自己的数据源（replayCtx.player.state），这套游标是绑在实时 state.log 上的，直接跳过
+  if (!state || !view || view.isReplay) { fxPrevGame = null; fxLogCursor = -1; return; }
+
+  const logs = state.log || [];
+  const fresh = !fxPrevGame || fxPrevGame.state !== state;
+  if (fresh) { fxLogCursor = logs.length; fxDying.clear(); fxHandRects.clear(); fxHandIids = []; }
+  if (fxLogCursor < 0 || fxLogCursor > logs.length) fxLogCursor = logs.length;
+
+  const p0 = state.players && state.players[0];
+  const p1 = state.players && state.players[1];
+  const mana = [
+    { m: p0 ? p0.mana : null, c: p0 ? p0.manaCap : null },
+    { m: p1 ? p1.mana : null, c: p1 ? p1.manaCap : null },
+  ];
+  const scan = { mana: [], phase: false, heals: [], kingHeals: [], spent: [] };
+
+  if (!fresh) {
+    for (const side of [0, 1]) {
+      const a = fxPrevGame.mana[side];
+      const b = mana[side];
+      if (a.m != null && b.m != null && b.m !== a.m) {
+        scan.mana.push({ side, from: a.m, to: b.m, dir: b.m > a.m ? 1 : -1 });
+      }
+    }
+    if (state.phase !== fxPrevGame.phase) scan.phase = true;
+  }
+
+  // 手牌少掉的 iid：本体已经不在 DOM 里了，退场残影只能拿**上一帧量好的**位置来补
+  const meP = state.players && state.players[view.humanSide];
+  const handIids = meP && Array.isArray(meP.hand) ? meP.hand.map((c) => c.iid) : [];
+  if (!fresh && fxHandIids.length) {
+    const gone = fxHandIids.filter((iid) => !handIids.includes(iid));
+    if (gone.length && gone.length <= 2) scan.spent = gone;
+  }
+  fxHandIids = handIids;
+
+  for (let i = fxLogCursor; i < logs.length; i++) {
+    const e = logs[i];
+    if (!e) continue;
+    if (e.type === 'destroy' && e.lane !== undefined && e.side !== undefined && e.row) {
+      if (!fxDying.has(e.uid)) fxDying.set(e.uid, { lane: e.lane, side: e.side, row: e.row, animated: false });
+    } else if (e.type === 'heal' && e.uid != null) {
+      scan.heals.push(e.uid);
+    } else if (e.type === 'king-heal' && e.side !== undefined) {
+      scan.kingHeals.push(e.side);
+    }
+  }
+  fxLogCursor = logs.length;
+
+  fxPrevGame = { state, phase: state.phase, mana };
+  fxScanned = scan;
+}
+
+/** 抽到的牌落进卡槽那一下回弹（飞行负责「划过来」，这一支只负责「落槽」那一下） */
+function dropHandPulse(iid) {
+  if (iid == null) return;
+  try {
+    const el = document.querySelector('.hand .card[data-iid="' + iid + '"]');
+    if (!el || !el.classList) return;
+    el.classList.add('fx-draw');
+    setTimeout(() => { try { el.classList.remove('fx-draw'); } catch (e) { /* 桩 */ } }, FX_DRAW_MS);
+  } catch (e) { /* DOM 桩 */ }
+}
+
+/**
+ * 出牌退场残影：手牌那一张是「先离开 state、再重绘」的，等渲染完它已经不在 DOM 里，
+ * 没法给本体加类 —— 只能在渲染后于原卡槽位置补一块会缩掉的残影。
+ * 位置来自 fxHandRects（上一帧那张牌还在时量下来的），因为出牌这条路径
+ * **没有**在拿得到节点的时候给我们回调（见下面的 noteHandRects）。
+ * 挂 #fx-layer（和飞行克隆卡同一层，不受 #stage 重绘影响），不挡点击。
+ */
+function spawnHandGhost(play) {
+  if (!play || !play.rect || !canFlyDom()) return;
+  const layer = flightLayerEl();
+  if (!layer) return;
+  const r = play.rect;
+  try {
+    const el = document.createElement('div');
+    el.className = 'fx-spend';
+    el.style.left = Math.round(r.left) + 'px';
+    el.style.top = Math.round(r.top) + 'px';
+    el.style.width = Math.round(r.width) + 'px';
+    el.style.height = Math.round(r.height) + 'px';
+    el.innerHTML = play.html ? '<div class="card fly-face">' + play.html + '</div>' : '';
+    layer.appendChild(el);
+    setTimeout(() => { try { el.remove(); } catch (e) { /* 已经没了 */ } }, FX_SPEND_MS + 80);
+  } catch (e) { /* DOM 桩 */ }
+}
+
+/**
+ * 记下手牌卡的位置，供「打出的牌原位退场」用（渲染后调用）。
+ *
+ * 为什么要自己量：玩家出牌走的是 play-input 的 commitPlay，它直接调 G.playCard、
+ * 没有经过 applyLocalAction 那条会调 captureHandCardSource 的路 —— 也就是说
+ * 「出牌前抓源卡」对玩家自己出牌根本没发生。卡一离开手牌、重绘一跑，它的位置就没了。
+ * 所以这里每次渲染后把**当前还在手上**的卡量一遍，谁下一帧消失，就用它上一帧量到的位置补残影。
+ * 每次渲染量一遍而不是「只在手牌变化时量」：手牌区是横向滚动的，滚过之后旧坐标就偏了。
+ * 代价是每次渲染一次强制布局；refresh 是「每个演出步进 / 每次操作」一次，不是每帧，
+ * 十来个 getBoundingClientRect 可以接受。
+ */
+function noteHandRects(stage) {
+  try {
+    const p = state && state.players && state.players[view.humanSide];
+    if (!p || !Array.isArray(p.hand)) return;
+    const live = new Set();
+    for (const c of p.hand) {
+      live.add(c.iid);
+      const el = fxNode(stage, '.hand .card[data-iid="' + c.iid + '"]');
+      if (!el || typeof el.getBoundingClientRect !== 'function') continue;
+      const r = el.getBoundingClientRect();
+      if (r && typeof r.left === 'number') fxHandRects.set(c.iid, { rect: r, html: el.innerHTML || '' });
+    }
+    if (fxHandRects.size > 60) for (const k of Array.from(fxHandRects.keys())) if (!live.has(k)) fxHandRects.delete(k);
+  } catch (e) { /* DOM 桩 */ }
+}
+
+/** 渲染后：把这一帧扫出来的瞬态事件画到活节点上 */
+function applyTransientFx(stage) {
+  // 阵亡：动画 + 静态「按住」两支类。
+  // 为什么要两支：#stage 重绘会把活节点连类一起换掉，而残影（.unit.ghost）要活到本路的
+  // 演出播完（约 1.6s，横跨两次 820ms 的步进）。只有 fx-death（带 forwards）的话，
+  // 820ms 那次重绘会把类冲掉、残影「弹」回全不透明；所以补一支无动画的静态 fx-dead
+  // 把残影按住 —— 静态类随便重加，不会重播；fx-death 只在第一次加，避免每帧重新淡出。
+  try {
+    const dead = (view && view.deadUnits) || [];
+    for (const [uid, rec] of Array.from(fxDying.entries())) {
+      if (!dead.some((d) => d.uid === uid)) { fxDying.delete(uid); continue; }
+      const sel = '.slot[data-lane="' + rec.lane + '"][data-side="' + rec.side + '"][data-row="' + rec.row + '"]';
+      const el = fxNode(stage, sel);
+      if (!el || !el.classList) continue;
+      el.classList.add('fx-dead');
+      if (!rec.animated) { rec.animated = true; fxPulse([el], 'fx-death', FX_DEATH_MS); }
+    }
+  } catch (e) { /* DOM 桩 */ }
+
+  const scan = fxScanned;
+  fxScanned = null;
+  if (!scan) return;
+
+  if (scan.phase) fxPulse(fxNodes(stage, '.phasebar'), 'fx-phase', FX_PHASE_MS);
+
+  for (const m of scan.mana) {
+    const bar = '.statusbar.' + (m.side === me() ? 'me' : 'foe');
+    const cls = m.dir > 0 ? 'fx-pop-up' : 'fx-pop-down';
+    fxPulse(fxNodes(stage, bar + ' .sb-mana'), cls, FX_MANA_MS);
+    // 只弹真的翻面的那几个 pip：涨了是最右新增的、降了是被清掉的那几个
+    const lo = Math.min(m.from, m.to);
+    const hi = Math.max(m.from, m.to);
+    if (hi > lo) fxPulse(fxNodes(stage, bar + ' .pip').slice(lo, hi), cls, FX_MANA_MS);
+  }
+
+  for (const uid of scan.heals) {
+    const u = fxNode(stage, '.unit[data-uid="' + uid + '"]');
+    const slot = u && (typeof u.closest === 'function' ? u.closest('.slot') : u.parentNode);
+    if (slot) fxPulse([slot], 'fx-heal', FX_HEAL_MS);
+  }
+  for (const side of scan.kingHeals) fxPulse(fxNodes(stage, '.sb-king[data-king="' + side + '"]'), 'fx-heal', FX_HEAL_MS);
+
+  for (const iid of scan.spent) {
+    const rec = fxHandRects.get(iid);
+    if (rec) spawnHandGhost(rec);
+  }
+}
+
+/**
+ * 菜单 / 各屏的一次性弹层：只按「上一帧不在、这一帧在」播一次。
+ * 弹层是常驻的（例如大厅那条 hf-warn）时，第二帧起就不再补类 ——
+ * 而重绘出来的新节点本来也带不上类，所以不会重放（这正是要的效果）。
+ */
+const FX_PRESENCE = [
+  ['.result', 'fx-pop', FX_POP_MS],
+  ['.choice-box', 'fx-pop', FX_POP_MS],
+  ['.unit-info .ui-card', 'fx-pop', FX_POP_MS],
+  ['.net-banner', 'fx-pop', FX_POP_MS],
+  ['.reward-gold', 'fx-num', FX_NUM_MS],
+  ['.hf-warn', 'fx-warn', FX_WARN_MS],
+  ['.lobby-broke', 'fx-warn', FX_WARN_MS],
+  ['.rp-bad', 'fx-warn', FX_WARN_MS],
+  ['.rp-err', 'fx-warn', FX_WARN_MS],
+  ['.lan-err', 'fx-warn', FX_WARN_MS],
+];
+
+function applyScreenFx(stage) {
+  const next = new Set();
+  for (const [sel, cls, ms] of FX_PRESENCE) {
+    const els = fxNodes(stage, sel);
+    if (!els.length) continue;
+    next.add(sel);
+    if (!fxPresent.has(sel)) fxPulse(els, cls, ms);
+  }
+  fxPresent = next;
+}
+
+/** 首页 HUD：金币 / 等级变了才弹（首次渲染只记基线，不播） */
+function applyHomeFx(stage, levelNum) {
+  const gold = profile ? profile.gold : null;
+  if (fxLastGold !== null && gold !== fxLastGold) fxPulse(fxNodes(stage, '.hud-gold'), 'fx-num', FX_NUM_MS);
+  if (fxLastLevel !== null && levelNum !== fxLastLevel) fxPulse(fxNodes(stage, '.hud-lv'), 'fx-num', FX_NUM_MS);
+  fxLastGold = gold;
+  fxLastLevel = levelNum;
+}
+
+/** 房间列表：新 key，或同一 key 的状态串变了（可加入 -> 已开始）才播 */
+function applyRoomsFx(stage, rooms) {
+  const next = new Map();
+  for (const r of rooms || []) {
+    const key = r.ip + ':' + r.port;
+    const st = r.started ? 'started' : 'open';
+    next.set(key, st);
+    if (fxLastRooms.get(key) === st) continue;
+    const el = fxNode(stage, '.room-row[data-url="http://' + r.ip + ':' + r.port + '/?net=guest"]');
+    if (el) fxPulse([el], 'fx-row', FX_ROW_MS);
+  }
+  fxLastRooms = next;
+}
+
+/** 回放控制条：播放 / 暂停翻转那一下（首次渲染只记基线） */
+function applyReplayFx(stage, playing) {
+  if (fxLastPlaying !== null && playing !== fxLastPlaying) fxPulse(fxNodes(stage, '.rp-btn-play'), 'fx-rp', FX_RP_MS);
+  fxLastPlaying = !!playing;
+}
+
 /**
  * 屏幕切换动画：只动按钮，不动整页。
  * 前进时新页面的菜单按钮从右往左滑入，返回时相反（方向由 SCREEN_DEPTH 自动决定）。
@@ -795,17 +1112,36 @@ function refresh() {
   if (screen !== 'game') stopBoardReveal();   // 离开对局就别再推铺开
 
   if (screen === 'home') {
+    // 等级从 0.58 起算综合表现分，不再看金币（金币现在只买东西）
+    const level = Eco.levelProgress(profile.perf);
     stage.innerHTML = homeHTML({
       profile,
-      level: Eco.levelProgress(profile.lifetimeGold),
+      level,
       storageMode: Store.storageMode(),
       lastSettle,
     });
+    applyHomeFx(stage, level.level);
+    applyScreenFx(stage);
     return;
   }
 
   if (screen === 'play') {
-    stage.innerHTML = playMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable() });
+    stage.innerHTML = playMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable(), profile });
+    applyScreenFx(stage);
+    return;
+  }
+
+  if (screen === 'forge') {
+    const groupBy = view.forgeGroup === 'type' ? 'type' : 'initial';
+    const w = Enh.workshopCards(TEST_CARD_LIB, profile, groupBy);
+    stage.innerHTML = workshopHTML({
+      profile,
+      groups: w.groups,
+      groupBy,
+      pick: view.forgePick,
+      hint: view.forgeHint,
+    });
+    applyScreenFx(stage);
     return;
   }
 
@@ -816,16 +1152,20 @@ function refresh() {
       faction: myFaction,
       factions: factionOptions(),
     });
+    applyScreenFx(stage);
     return;
   }
 
   if (screen === 'lan') {
     stage.innerHTML = lanMenuHTML({ lanSupported: Net.nativeAvailable(), localIp: Net.localIp() });
+    applyScreenFx(stage);
     return;
   }
 
   if (screen === 'lanScan') {
     stage.innerHTML = lanScanHTML({ rooms: lanRooms, scanning: lanScanning, manualError: lanManualError });
+    applyRoomsFx(stage, lanRooms);
+    applyScreenFx(stage);
     return;
   }
 
@@ -847,6 +1187,7 @@ function refresh() {
       faction: myFaction,
       factions: factionOptions(),
     });
+    applyScreenFx(stage);
     return;
   }
 
@@ -856,6 +1197,7 @@ function refresh() {
       storageMode: Store.storageMode(),
       replaysBytes: Store.replaysBytes(),
     });
+    applyScreenFx(stage);
     return;
   }
 
@@ -868,6 +1210,7 @@ function refresh() {
       storageMode: Store.storageMode(),
       replaysBytes: Store.replaysBytes(),
     });
+    applyScreenFx(stage);
     return;
   }
 
@@ -886,8 +1229,6 @@ function refresh() {
       legalLanes: [],
       legalKingTargets: [],
       playableIids: [],
-      lastDamaged: [],
-      lastKilled: null,
       hint: '',
       banner: '',
       busy: false,
@@ -907,6 +1248,8 @@ function refresh() {
       error: replayCtx.player.error,
     });
     restoreHandScroll(stage, replayHandScroll);
+    applyReplayFx(stage, replayCtx.playing);
+    applyScreenFx(stage);
     return;
   }
 
@@ -916,7 +1259,11 @@ function refresh() {
   // 开局铺开：进度存在模块状态里（不是 CSS 的 animation-delay 排队），
   // 于是任何一次重绘都只是「照当前进度画一遍」已出现的行不重放，没轮到的行保持不可见。
   view.revealShown = boardReveal ? boardReveal.shown : null;
-  // 先扫出这一帧要飞的卡：出牌的落点必须在渲染前就藏好，否则牌会先在格子里露出来
+  // 先扫这一帧真正发生的事（法力 / 阶段 / 阵亡 / 治疗 / 出牌退场）——
+  // 必须排在 scanCardFlights 之前：出牌抓拍（playSources）会被它 shift 掉，
+  // 退场残影要靠那份抓拍认「消失的是哪一张」。
+  scanTransientFx();
+  // 再扫出这一帧要飞的卡：出牌的落点必须在渲染前就藏好，否则牌会先在格子里露出来
   scanCardFlights();
   render(stage, state, view);
   restoreHandScroll(stage, handScroll);
@@ -942,19 +1289,19 @@ function refresh() {
      */
     if (rq.type === 'summonCell') {
       stage.innerHTML += `<div class="choice-bar">
-        <div class="choice-title">${escMain(rq.prompt || '选择召唤位置')}</div>
+        <div class="choice-title">${esc(rq.prompt || '选择召唤位置')}</div>
         ${canAnswer
       ? (rq.options || []).map((o, i) =>
-        `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${escMain(o.label)}</button>`).join('')
+        `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${esc(o.label)}</button>`).join('')
       : '<div class="choice-sub net-dim">等待对手选择</div>'}
       </div>`;
     }
     if (rq.type !== 'summonCell') stage.innerHTML += `<div class="choice-mask"><div class="choice-box">
-      <div class="choice-title">${escMain(rq.prompt || '选择一项')}</div>
+      <div class="choice-title">${esc(rq.prompt || '选择一项')}</div>
       ${isCombatTarget ? '<div class="choice-sub">指定谁，这一击就打谁（可以跨线路、也可以打脸）</div>' : ''}
       ${canAnswer
       ? `<div class="choice-list">${(rq.options || []).map((o, i) =>
-    `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${escMain(o.label)}</button>`).join('')}</div>`
+    `<button class="choice-opt" data-act="choose-option" data-idx="${i}">${esc(o.label)}</button>`).join('')}</div>`
       : '<div class="choice-sub net-dim">等待对手选择</div>'}
     </div></div>`;
   }
@@ -967,17 +1314,19 @@ function refresh() {
     stage.innerHTML += `<div class="net-banner">${text}</div>`;
   }
   if (session && session.conflict) {
-    stage.innerHTML += `<div class="net-banner net-bad">${escMain(session.conflict)}</div>`;
+    stage.innerHTML += `<div class="net-banner net-bad">${esc(session.conflict)}</div>`;
   }
-}
 
-/** HTML 转义。不能叫 esc —— ui.js 里已有同名常量，打包器会因重名直接报错。 */
-function escMain(s) {
-  return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // 瞬态动画一律等到这里：DOM 全部就位（含上面补挂的弹层），才拿得到活节点
+  applyTransientFx(stage);
+  applyScreenFx(stage);
+  // 记下手牌位置（供下一帧「打出的牌原位退场」用）：必须排在 applyTransientFx 之后 ——
+  // 那一帧消失的牌的旧坐标还留在 fxHandRects 里，等残影补完再刷新它
+  noteHandRects(stage);
 }
 
 export {
   makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
-  showBanner, refresh, escMain, LANE_LABEL, toggleMenu, fillMenuLog,
+  showBanner, refresh, toggleMenu, fillMenuLog,
   resetCardFlights, captureHandCardSource, captureDiscardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
 };

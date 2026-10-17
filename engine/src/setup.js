@@ -27,7 +27,7 @@ export const PENDING = Symbol('PENDING');
 // 建局
 // ══════════════════════════════════════════════════════════
 
-export function makePlayer(side, faction = null) {
+function makePlayer(side, faction = null) {
   return {
     side,
     kingHp: KING_MAX_HP,
@@ -72,7 +72,7 @@ export function makePlayer(side, faction = null) {
   };
 }
 
-export function makeBoard() {
+function makeBoard() {
   const board = {};
   for (const lane of LANES) {
     board[lane] = {
@@ -100,6 +100,8 @@ export function createGame(cfg = {}) {
     cardLib = {},
     shuffleDeck = true,
     factions = [],
+    // 双方强化增量（[side0, side1]）。不传 = 都没有强化，行为与旧版完全一致。
+    enhance = null,
   } = cfg;
 
   const rng = createRng(seed);
@@ -118,7 +120,6 @@ export function createGame(cfg = {}) {
     rng,
     log: [],
     triggerQueue: [],
-    choiceQueue: [],
     pending: null,
     autoResolveChoices: true,
     /**
@@ -140,7 +141,16 @@ export function createGame(cfg = {}) {
     winReason: null,
     deckEmpty: false,
     cardLib,
-    stats: { cardsPlayed: 0, unitsDestroyed: 0 },
+    /**
+     * 强化 / 精通带来的**每方**卡牌增量（2026-10「强化工坊」）。
+     *
+     * 形如 [{ [cardId]: { atk, hp, cost, kw:[{id,x}] } }, {...}]：
+     * 索引是方（0/1），因为双方可以各自强化同一张卡，而牌库是共享的。
+     * 只有**单位攻/血、词条、锦囊费用**需要按方区分，其余（名字/效果/阵营）
+     * 继续读基础 cardLib —— 这也是不重构成「每方一份 cardLib」的原因。
+     */
+    enhance: normalizeEnhance(enhance),
+    stats: { cardsPlayed: 0, unitsDestroyed: 0, killsBySide: [0, 0] },
     nextUid: 1,
     nextIid: 1,
     extraAttackUsed: {},
@@ -158,6 +168,64 @@ export function createGame(cfg = {}) {
     laneLocks: {},
     _pendingDeaths: [],
   };
+}
+
+// ══════════════════════════════════════════════════════════
+// 强化 / 精通增量
+// ══════════════════════════════════════════════════════════
+
+/** 没有强化时的零值（常量，**不要修改它**） */
+const NO_ENHANCE = { atk: 0, hp: 0, cost: 0, kw: [] };
+
+/**
+ * 把外部传进来的强化表洗成引擎认的形状。
+ *
+ * 允许的来源：玩家档案（强化工坊）、联机 start 消息、回放存档。
+ * 脏数据一律丢弃 —— 存档坏掉不该让对局开不起来。
+ */
+export function normalizeEnhance(raw) {
+  const out = [{}, {}];
+  if (!Array.isArray(raw)) return out;
+  for (let side = 0; side < 2; side++) {
+    const src = raw[side];
+    if (!src || typeof src !== 'object') continue;
+    for (const [cardId, v] of Object.entries(src)) {
+      if (!v || typeof v !== 'object') continue;
+      const atk = Number(v.atk) || 0;
+      const hp = Number(v.hp) || 0;
+      const cost = Number(v.cost) || 0;
+      const kw = Array.isArray(v.kw)
+        ? v.kw
+          .filter((k) => k && typeof k.id === 'string')
+          .map((k) => ({ id: k.id, x: Number(k.x) || 0 }))
+        : [];
+      if (atk === 0 && hp === 0 && cost === 0 && kw.length === 0) continue;
+      out[side][cardId] = { atk, hp, cost, kw };
+    }
+  }
+  return out;
+}
+
+/** 取某方某张卡的强化增量；没有就返回零值常量。 */
+export function enhanceFor(state, side, cardId) {
+  const sideMap = state && state.enhance && state.enhance[side];
+  const rec = sideMap && sideMap[cardId];
+  return rec || NO_ENHANCE;
+}
+
+/**
+ * 合并词条：同 id 的 x 相加（装甲 1 + 装甲 1 = 装甲 2）。
+ * 基础词条来自卡面，增量来自技能。
+ */
+export function mergeKeywords(base, extra) {
+  const out = (base || []).map((k) => ({ id: k.id, x: k.x }));
+  if (!extra || !extra.length) return out;
+  for (const k of extra) {
+    const hit = out.find((o) => o.id === k.id);
+    if (hit) hit.x += Number(k.x) || 0;
+    else out.push({ id: k.id, x: Number(k.x) || 0 });
+  }
+  return out;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -184,15 +252,19 @@ export function instantiateUnit(state, def, side, lane, row) {
     owner.entries[def.id] = (owner.entries[def.id] || 0) + 1;
   }
 
+  // 强化 / 精通：只在这一处把增量落到单位身上，之后所有规则都照常读实例字段。
+  // 牌库是双方共享的，所以增量必须按 side 取，不能写进 def。
+  const enh = enhanceFor(state, side, def.id);
+  const hp = (Number(def.hp) || 0) + enh.hp;
   return {
     uid: state.nextUid++,
     cardId: def.id,
     name: def.name,
     side, lane, row,
-    atk: def.atk,
-    hp: def.hp,
-    maxHp: def.hp,
-    keywords: (def.keywords || []).map(parseKeyword),
+    atk: (Number(def.atk) || 0) + enh.atk,
+    hp,
+    maxHp: hp,
+    keywords: mergeKeywords((def.keywords || []).map(parseKeyword), enh.kw),
     effects: instanceEffects(def),
     marks: [],
     removed: false,

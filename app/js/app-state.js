@@ -19,22 +19,7 @@
 //   `const X = { ... }` 快照对象，let 的后续赋值不会同步过去。
 //   本文件的 `export {}` 只是让 main.js 能把这个模块拉进打包图。
 
-import * as G from '../../engine/src/engine.js';
-import * as M from '../../engine/src/mechanics.js';
-import { LANES, ROWS, LANE_NAME } from '../../engine/src/constants.js';
-import { matchesTargetFilter } from '../../engine/src/keywords.js';
-import { filterCtx } from '../../engine/src/auras.js';
-import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
-import { aiTakeTurn, DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyByKey, applyDifficultyBonus, applyBonusObject } from './ai.js';
-import { render } from './ui.js';
-import * as Store from './store.js';
-import * as Eco from './economy.js';
-import * as RP from './replay.js';
-import * as Net from './multiplayer.js';
-import {
-  homeHTML, settingsHTML, replayListHTML, replayBarHTML, nextSpeed, APP_VERSION,
-  playMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
-} from './screens.js';
+import { DEFAULT_DIFFICULTY } from './ai.js';
 
 const HUMAN = 0;
 const AI = 1;
@@ -91,7 +76,7 @@ let paused = false;
 
 /** 玩家存档（金币 / 等级 / 战绩） */
 let profile = null;
-/** 设置（目前只有主题） */
+/** 设置（主题 / AI 难度） */
 let settings = null;
 /** 回放档案（全部对局） */
 let replays = [];
@@ -123,7 +108,7 @@ let difficulty = DEFAULT_DIFFICULTY;
 /**
  * 本局选择的阵营（超能力系统，见 engine/src/factions.js）。
  * 作者 2026-10-03 的规则：对局开始前自选，本局可用该阵营的超能力。
- * 现在只有一个阵营（恶魔），所以默认就选它；以后加阵营时这里改成 null 更好。
+ * 这里只是进难度页之前的初值，玩家一选就被 render.js 的 setFaction 覆盖。
  */
 let myFaction = 'demon';
 
@@ -134,12 +119,14 @@ let recordingSeed = 0;
 let recordingDeck = [];
 /** 联机开局时主机广播过来的双方阵营（客人要靠它录回放） */
 let recordingFactions = [];
+/** 联机开局时主机广播过来的双方强化增量表（客人要靠它录回放） */
+let recordingEnhance = null;
 
 export {
-  HUMAN, AI, me, foe, foeName, choiceOwner, canAnswerChoice,
+  AI, me, foe, foeName, canAnswerChoice,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,
   lanInfo, lanManualError, difficulty, myFaction, HOME_ASSET_URL,
-  recordingSeed, recordingDeck, recordingFactions,
+  recordingSeed, recordingDeck, recordingFactions, recordingEnhance,
 };
