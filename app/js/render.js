@@ -48,6 +48,12 @@ function makeView() {
     forgePick: null,
     /** 工坊：上一次操作的一句反馈（金币不够、练满、洗掉…） */
     forgeHint: '',
+    /** 放置：点过一次、等第二次点击确认的落点（null = 还没选） */
+    pickedSlot: null,
+    /** 放置：正被长按拖着走的牌（iid），null = 没在拖 */
+    dragIid: null,
+    /** 放置：拖动时手指正压着的合法格子 { lane, row }，null = 不在任何格子上 */
+    dragOver: null,
   };
 }
 
@@ -781,6 +787,9 @@ const FX_MANA_MS = 300;    // 费用 / 法力涨跌（.fx-pop-up / .fx-pop-down�
 const FX_PHASE_MS = 300;   // 阶段推进（.fx-phase）
 const FX_DRAW_MS = 300;    // 抽到的牌落进卡槽（.fx-draw）
 const FX_SPEND_MS = 260;   // 打出牌的原位退场残影（.fx-spend）
+const FX_CLAW_MS = 620;    // 受击爪印（.fx-claw，逐笔出现后整体淡出）
+const FX_CLAW_STEP_MS = 90; // 同一组抓痕里相邻两笔的间隔（越小抓得越快）
+const FX_DRAG_FLY_MS = 240; // 拖动失败：牌从当前位置飞回手牌的时长
 
 let fxPrevGame = null;      // 上一帧的对局快照 { state, phase, mana }; state 换对象即作废
 let fxLogCursor = -1;       // state.log 的扫描游标（< 0 = 还没定基线）
@@ -925,6 +934,159 @@ function spawnHandGhost(play) {
   } catch (e) { /* DOM 桩 */ }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   受击爪印（作者 2026-10）
+
+   要求：挨打的牌上出现**随机一种**爪印，一笔一笔抓上去（不能一下子全亮），
+   then 逐渐消失。
+
+   素材是 20 张 160x160 的 PNG（app/img/claw-<组>-<笔>.png），同一组的几张
+   画在**同一块画布**上，所以把同组的 i 全部铺满该单位的盒子、按笔画顺序错开
+   animation-delay，看起来就是爪子从一道划到下一道。
+
+   挂在 #fx-layer 而不是往 .unit 里塞节点：#stage 每次重绘都整块换 innerHTML，
+   塞进去的节点会被冲掉、动画中途跳掉重来；#fx-layer 只受 appendChild 影响。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** 每组的笔数；数组下标 = 组号 - 1。和 app/img/claw-<组>-<笔>.png 一一对应。 */
+const CLAW_STROKES = [3, 6, 3, 3, 1, 4];
+
+/** 挑一组爪印：真的随机，但别同一路连续两次抽到同一张（那样看着像没换）。 */
+let clawLastGroup = 0;
+function pickClawGroup() {
+  const n = CLAW_STROKES.length;
+  if (n <= 1) return 1;
+  let g = 0;
+  for (let i = 0; i < 8; i++) {
+    g = 1 + Math.floor(Math.random() * n);
+    if (g !== clawLastGroup) break;
+  }
+  clawLastGroup = g;
+  return g;
+}
+
+/** 在某个单位的盒子上撒一层爪印。fx 是当前正在播的那条受击特效。 */
+function spawnClawFx(fx) {
+  if (!canFlyDom()) return;
+  const layer = flightLayerEl();
+  if (!layer) return;
+  // 只认「单位挨打」：打国王走的是血条那条路（.sb-king.fx-hit），这里画不了。
+  const sel = '.unit[data-uid="' + fx.uid + '"]';
+  const rect = rectCenterOf(queryRect(sel));
+  if (!rect || rect.w <= 1 || rect.h <= 1) return;
+
+  const group = pickClawGroup();
+  const strokes = CLAW_STROKES[group - 1] || 1;
+  try {
+    const box = document.createElement('div');
+    box.className = 'fx-claw';
+    // 稍微放大一点、略偏左上，让爪子看起来是「从卡片外面抓进来」而不是正好贴在边内
+    const pad = Math.round(rect.w * 0.12);
+    box.style.left = Math.round(rect.x - rect.w / 2 - pad) + 'px';
+    box.style.top = Math.round(rect.y - rect.h / 2 - pad) + 'px';
+    box.style.width = Math.round(rect.w + pad * 2) + 'px';
+    box.style.height = Math.round(rect.h + pad * 2) + 'px';
+    let html = '';
+    for (let k = 1; k <= strokes; k++) {
+      const delay = (k - 1) * FX_CLAW_STEP_MS;
+      html += '<i style="background-image:url(\'img/claw-' + group + '-' + k + '.png\');'
+        + 'animation-delay:' + delay + 'ms"></i>';
+    }
+    box.innerHTML = html;
+    // 整组活到最后一笔也演完：总时长 = 最后一笔的延迟 + 单笔时长，再留一点余量
+    const life = FX_CLAW_MS + (strokes - 1) * FX_CLAW_STEP_MS + 90;
+    layer.appendChild(box);
+    setTimeout(() => { try { box.remove(); } catch (e) { /* 已经没了 */ } }, life);
+  } catch (e) { /* DOM 桩 */ }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   长按拖动放置的**显示**部分（作者 2026-10）
+
+   规则判断全在 play-input.js（beginCardDrag / updateCardDrag / endCardDrag），
+   这里只管画：拖动时跟着手指走的克隆卡，以及「拖失败 → 从当前位置飞回手牌」。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** 拖动手上那张牌的克隆节点（存在模块作用域，一次只会有一个）。 */
+let dragChip = null;
+
+/**
+ * 开始拖动：在 #fx-layer 里造一张跟着手指走的卡。
+ * html 来自手牌节点（和退场残影同一套做法），所以外观和手上那张一致。
+ */
+function beginDragChip(html, x, y) {
+  if (!canFlyDom()) return;
+  const layer = flightLayerEl();
+  if (!layer) return;
+  endDragChip();
+  try {
+    const el = document.createElement('div');
+    el.className = 'fx-drag-card';
+    el.innerHTML = html ? '<div class="card fly-face">' + html + '</div>' : '';
+    layer.appendChild(el);
+    dragChip = el;
+    moveDragChip(x, y);
+  } catch (e) { dragChip = null; }
+}
+
+/** 手指移动：克隆卡以指尖为中心走（略微上抬，免得被手指挡住）。 */
+function moveDragChip(x, y) {
+  if (!dragChip) return;
+  try {
+    const w = dragChip.offsetWidth || 84;
+    const h = dragChip.offsetHeight || 112;
+    dragChip.style.left = Math.round(x - w / 2) + 'px';
+    dragChip.style.top = Math.round(y - h * 0.72) + 'px';
+  } catch (e) { /* DOM 桩 */ }
+}
+
+function endDragChip() {
+  if (!dragChip) return;
+  try { dragChip.remove(); } catch (e) { /* 已经没了 */ }
+  dragChip = null;
+}
+
+/**
+ * 拖动失败：把克隆卡从当前位置送回手牌原来那一格，再收掉。
+ * 手牌那张在拖动期间只是半透明（.card.dragging），所以飞回去的过程里不会出现两张。
+ */
+function flyDragChipBack(iid) {
+  const el = dragChip;
+  dragChip = null;
+  if (!el) return;
+  const to = handRectOf(iid);
+  if (!to || typeof el.animate !== 'function') {
+    try { el.remove(); } catch (e) { /* 已经没了 */ }
+    return;
+  }
+  let from;
+  try {
+    from = {
+      x: parseFloat(el.style.left) || 0,
+      y: parseFloat(el.style.top) || 0,
+      w: el.offsetWidth || 84,
+      h: el.offsetHeight || 112,
+    };
+  } catch (e) {
+    try { el.remove(); } catch (e2) { /* 已经没了 */ }
+    return;
+  }
+  try {
+    const frames = arcFrames(from, to, 0.14);
+    const anim = el.animate(frames, { duration: FX_DRAG_FLY_MS, easing: 'ease-in', fill: 'forwards' });
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try { el.remove(); } catch (e) { /* 已经没了 */ }
+    };
+    anim.onfinish = finish;
+    setTimeout(finish, FX_DRAG_FLY_MS + 140);
+  } catch (e) {
+    try { el.remove(); } catch (e2) { /* 已经没了 */ }
+  }
+}
+
 /**
  * 记下手牌卡的位置，供「打出的牌原位退场」用（渲染后调用）。
  *
@@ -959,15 +1121,34 @@ function applyTransientFx(stage) {
   // 演出播完（约 1.6s，横跨两次 820ms 的步进）。只有 fx-death（带 forwards）的话，
   // 820ms 那次重绘会把类冲掉、残影「弹」回全不透明；所以补一支无动画的静态 fx-dead
   // 把残影按住 —— 静态类随便重加，不会重播；fx-death 只在第一次加，避免每帧重新淡出。
+  //
+  // 作者 2026-10：退场必须排在这一路的动画**演完之后**。所以只在「这条线路上再没有
+  // 待播特效」时才加 fx-death；还有下一条要走，就让它继续以正常卡面撑着
+  // （ui.js 的 ghost-wait 那支类）。否则会出现「血还没掉完、牌先没了」。
   try {
     const dead = (view && view.deadUnits) || [];
+    const queue = (view && view.fxQueue) || [];
     for (const [uid, rec] of Array.from(fxDying.entries())) {
       if (!dead.some((d) => d.uid === uid)) { fxDying.delete(uid); continue; }
+      const laneBusy = queue.some((f) => f && f.lane === rec.lane)
+        || (view && view.fx && view.fx.lane === rec.lane && !rec.animated);
+      if (laneBusy) continue;
       const sel = '.slot[data-lane="' + rec.lane + '"][data-side="' + rec.side + '"][data-row="' + rec.row + '"]';
       const el = fxNode(stage, sel);
       if (!el || !el.classList) continue;
       el.classList.add('fx-dead');
       if (!rec.animated) { rec.animated = true; fxPulse([el], 'fx-death', FX_DEATH_MS); }
+    }
+  } catch (e) { /* DOM 桩 */ }
+
+  // 受击爪印：每条受击特效播一次（作者 2026-10）。
+  // 用 fx 对象上的 clawDone 做一次性标记 —— fx 对象在一次步进内是同一个引用，
+  // 期间就算因为别的原因重绘几次也不会重复叠加。
+  try {
+    const fx = view && view.fx;
+    if (fx && fx.kind === 'hit' && fx.uid !== undefined && !fx.clawDone) {
+      fx.clawDone = true;
+      spawnClawFx(fx);
     }
   } catch (e) { /* DOM 桩 */ }
 
@@ -1379,4 +1560,5 @@ export {
   makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
   showBanner, refresh, toggleMenu, fillMenuLog,
   resetCardFlights, captureHandCardSource, captureDiscardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
+  beginDragChip, moveDragChip, endDragChip, flyDragChipBack,
 };

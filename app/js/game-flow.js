@@ -13,6 +13,7 @@ import * as Store from './store.js';
 import * as Eco from './economy.js';
 import * as Enh from './enhance.js';
 import * as RP from './replay.js';
+import { fixNum } from '../../engine/src/constants.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 import { aiTakeTurn, difficultyByKey, applyDifficultyBonus, installAiTargetPicker } from './ai.js';
 
@@ -569,6 +570,10 @@ function fxOfLogEntry(e) {
       if (e.uid === undefined) return null;
       return {
         kind: 'hit', uid: e.uid, lane: e.lane, side: e.side, row: e.row,
+        // amount / hp 只给「血量延后」用（见 ui.js 的 hitDefer）；渲染用的还是 text。
+        // hpBefore 是这一下**之前**的血量：日志只记了扣完的 hp，所以加回去。
+        amount: e.amount, hp: e.hp,
+        hpBefore: (e.hp !== undefined && e.amount !== undefined) ? fixNum(e.hp + e.amount) : undefined,
         text: (e.hp !== undefined && e.hp <= 0) ? '消灭' : '-' + e.amount,
       };
     case 'king-damage':
@@ -595,10 +600,23 @@ function pumpCombatFx() {
   if (view.fxCursor === undefined || view.fxCursor > logs.length) view.fxCursor = 0;
   if (!view.fxQueue) view.fxQueue = [];
   if (!view.deadUnits) view.deadUnits = [];
+  // 每张牌「挨最后一下之前」的血量：退场演出期间残影要按这个画。
+  // 作者 2026-10 的第 3 条：血量变化和退场都要等动画演完 —— 所以这一刻
+  // 不能画成 0 血（看着像「0 血还站着」），要画它倒下前的那一格血。
+  if (!view.fxLastHp) view.fxLastHp = {};
   for (const e of logs.slice(view.fxCursor)) {
+    if (e && e.type === 'damage' && e.uid !== undefined
+      && e.amount !== undefined && e.hp !== undefined) {
+      view.fxLastHp[e.uid] = fixNum(e.hp + e.amount);
+    }
     // 阵亡残影：这一步只登记，什么时候不再画由 ui.js 的 slotHTML 判（这一路演完就撤）
     if (e && e.type === 'destroy' && e.lane !== undefined && view.deadUnits.length < 20) {
-      view.deadUnits.push({ uid: e.uid, cardId: e.cardId, lane: e.lane, side: e.side, row: e.row });
+      const wait = view.fxLastHp[e.uid];
+      view.deadUnits.push({
+        uid: e.uid, cardId: e.cardId, lane: e.lane, side: e.side, row: e.row,
+        // 不是被打死的（效果直接消灭）就没有最后一下伤害，没数就按卡面原始血量画
+        hpWait: wait !== undefined ? wait : undefined,
+      });
     }
     const fx = fxOfLogEntry(e);
     if (fx && view.fxQueue.length < 14) view.fxQueue.push(fx);   // 上限：别让大战役拖成幻灯片
@@ -633,7 +651,21 @@ function stepCombatFx() {
     view.fxTimer = null;
     if (view.fxQueue.length) stepCombatFx();
     else {
+      // 队列空了，但阵亡的牌可能还没演退场 —— 作者 2026-10 的要求是「血量掉完、
+      // 这一路的动画演完之后，再退场」。所以先空出一帧让 applyTransientFx 把
+      // fx-death 补上（此刻 laneBusy 已经是 false），等退场动画播完再撤残影、
+      // 接回回合循环。没有阵亡牌就直接收尾，不多等这一拍。
       view.fx = null;
+      if (view.deadUnits.length) {
+        refresh();
+        view.fxTimer = setTimeout(() => {
+          view.fxTimer = null;
+          view.deadUnits = [];
+          refresh();
+          tick();
+        }, FX_DEATH_MS + 60);
+        return;
+      }
       view.deadUnits = [];
       refresh();
       // 演出播完了，把回合循环接回去（上面那道闸放行）
@@ -649,6 +681,7 @@ function resetCombatFx() {
   view.fx = null;
   view.fxQueue = [];
   view.deadUnits = [];
+  view.fxLastHp = {};
   view.trapCursor = state && state.log ? state.log.length : 0;
   view.castCursor = state && state.log ? state.log.length : 0;
   view.fxCursor = state && state.log ? state.log.length : 0;

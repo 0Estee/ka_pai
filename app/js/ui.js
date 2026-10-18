@@ -68,6 +68,24 @@ function statBadge(kind, value, max) {
     + '</svg></span>';
 }
 
+/**
+ * 这一格正在挨的那一下（作者 2026-10：血量变化要等动画演完再显示）。
+ *
+ * 引擎是瞬间算完整场的，所以 state 里的 hp 早就扣完了 —— 直接照着画，
+ * 玩家会看到「数字先掉、掉字后飘」。这里把当前正在播的那一条受击特效
+ * 找出来，用它带来的 hpBefore 反推出「演到这里时本来该是多少血」。
+ *
+ * 同一条命可能挨好几下：每一击的 hpBefore 就是那一击之前的值，
+ * 所以特效一条条播过去，数字会一下一下往下走，正好是想要的节奏。
+ */
+function hitDefer(view, uid) {
+  const fx = view && view.fx;
+  if (!fx || fx.kind !== 'hit') return null;
+  if (fx.uid === undefined || fx.uid !== uid) return null;
+  if (!Number.isFinite(fx.hpBefore)) return null;
+  return fx;
+}
+
 function unitHTML(state, unit, view) {
   if (!unit) return '';
   const kws = keywordLabels(state, unit);
@@ -82,6 +100,10 @@ function unitHTML(state, unit, view) {
   // 显示有效攻击力（含光环），否则玩家看到的数字和实际打出的伤害对不上
   const atk = state ? effectiveAtk(state, unit) : unit.atk;
 
+  // 这一下还没演完就按「挨打之前」的血量画（见 hitDefer 的注释）
+  const dfx = hitDefer(view, unit.uid);
+  const hpShown = dfx ? dfx.hpBefore : unit.hp;
+
   // 「会被谁打、打多少」—— 只给我方单位算，让玩家在开战前就能预判
   const preview = state ? attackPreview(state, unit) : null;
 
@@ -95,10 +117,10 @@ function unitHTML(state, unit, view) {
       ${marks.length ? `<div class="u-marks">${esc(marks.join(' '))}</div>` : ''}
       <div class="u-bottom">
         ${statBadge('atk', atk)}
-        ${statBadge('hp', unit.hp, unit.maxHp)}
+        ${statBadge('hp', hpShown, unit.maxHp)}
       </div>
       ${preview ? `<div class="u-preview" title="开战时这一击会打向谁">${esc(preview)}</div>` : ''}
-      ${unit.hp < unit.maxHp ? `<div class="u-hpbar"><i style="width:${Math.max(0, (unit.hp / unit.maxHp) * 100)}%"></i></div>` : ''}
+      ${hpShown < unit.maxHp ? `<div class="u-hpbar"><i style="width:${Math.max(0, (hpShown / unit.maxHp) * 100)}%"></i></div>` : ''}
     </div>`;
 }
 
@@ -208,12 +230,23 @@ function slotHTML(state, view, lane, side, row) {
    */
   const flyPendingKey = lane + '-' + side + '-' + row;
   const flyHidden = !!(view.flyPending && view.flyPending[flyPendingKey]);
+  /**
+   * 两步放置的第二步（作者 2026-10）：点过一下、还没确认的落点画成金色，
+   * 和「能放但还没选」的绿色区分开，否则玩家不知道刚才那一下算不算数。
+   */
+  const picked = view.pickedSlot;
+  const isPicked = !!picked && picked.lane === lane && picked.row === row;
+  // 长按拖动时手指压着的那一格
+  const dragOver = view.dragOver;
+  const isDragOver = !!dragOver && dragOver.lane === lane && dragOver.row === row;
   const classes = [
     'slot',
     mine ? 'mine' : 'foe',
     `row-${row}`,
     flyHidden ? 'fly-pending' : '',
     interactive ? 'legal' : '',
+    isPicked ? 'picked' : '',
+    isDragOver ? 'drag-over' : '',
     unit ? 'occupied' : 'empty',
   ].filter(Boolean).join(' ');
 
@@ -243,18 +276,28 @@ function slotHTML(state, view, lane, side, row) {
     }
   }
   const allClasses = classes + (fxClasses.length ? ' ' + fxClasses.join(' ') : '');
-  return `<div class="${allClasses}" data-lane="${lane}" data-side="${side}" data-row="${row}">${unitHTML(state, unit, view)}${ghost ? ghostHTML(state, ghost) : ''}${fxHTML}</div>`;
+  return `<div class="${allClasses}" data-lane="${lane}" data-side="${side}" data-row="${row}">${unitHTML(state, unit, view)}${ghost ? ghostHTML(state, ghost, true) : ''}${fxHTML}</div>`;
 }
 
-/** 阵亡残影：单位死在本线路动画演完之前，先这么画着（见 slotHTML 里的说明） */
-function ghostHTML(state, g) {
+/**
+ * 阵亡残影：单位死在本线路动画演完之前，先这么画着（见 slotHTML 里的说明）
+ *
+ * alive=true 表示「这一路的动画还在播，它其实还没退场」（作者 2026-10：
+ * 退场要排在动画结束之后）—— 那时候按正常卡面画，别一上来就是半透明灰。
+ * 灰色的那支留给真正开始消散的残影用。
+ */
+function ghostHTML(state, g, alive) {
   const def = state.cardLib[g.cardId];
+  // 还在等这一路演完（alive）时血量画「倒下前的那一格」——画 0 会像「0 血还站着」。
+  // 真开始消散的残影（alive 为假）仍然画 0，那才是「已经没了」。
+  const hp = alive && g.hpWait !== undefined ? g.hpWait : 0;
+  const maxHp = alive && g.hpWait !== undefined && def ? def.hp : undefined;
   return `
-    <div class="unit ghost">
+    <div class="unit ghost${alive ? ' ghost-wait' : ''}">
       <div class="u-name">${esc(def ? def.name : g.cardId)}</div>
       <div class="u-bottom">
         ${statBadge('atk', def ? def.atk : 0)}
-        ${statBadge('hp', 0)}
+        ${statBadge('hp', hp, maxHp)}
       </div>
     </div>`;
 }
@@ -321,6 +364,8 @@ function handHTML(state, view) {
       afford ? 'afford' : 'unafford',
       playable ? 'playable' : 'unplayable',
       selected ? 'selected' : '',
+      // 正被手指拖着走的那张让位（克隆卡在 #fx-layer 里跟着手指，见 render.js）
+      hc.iid === view.dragIid ? 'dragging' : '',
     ].filter(Boolean).join(' ');
 
     const stat = def.type === 'unit' ? `<div class="c-stats"><span>${def.atk}</span>/<span>${def.hp}</span></div>` : '';

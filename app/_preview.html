@@ -99,6 +99,99 @@
       window.__probeOk = !!st.pending && st.pending.request.type === 'combatTarget';
       document.title = 'demo: 选目标面板=' + window.__probeOk
         + ' 选项数=' + (st.pending ? st.pending.request.options.length : 0);
+    } else if (demo === 'claw') {
+      // 爪印贴到卡上的位置与大小（定格看）：手动往 #fx-layer 挂一整组爪印，
+      // 并把每道抓痕的动画冻在「已出现」那一刻，方便截图核对。
+      window.__newGameFirst();
+      window.__pause(true);
+      window.__place(1, 'W04', 'mountain', 'front');
+      window.__place(0, 'W04', 'mountain', 'front');
+      window.__go('game');
+      const group = Number(p.get('group') || 2);
+      const strokes = { 1: 3, 2: 6, 3: 3, 4: 3, 5: 1, 6: 4 }[group];
+      const style = document.createElement('style');
+      style.textContent = '.fx-claw i{animation:none!important;opacity:1!important}';
+      document.head.appendChild(style);
+      const unitEl = document.querySelector('.slot.mine.row-front .unit');
+      const r = unitEl.getBoundingClientRect();
+      const pad = Math.round(r.width * 0.12);
+      const box = document.createElement('div');
+      box.className = 'fx-claw';
+      box.style.left = Math.round(r.left - pad) + 'px';
+      box.style.top = Math.round(r.top - pad) + 'px';
+      box.style.width = Math.round(r.width + pad * 2) + 'px';
+      box.style.height = Math.round(r.height + pad * 2) + 'px';
+      let html = '';
+      for (let k = 1; k <= strokes; k++) {
+        html += '<i style="background-image:url(\'img/claw-' + group + '-' + k + '.png\')"></i>';
+      }
+      box.innerHTML = html;
+      document.getElementById('fx-layer').appendChild(box);
+      window.__probeOk = !!document.querySelector('.fx-claw i');
+      document.title = 'demo: 爪印组=' + group + ' 笔=' + strokes;
+    } else if (demo === 'flip') {
+      // 出手翻面：把动画冻在某个瞬间（默认 190ms = 380ms 动画正中，即 180° 背面朝人）。
+      window.__newGameFirst();
+      window.__pause(true);
+      window.__place(1, 'W04', 'mountain', 'front');
+      window.__place(0, 'W04', 'mountain', 'front');
+      window.__go('game');
+      const at = Number(p.get('at') || 190);
+      const deg = Number(p.get('deg') || 180);
+      // 用常驻选择器（不靠运行时加的类）：预览页的计时器会因为 --virtual-time-budget
+      // 跑起来触发 refresh()，整块重写 #stage 会把临时类冲掉，截图就回到正面了。
+      const style = document.createElement('style');
+      style.textContent = '#stage .slot.mine.row-front .unit{animation:none!important;'
+        + 'transform:perspective(420px) rotateY(' + deg + 'deg) scale(1.04)!important}'
+        + '#stage .slot.mine.row-front .unit::after{animation:none!important;opacity:'
+        + (deg >= 120 && deg <= 240 ? '1' : '0') + '!important}';
+      document.head.appendChild(style);
+      const slotEl = document.querySelector('.slot.mine.row-front');
+      slotEl.classList.add('fx-lunge');
+      const u = slotEl.querySelector('.unit');
+      const cs = getComputedStyle(u);
+      const after = getComputedStyle(u, '::after');
+      window.__probeOk = true;
+      document.title = 'demo: 翻面 ' + at + 'ms | transform=' + cs.transform
+        + ' | anim=' + cs.animationName + ' ' + cs.animationPlayState + ' ' + cs.animationDelay
+        + ' | after.op=' + after.opacity + ' after.anim=' + after.animationName;
+    } else if (demo === 'pick') {
+      // 两步放置：第一次点格子只选中（金色描边），提示语要求再点一次确认。
+      window.__newGameFirst();
+      window.__pause(true);
+      const st = window.__game();
+      const unitId = Object.keys(st.cardLib).find((id) => {
+        const d = st.cardLib[id];
+        return d.type === 'unit' && !d.token && d.atk > 0 && (d.keywords || []).length === 0;
+      });
+      st.phase = window.__me() === st.firstPlayer ? 'DEPLOY_FIRST' : 'DEPLOY_SECOND';
+      st.players[0].manaCap = 99;
+      st.players[0].mana = 99;
+      const hc = { iid: st.nextIid++, cardId: unitId };
+      st.players[0].hand.push(hc);
+      window.__go('game');
+      const sel = window.__selectCard(hc.iid);
+      const slots = window.__view().legalSlots;
+      if (slots.length) window.__slotClick(slots[0].lane, slots[0].row);
+      const v = window.__view();
+      window.__probeOk = !!document.querySelector('.slot.picked')
+        && window.__game().players[0].hand.length > 0;
+      document.title = 'demo: 选中落点=' + window.__probeOk + ' sel=' + sel
+        + ' slots=' + slots.length + ' picked=' + JSON.stringify(v.pickedSlot) + ' 提示=' + v.hint;
+    } else if (demo === 'ghost') {
+      // 退场延后：开战演出途中，被打死的牌还画在格子里，且血量是「倒下前那一格」。
+      window.__newGameFirst();
+      window.__pause(true);
+      window.__place(1, 'E01', 'mountain', 'front');   // 1/1，必定被打死
+      window.__place(0, 'W04', 'mountain', 'front');   // 5/6 出手
+      window.__go('game');
+      for (let i = 0; i < 14 && window.__game().phase !== 'COMBAT'; i++) window.__advance();
+      try { window.__advance(); } catch (e) { /* 演出由计时器接管 */ }
+      const html = document.getElementById('stage').innerHTML;
+      const m = html.match(/class="unit ghost[^"]*"[\s\S]{0,260}?data-value="(\d+)"/);
+      window.__probeOk = html.includes('unit ghost');
+      document.title = 'demo: 残影=' + window.__probeOk + ' 血量徽记=' + (m ? m[1] : '无')
+        + ' 含ghost-wait=' + html.includes('ghost-wait');
     } else if (demo === 'coldreplay') {
       // 「打开 App → 直接点回放对局 → 点回放」：内存里还没有对局。
       // 这条路径曾经抛 TypeError，界面停在回放列表上（点了没反应）。

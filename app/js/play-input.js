@@ -12,7 +12,7 @@
 
 import * as G from '../../engine/src/engine.js';
 import * as M from '../../engine/src/mechanics.js';
-import { LANES, ROWS } from '../../engine/src/constants.js';
+import { LANES, LANE_NAME, ROWS } from '../../engine/src/constants.js';
 import { matchesTargetFilter } from '../../engine/src/keywords.js';
 import { filterCtx } from '../../engine/src/auras.js';
 import * as RP from './replay.js';
@@ -143,6 +143,11 @@ function clearSelection() {
   view.legalSummonCells = [];
   view.infoUid = null;
   view.hint = '';
+  // 两步放置与长按拖动的中间态（作者 2026-10）：
+  // pickedSlot 是「点过一次、还没确认」的落点；dragIid 是正被拖着走的牌。
+  view.pickedSlot = null;
+  view.dragIid = null;
+  view.dragOver = null;
 }
 
 /**
@@ -221,10 +226,11 @@ function selectCard(iid) {
   view.legalLanes = [];
   view.legalKingTargets = [];
   view.legalSummonCells = [];
+  view.pickedSlot = null;
 
   if (def.type === 'unit') {
     view.legalSlots = places;
-    view.hint = '点击高亮格子放置';
+    view.hint = '点一下高亮格子选中，再点一次放下去（也可以长按牌拖到格子上）';
     refresh();
     return;
   }
@@ -405,16 +411,126 @@ function handleSlotClick(slotEl) {
   if (def.type === 'unit') {
     if (!view.legalSlots.some((s) => s.lane === lane && s.row === row)) {
       view.hint = '这里不能放置';
+      view.pickedSlot = null;
       refresh();
       return;
     }
-    commitPlay(view.selectedIid, { lane, row });
+
+    /**
+     * 两步放置（作者 2026-10）：第一次点格子只是「选中这个落点」，
+     * 再点同一个格子才真的放下去。理由是手指点格子很容易误触，
+     * 以前一步就把牌打出去了，站位错了只能认输。
+     * 点另一个合法格子＝改选落点，不会放牌。
+     */
+    const picked = view.pickedSlot;
+    if (picked && picked.lane === lane && picked.row === row) {
+      view.pickedSlot = null;
+      commitPlay(view.selectedIid, { lane, row });
+      return;
+    }
+    view.pickedSlot = { lane, row };
+    view.hint = `已选中 ${laneNameOf(lane)}·${row === 'front' ? '前排' : '后排'}，再点一次确认放置`;
+    refresh();
     return;
   }
 
   if (view.legalLanes.includes(lane)) {
     commitPlay(view.selectedIid, { lane });
   }
+}
+
+/** 线路 id → 显示名（两步放置的提示行要用）。 */
+function laneNameOf(lane) {
+  const i = LANES.indexOf(lane);
+  return i >= 0 ? LANE_NAME[LANES[i]] : lane;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   长按拖动放置（作者 2026-10）
+
+   和上面「点两次」是同一个目的的另一种手法：手指按住手牌不放，牌跟着手
+   指走；拖到某个高亮格子上松手就直接放下去；松在别处就飞回手牌。
+
+   分工：这一层只算「拖的是哪张牌、手指现在压在哪个格子、能不能放」，
+   真正画克隆卡和飞回动画的是 render.js（它才有 #fx-layer 和补间工具）。
+   main.js 只负责把 pointer 事件转成这里的调用。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** 能不能把这张牌拖起来（费用、阶段、有没有合法落点都在 selectCard 里判过）。 */
+function canDragCard(iid) {
+  if (!state || !view) return false;
+  if (view.busy || state.winner !== null) return false;
+  if (G.getActor(state) !== me()) return false;
+  const hc = state.players[me()].hand.find((c) => c.iid === iid);
+  if (!hc) return false;
+  const def = state.cardLib[hc.cardId];
+  if (!def || def.type !== 'unit') return false;
+  if (G.isRawMaterial(def)) return false;
+  return G.costOf(state, hc) <= state.players[me()].mana;
+}
+
+/** 手指按住一张单位牌：进入拖动预览，顺手把可放区点亮。 */
+function beginCardDrag(iid) {
+  if (!canDragCard(iid)) return false;
+  // 拖动等价于「选中这张牌」，所以直接走一遍 selectCard 拿到 legalSlots / 费用校验。
+  if (view.selectedIid !== iid) selectCard(iid);
+  if (view.selectedIid !== iid) return false;
+  view.dragIid = iid;
+  view.pickedSlot = null;
+  view.hint = '拖到高亮格子上松手（松在别处会飞回手牌）';
+  return true;
+}
+
+/**
+ * 手指移动到 (x, y)：算出压在哪个格子上。
+ * 用 document.elementFromPoint 而不是几何遍历 —— 格子数量少、层级也稳，
+ * 指针坐标是视口坐标，正好是 elementFromPoint 要的那套。
+ */
+function updateCardDrag(x, y) {
+  if (view.dragIid === null) return;
+  let hit = null;
+  try {
+    if (typeof document.elementFromPoint === 'function') {
+      const el = document.elementFromPoint(x, y);
+      const slot = el && el.closest ? el.closest('.slot') : null;
+      if (slot && slot.dataset && Number(slot.dataset.side) === me()
+          && slot.dataset.lane && slot.dataset.row) {
+        hit = { lane: slot.dataset.lane, row: slot.dataset.row };
+      }
+    }
+  } catch (e) { hit = null; }
+
+  const ok = hit && view.legalSlots.some((s) => s.lane === hit.lane && s.row === hit.row);
+  const next = ok ? hit : null;
+  const prev = view.dragOver;
+  const changed = (!!prev !== !!next)
+    || (prev && next && (prev.lane !== next.lane || prev.row !== next.row));
+  view.dragOver = next;
+  if (changed) refresh();
+}
+
+/** 松手：拖在合法格子上就放下去，否则算失败（render 那边负责飞回手牌）。 */
+function endCardDrag() {
+  const iid = view.dragIid;
+  const over = view.dragOver;
+  view.dragIid = null;
+  view.dragOver = null;
+  if (iid === null) return { placed: false, iid: null };
+  if (over && view.selectedIid === iid) {
+    view.pickedSlot = null;
+    const ok = commitPlay(iid, { lane: over.lane, row: over.row });
+    return { placed: !!ok, iid };
+  }
+  // 没落在合法格子：保留选中状态，让玩家可以直接再点格子，或者重新拖。
+  view.hint = '没放到格子上，牌已飞回手牌';
+  refresh();
+  return { placed: false, iid };
+}
+
+/** 手指抬起但不算拖动（原地轻点）：把拖动标记清掉，交给 click 处理选中。 */
+function cancelCardDrag() {
+  view.dragIid = null;
+  view.dragOver = null;
 }
 
 function handleUnitClick(uid) {
@@ -727,4 +843,5 @@ export {
   NO_CHOICE_TARGET_KINDS, analyzeSpell, isPlayable, computePlayable, clearSelection,
   selectCard, resolvePlayerChoice, commitPlay,
   handleSlotClick, handleUnitClick, handleKingClick, handleAction, toggleBrewPick,
+  canDragCard, beginCardDrag, updateCardDrag, endCardDrag, cancelCardDrag,
 };

@@ -31,6 +31,7 @@ import { AI, me, foe } from './app-state.js';
 import {
   makeView, applyTheme, setTheme, goHome, goSettings, goReplays,
   refresh, toggleMenu,
+  beginDragChip, moveDragChip, endDragChip, flyDragChipBack,
 } from './render.js';
 import {
   startNewGame, applyLocalAction, advanceGame, tick, settleIfNeeded,
@@ -38,6 +39,7 @@ import {
 import {
   clearSelection, selectCard, resolvePlayerChoice,
   handleSlotClick, handleUnitClick, handleKingClick, handleAction,
+  canDragCard, beginCardDrag, updateCardDrag, endCardDrag,
 } from './play-input.js';
 import { enterLobby } from './lan.js';
 import {
@@ -86,7 +88,18 @@ function boot() {
   refresh();
 }
 
+// 拖动结束那一拍会紧跟着一个 click，要吃掉它（见下面 click 监听开头）
+let dragSwallowClick = false;
+
 document.addEventListener('click', (ev) => {
+  // 拖动结束时浏览器还会补一个 click：那颗 click 不能当成「点了这张牌」，
+  // 否则刚放下的牌又会被重新选中，甚至误触格子再走一次放置。
+  if (dragSwallowClick) {
+    dragSwallowClick = false;
+    ev.preventDefault();
+    ev.stopPropagation();
+    return;
+  }
   const actEl = ev.target.closest('[data-act]');
   if (actEl) {
     handleAction(actEl.dataset.act, actEl);
@@ -122,6 +135,98 @@ document.addEventListener('click', (ev) => {
 // 阻止移动端双击缩放 / 长按选中
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ══════════════════════════════════════════════════════════════════════
+   长按拖动放置（作者 2026-10）
+
+   手势：按住手牌里的单位牌约 0.3 秒 → 这张牌「起来」跟着手指走（可放区同时
+   点亮，那是 selectCard 干的）→ 拖到某个高亮格子上松手就放下去；松在别处
+   就从当前位置飞回手牌。
+
+   为什么不用 HTML5 的 draggable：安卓 WebView 里那套要长按才出影子、
+   而且拖到格子上的判定要靠 preventDefault 硬扛，手感很差。Pointer 事件
+   覆盖触摸与鼠标，且能直接拿到视口坐标配合 elementFromPoint 找格子。
+
+   和「点两次放置」的关系：两者并存。轻点（没等到长按就抬手）仍然走 click
+   那条老路，所以 selectCard / handleSlotClick 的语义没有变。
+   ══════════════════════════════════════════════════════════════════════ */
+const DRAG_HOLD_MS = 320;   // 按住多久算「要拖了」
+const DRAG_SLOP_PX = 10;    // 长按判定期间手指允许的抖动
+let dragHoldTimer = null;
+let dragOrigin = null;      // { iid, x, y, html }
+let dragActive = false;     // 已经真的拖起来了（松手要吃掉随之而来的 click）
+let dragMoved = false;
+
+function clearDragHold() {
+  if (dragHoldTimer !== null) { clearTimeout(dragHoldTimer); dragHoldTimer = null; }
+  dragOrigin = null;
+  dragActive = false;
+  dragMoved = false;
+}
+
+function dragPointOf(ev) {
+  const t = (ev && ev.touches && ev.touches[0]) || ev;
+  return { x: t && t.clientX ? t.clientX : 0, y: t && t.clientY ? t.clientY : 0 };
+}
+
+document.addEventListener('pointerdown', (ev) => {
+  if (screen !== 'game' || !state || !view) return;
+  if (ev.button !== undefined && ev.button !== 0 && ev.pointerType === 'mouse') return;
+  const cardEl = ev.target && ev.target.closest ? ev.target.closest('.hand .card[data-iid]') : null;
+  if (!cardEl) return;
+  const iid = Number(cardEl.dataset.iid);
+  if (!canDragCard(iid)) return;
+
+  const pt = dragPointOf(ev);
+  dragOrigin = { iid, x: pt.x, y: pt.y, html: cardEl.innerHTML || '' };
+  dragActive = false;
+  dragMoved = false;
+  clearTimeout(dragHoldTimer);
+  dragHoldTimer = setTimeout(() => {
+    dragHoldTimer = null;
+    if (!dragOrigin) return;
+    if (!beginCardDrag(dragOrigin.iid)) { dragOrigin = null; return; }
+    dragActive = true;
+    beginDragChip(dragOrigin.html, dragOrigin.x, dragOrigin.y);
+    refresh();
+  }, DRAG_HOLD_MS);
+});
+
+document.addEventListener('pointermove', (ev) => {
+  if (!dragOrigin) return;
+  const pt = dragPointOf(ev);
+  if (!dragActive) {
+    // 长按还没成立就滑开了：当成普通点击（让手牌区自己横向滚动）
+    const dx = pt.x - dragOrigin.x;
+    const dy = pt.y - dragOrigin.y;
+    if (dx * dx + dy * dy > DRAG_SLOP_PX * DRAG_SLOP_PX) clearDragHold();
+    return;
+  }
+  dragMoved = true;
+  if (ev.cancelable) ev.preventDefault();
+  moveDragChip(pt.x, pt.y);
+  updateCardDrag(pt.x, pt.y);
+}, { passive: false });
+
+function finishDrag(failed) {
+  if (!dragOrigin) return;
+  const iid = dragOrigin.iid;
+  const wasActive = dragActive;
+  const moved = dragMoved;
+  clearDragHold();
+  if (!wasActive) { endDragChip(); return; }
+  // 拖过一段距离才吞掉后面的 click；原地长按又原地松手仍然按「点一下」处理，
+  // 这样「长按选中、再点格子」这条老手感不会丢。
+  // 被 pointercancel 打断时不吞：那种情况浏览器不会补 click，吞了反而会吃掉玩家下一次点击。
+  dragSwallowClick = moved && !failed;
+  const res = endCardDrag();
+  if (res && res.placed) endDragChip();
+  else if (failed) flyDragChipBack(iid);
+  else endDragChip();
+}
+
+document.addEventListener('pointerup', () => finishDrag(false));
+document.addEventListener('pointercancel', () => finishDrag(true));
 
 // 回放进度条拖动（range 用 input 事件才跟手）
 document.addEventListener('input', (ev) => {
@@ -227,6 +332,28 @@ window.__advance = () => {
   tick();
   return { phase: state.phase, pending: state.pending ? state.pending.request.type : null };
 };
+
+/**
+ * 自检钩子：把「换屏幕 / 选牌 / 点格子 / 长按拖动」这几条真实入口露出来，
+ * 好让门禁能在没有 DOM 的环境里走玩家那条路径（作者 2026-10 的两步放置）。
+ */
+window.__me = () => me();
+window.__view = () => view;
+window.__selectCard = (iid) => { selectCard(iid); return view.selectedIid; };
+window.__slotClick = (lane, row) => {
+  handleSlotClick({ dataset: { side: String(me()), lane, row } });
+  return { pickedSlot: view.pickedSlot, hint: view.hint, selectedIid: view.selectedIid };
+};
+window.__canDrag = (iid) => canDragCard(iid);
+window.__beginDrag = (iid) => beginCardDrag(iid);
+window.__dragTo = (lane, row) => {
+  // 门禁没有 elementFromPoint，直接喂判定函数一个已知落点，其余逻辑（是否在 legalSlots 里、
+  // 是否要重绘）走的还是真实那条。
+  const ok = !!(lane && view.legalSlots.some((s) => s.lane === lane && s.row === row));
+  view.dragOver = ok ? { lane, row } : null;
+  return !!ok;
+};
+window.__endDrag = () => endCardDrag();
 
 /**
  * 自检用：丢掉内存里的对局，模拟「刚启动、还没打过任何一局」。
@@ -726,11 +853,19 @@ window.__demoUnitTarget = () => {
   selectCard(hc.iid);
   const slots = view.legalSlots.map((s) => `${s.lane}-${s.row}`);
   const slotEl = { dataset: { side: String(me()), lane: slots[0].split('-')[0], row: slots[0].split('-')[1] } };
+  /**
+   * 两步放置（作者 2026-10）：第一下只是选中落点，第二下才真的打出去。
+   * 这个钩子要的是「一次调用就打出这张牌」，所以照玩家会做的那样点两次，
+   * 中间的 pickedSlot 也算一次断言素材（门禁能看出两步确实生效了）。
+   */
+  handleSlotClick(slotEl);
+  const picked = view.pickedSlot ? `${view.pickedSlot.lane}-${view.pickedSlot.row}` : null;
   handleSlotClick(slotEl);
 
   const rq = state.pending ? state.pending.request : null;
   const info = {
     slots,
+    picked,
     pending: !!state.pending,
     type: rq ? rq.type : null,
     options: rq ? rq.options.map((o) => o.label) : [],

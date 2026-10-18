@@ -243,7 +243,7 @@ check('棋盘侧接线：阶段 / 法力涨跌 / 回血都在活节点上加了�
   if (!hasAdded(a4, 'fx-heal')) throw new Error('治疗日志出现了却没有播 fx-heal');
 });
 
-check('阵亡接线：残影还在场时给那一格加 fx-death，并靠静态 fx-dead 按住不弹回', () => {
+check('阵亡接线：本路演出播完之后才给那一格加 fx-death，并靠静态 fx-dead 按住不弹回', () => {
   api.__go('home');
   api.__newGame();
   api.__pause(true);
@@ -251,7 +251,16 @@ check('阵亡接线：残影还在场时给那一格加 fx-death，并靠静态 
   api.__place(1, 'W02', 'mountain', 'front');
   let n = 0;
   while (api.__game().phase !== 'COMBAT' && n++ < 14) api.__advance();
-  const added = withFxProbe(() => { api.__advance(); });   // 结算开战：这一路打死对面那个
+  // 作者 2026-10：退场与掉血都要等这一路的动画演完。所以结算当帧**不该**退场，
+  // 要把队列里剩下的特效推完（手动推桩计时器），fx-death 才会补上。
+  const added = withFxProbe(() => {
+    api.__advance();
+    const early = elements.get('stage').innerHTML || '';
+    if (early.includes('fx-dead')) throw new Error('开战当帧就退场了：应该等本路动画演完再退');
+    for (let i = 0; i < 30; i++) {
+      for (const [id, t] of [...timers.entries()]) { timers.delete(id); try { t.fn(); } catch (e) { /* 桩 */ } }
+    }
+  });
   if (!added.some((a) => a.cls === 'fx-death' && a.sel.includes('.slot[data-lane='))) {
     throw new Error('单位阵亡了，残影格子上却没有加 fx-death');
   }

@@ -750,14 +750,51 @@ html, body {
   0% { filter: brightness(2.4) saturate(.35); }
   100% { filter: none; }
 }
+/* 出手：除了往前一顶，整张牌还要**正反面翻一圈**（作者 2026-10：
+   「攻击卡牌要正反面旋转」）。rotateY 转到 90° 时牌面正好侧立成一条线，
+   再往后就是背面 —— 背面本身是 .unit::after 画的一张纯色牌背，
+   靠 fx-flip-back 只在 25%~75%（也就是背朝观众的那段）露出来。
+   中间那一帧给 180°、结尾回 360°（等价 0°），所以翻完还是正面。 */
 @keyframes fx-lunge-mine {
-  0%, 100% { transform: translateY(0); }
-  45% { transform: translateY(-7px) scale(1.04); }
+  0% { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1); }
+  25% { transform: perspective(420px) translateY(-6px) rotateY(-90deg) scale(1.03); }
+  50% { transform: perspective(420px) translateY(-7px) rotateY(-180deg) scale(1.04); }
+  75% { transform: perspective(420px) translateY(-6px) rotateY(-270deg) scale(1.03); }
+  100% { transform: perspective(420px) translateY(0) rotateY(-360deg) scale(1); }
 }
 @keyframes fx-lunge-foe {
-  0%, 100% { transform: translateY(0); }
-  45% { transform: translateY(7px) scale(1.04); }
+  0% { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1); }
+  25% { transform: perspective(420px) translateY(6px) rotateY(90deg) scale(1.03); }
+  50% { transform: perspective(420px) translateY(7px) rotateY(180deg) scale(1.04); }
+  75% { transform: perspective(420px) translateY(6px) rotateY(270deg) scale(1.03); }
+  100% { transform: perspective(420px) translateY(0) rotateY(360deg) scale(1); }
 }
+/* 牌背只在「背朝着观众」的那一小段浮出来；其余时间 opacity 0，
+   所以正面朝观众时看到的仍然是牌面本身。 */
+@keyframes fx-flip-back {
+  0%, 22% { opacity: 0; }
+  30%, 70% { opacity: 1; }
+  78%, 100% { opacity: 0; }
+}
+/* 牌背（翻面动画专用）：整张牌转到背面的那一段，用它盖住牌面。
+   项目里没有卡背素材，这里用纯渐变画一张 —— 横条纹 + 中央菱环，
+   左右上下都对称，所以跟着父元素一起被 rotateY 镜像也看不出来。
+   平时 opacity:0，只有 .slot.fx-lunge 触发时才淡入。 */
+.unit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold) 0 8%, transparent 8.6%),
+    radial-gradient(circle at 50% 50%, transparent 0 18%, var(--card-line) 18.2% 19.4%, transparent 19.6%),
+    repeating-linear-gradient(0deg, var(--unit-back-bg-2) 0 5px, var(--unit-back-bg-1) 5px 10px);
+  box-shadow: inset 0 0 0 1px var(--card-line);
+}
+.slot.fx-lunge .unit::after { animation: fx-flip-back .38s linear; }
 @keyframes fx-float {
   0% { opacity: 0; transform: translate(-50%, 2px) scale(.75); }
   22% { opacity: 1; transform: translate(-50%, -6px) scale(1.18); }
@@ -1137,6 +1174,76 @@ html, body {
 .btn-surrender:active,
 .btn-brew:active,
 .sb-king.targetable:active { transform: translateY(1px); }
+
+/* ══════════════════════════════════════════════════════════════
+   受击爪印（作者 2026-10：要「被抓的感觉」，不是一下子全亮出来）
+
+   每道抓痕是一张独立的 160x160 PNG，20 张全部画在**同一块画布**上（见
+   app/img/claw-<组>-<笔>.png），所以这里只要把同组的几张叠在同一个位置、
+   各自错开 animation-delay，看上去就是爪子一道一道划过去。
+
+   为什么不写在渲染字符串里：这层挂在 #fx-layer（飞行克隆卡、退场残影同层），
+   不受 #stage 整块重绘影响，打完就自己摘掉 —— 重绘不会让它重播，
+   也不需要 fx-dead 那种「静态按住」的兜底类。
+   ══════════════════════════════════════════════════════════════ */
+@keyframes fx-claw-draw {
+  0%   { opacity: 0; transform: scale(1.12) rotate(-3deg); }
+  14%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  50%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1) rotate(0deg); }
+}
+.fx-claw {
+  position: absolute;
+  pointer-events: none;
+  z-index: 8;
+}
+.fx-claw i {
+  position: absolute; inset: 0;
+  display: block;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  opacity: 0;
+  /* forwards：最后停在「已消失」，节点摘掉之前不会闪回来 */
+  animation: fx-claw-draw .62s ease-out forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   放置交互（作者 2026-10）：选中牌 → 高亮可放区 → 点一个格子「选中落点」
+   → 再点一次同一个格子才真的放下去。所以要有第三支颜色，
+   让玩家分得清「能放」和「已经选好了就等确认」。
+   ══════════════════════════════════════════════════════════════ */
+.slot.picked {
+  border-color: var(--gold);
+  border-style: solid;
+  background: var(--legal-bg);
+  box-shadow: 0 0 0 2px var(--gold), inset 0 0 0 2px var(--gold);
+}
+/* 长按拖动时手指正下方那一格：和「已选中」同色，因为下一秒松手就落在这里 */
+.slot.drag-over {
+  border-color: var(--gold);
+  border-style: solid;
+  background: var(--legal-bg);
+  box-shadow: 0 0 0 2px var(--gold);
+}
+/* 拖动时手牌里那张牌自己让位（克隆卡在 #fx-layer 里跟着手指） */
+.hand .card.dragging { opacity: .32; }
+/* 拖动中随手指出来的克隆卡 */
+.fx-drag-card {
+  position: absolute;
+  pointer-events: none;
+  z-index: 70;
+  will-change: transform;
+  filter: drop-shadow(4px 6px 0 var(--shadow-2, rgba(0, 0, 0, .35)));
+}
+.fx-drag-card .card { width: 100%; height: 100%; box-sizing: border-box; flex: none; }
+
+/* 阵亡单位在「自己挨的这一下」演完之前，仍然按正常卡面画（作者 2026-10：
+   退场要排在动画结束之后）。ghostHTML 平时是半透明灰阶，这一支把它按回原样，
+   等 fx-death 那一步到了再摘掉。 */
+.unit.ghost.ghost-wait {
+  opacity: 1;
+  filter: none;
+}
 
 /* ══ JS 钩子清单（由 app/js/render.js 提供，加类后按 ms 自动摘掉）══
    · fx-death    → .slot                 单位阵亡那一次（作用在格子里那张牌/残影上，
