@@ -100,7 +100,11 @@ let session = null;
 /** 自动阶段是否正在推进：联机时推进是异步的，用它防重入（否则会跳阶段） */
 let autoAdvancing = false;
 /** 联机房间信息（大厅显示用） */
-let lanInfo = { roomName: '', port: 0, hostSide: 0, peerName: '', status: 'connected', gameReady: false };
+let lanInfo = {
+  roomName: '', port: 0, hostSide: 0, peerName: '', status: 'connected', gameReady: false,
+  // 公网房间（Cloudflare）：房间号 + 给对面点的那条链接；局域网时 online 为 false
+  online: false, code: '', joinUrl: '',
+};
 /** 手动连接时输入框的报错（WebView 里 prompt/alert 是静默失效的，只能内嵌显示） */
 let lanManualError = '';
 /** AI 难度（持久化在设置里） */

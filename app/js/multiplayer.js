@@ -41,6 +41,36 @@ export function nativeAvailable() {
 }
 
 /**
+ * 当前页面能不能用**公网联机**（Cloudflare 上的房间服务）。
+ *
+ * 判据是「页面不是 file://」：APK 里从 android_asset 加载时是 file://，
+ * 那种情况下 fetch('/api/…') 没有服务器可打；而只要页面是从 http(s) 来的，
+ * /api/* 与 /ws 就都在**同源**下 —— 无论是 Cloudflare 公网，还是桌面浏览器里
+ * `node tools/serve.mjs` 起的开发服务器。
+ *
+ * 不做主动探测（发一个 /api/health 再等）：那会让「进联机菜单」卡一下，
+ * 而且失败时还得区分超时/断网，体验比直接把入口摆出来更差。
+ * 真连不上时，大厅里的状态栏会显示断线，那时才提示。
+ */
+export function onlineAvailable() {
+  try {
+    const p = globalThis.location.protocol;
+    return p === 'http:' || p === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** 当前站点根地址（公网联机时用来拼「请对面访问」的链接） */
+export function siteBase() {
+  try {
+    return `${globalThis.location.protocol}//${globalThis.location.host}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * 当前是不是联机模式。
  * 主机和客人都是**从主机的 HTTP 服务加载页面**的（协议 §1），
  * 所以 URL 里带 `?net=host` 或 `?net=guest`。
@@ -61,6 +91,40 @@ export function queryParam(name) {
   } catch {
     return '';
   }
+}
+
+/**
+ * 房间号。
+ *
+ * 局域网时代不需要它：整台机器的服务端只有一个房间，接口都在同源根路径下。
+ * 搬到公网之后同一份服务要接无数个房间，于是**每条请求都得自己报房间号**，
+ * 服务端才知道该把它转给哪个房间对象（见 cloudflare/src/room.js）。
+ *
+ * 统一在这里做一次：拉成大写、剥掉可能被玩家粘进来的空格与符号。
+ * 非法（空或长度不对）返回空字符串，由调用方提示 —— 不静默兜底成别的房间，
+ * 那会让两个陌生人莫名其妙坐进同一局。
+ */
+export function roomCode(raw) {
+  let s = String(raw == null ? '' : raw).trim().toUpperCase();
+  // 允许玩家直接粘整条链接：把 ?room=XXXX 抠出来
+  const m = s.match(/[?&]ROOM=([A-Z0-9]+)/);
+  if (m) s = m[1];
+  s = s.replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z0-9]{4,12}$/.test(s) ? s : '';
+}
+
+/** 当前页面对应的房间号（从 URL 的 ?room= 取） */
+export function currentRoom() {
+  return roomCode(queryParam('room'));
+}
+
+/** 生成一个随机房间号：去掉容易看错的 0/O、1/I，方便口头念给对面 */
+export function newRoomCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  const n = 6;
+  for (let i = 0; i < n; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return s;
 }
 
 function parseJson(s, fallback) {
@@ -111,14 +175,24 @@ export function localIp() {
  * 直接用相对 URL 即可 —— 不需要知道主机 IP，也没有跨域问题。
  */
 export class Transport {
-  constructor(who) {
+  constructor(who, room) {
     this.who = who;           // 'host' | 'guest'
+    // 房间号：公网服务端按它路由到对应的房间对象；局域网服务端只有一个房间，带了也不认
+    this.room = roomCode(room) || roomCode(currentRoom());
     this.since = 0;
     this.stopped = false;
   }
 
+  /** 拼接口地址：始终带上 who 与 room（房间为空时退回旧形态，兼容旧版局域网服务端） */
+  url(path, extra) {
+    const q = new URLSearchParams({ who: this.who });
+    if (this.room) q.set('room', this.room);
+    for (const [k, v] of Object.entries(extra || {})) q.set(k, String(v));
+    return `${path}?${q.toString()}`;
+  }
+
   async send(msg) {
-    const r = await fetch(`/api/send?who=${this.who}`, {
+    const r = await fetch(this.url('/api/send'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
@@ -134,8 +208,7 @@ export class Transport {
    */
   async poll(timeout = POLL_TIMEOUT) {
     if (this.stopped) return { msgs: [], peerLeft: false };
-    const url = `/api/poll?who=${this.who}&since=${this.since}&timeout=${timeout}`;
-    const r = await fetch(url, { cache: 'no-store' });
+    const r = await fetch(this.url('/api/poll', { since: this.since, timeout }), { cache: 'no-store' });
     const data = await r.json();
     if (data && data.ok === false && data.error === 'peer-left') {
       return { msgs: [], peerLeft: true };
@@ -150,12 +223,12 @@ export class Transport {
   }
 
   async start() {
-    try { await fetch(`/api/start?who=${this.who}`, { method: 'POST' }); } catch { /* 忽略 */ }
+    try { await fetch(this.url('/api/start'), { method: 'POST' }); } catch { /* 忽略 */ }
   }
 
   async leave() {
     this.stopped = true;
-    try { await fetch(`/api/leave?who=${this.who}`, { method: 'POST', keepalive: true }); } catch { /* 忽略 */ }
+    try { await fetch(this.url('/api/leave'), { method: 'POST', keepalive: true }); } catch { /* 忽略 */ }
   }
 }
 
@@ -220,7 +293,7 @@ export class Session {
    * @param {function} o.onStatus     连接状态变化："connected" | "reconnecting" | "closed"
    * @param {function} [o.onStart]    收到 start 消息、正式开局时回调
    */
-  constructor({ who, cardLib, onUpdate, onStatus, onStart, onAction }) {
+  constructor({ who, cardLib, onUpdate, onStatus, onStart, onAction, room }) {
     this.who = who;
     this.isHost = who === 'host';
     this.mySide = this.isHost ? 0 : 1;
@@ -232,7 +305,9 @@ export class Session {
     // 开局参数回传给上层（客人录回放要用）；上层随后会覆盖它
     this.onSeedDeck = () => {};
 
-    this.transport = new Transport(who);
+    // 房间号：来源是 URL 上的 ?room=，公网服务端靠它把请求转给正确的房间对象
+    this.room = roomCode(room) || currentRoom();
+    this.transport = new Transport(who, this.room);
     this.state = null;
     this.started = false;
     this.peerName = '';
@@ -448,7 +523,7 @@ export class Session {
         if (typeof WebSocket !== 'function') { done(false); return; }
         const proto = globalThis.location.protocol === 'https:' ? 'wss:' : 'ws:';
         // since 从当前进度开始要，漏掉的由服务端按 seq 补齐（和长轮询同一套语义）
-        ws = new WebSocket(`${proto}//${globalThis.location.host}/ws?who=${this.who}&since=${this.transport.since}`);
+        ws = new WebSocket(`${proto}//${globalThis.location.host}${this.transport.url('/ws', { since: this.transport.since })}`);
       } catch {
         done(false);
         return;

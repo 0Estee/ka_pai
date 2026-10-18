@@ -1347,13 +1347,13 @@ function renderScreen(stage) {
   }
 
   if (screen === 'play') {
-    stage.innerHTML = playMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable(), profile });
+    stage.innerHTML = playMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable() || Net.onlineAvailable(), profile });
     applyScreenFx(stage);
     return;
   }
 
   if (screen === 'forgeMenu') {
-    stage.innerHTML = forgeMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable(), profile });
+    stage.innerHTML = forgeMenuHTML({ difficulty: difficultyByKey(difficulty), lanSupported: Net.nativeAvailable() || Net.onlineAvailable(), profile });
     applyScreenFx(stage);
     return;
   }
@@ -1385,13 +1385,23 @@ function renderScreen(stage) {
   }
 
   if (screen === 'lan') {
-    stage.innerHTML = lanMenuHTML({ lanSupported: Net.nativeAvailable(), localIp: Net.localIp() });
+    stage.innerHTML = lanMenuHTML({
+      // 要么有原生服务（APK 里开房间），要么页面本身就跑在 http(s) 上（公网站点）
+      lanSupported: Net.nativeAvailable() || Net.onlineAvailable(),
+      online: Net.onlineAvailable(),
+      localIp: Net.localIp(),
+    });
     applyScreenFx(stage);
     return;
   }
 
   if (screen === 'lanScan') {
-    stage.innerHTML = lanScanHTML({ rooms: lanRooms, scanning: lanScanning, manualError: lanManualError });
+    stage.innerHTML = lanScanHTML({
+      rooms: lanRooms,
+      scanning: lanScanning,
+      manualError: lanManualError,
+      online: Net.onlineAvailable(),
+    });
     applyRoomsFx(stage, lanRooms);
     applyScreenFx(stage);
     return;

@@ -34,3 +34,10 @@ android/keystore.jks
 *.idsig
 Thumbs.db
 .DS_Store
+# Cloudflare 联机：wrangler 依赖与本地状态
+# 游戏本体零依赖（引擎只用 node 内置模块），wrangler 只在部署时用得上：
+#   npm install --no-save --registry=https://registry.npmmirror.com wrangler@4
+node_modules/
+cloudflare/node_modules/
+cloudflare/.wrangler/
+cloudflare/assets/

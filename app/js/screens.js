@@ -81,10 +81,10 @@ export function playMenuHTML({ difficulty, lanSupported, profile }) {
     </button>
     <button class="hm-btn" data-act="lan-menu">
       <span class="hm-ico">⇄</span>
-      <span class="hm-text">局域网对决</span>
-      <span class="hm-sub">同一 Wi-Fi 下两台设备</span>
+      <span class="hm-text">联机对决</span>
+      <span class="hm-sub">公网房间号，或同一 Wi-Fi 下两台设备</span>
     </button>
-    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持局域网（需要在手机 App 里运行）</div>'}
+    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
     <div class="set-tip">普通模式：双方都用卡面原值，强化与精通不生效。</div>
   `);
 }
@@ -116,7 +116,7 @@ export function forgeMenuHTML({ difficulty, lanSupported, profile }) {
       <span class="hm-text">强化工坊</span>
       <span class="hm-sub">金币 ${gold} · 星尘 ${dust}</span>
     </button>
-    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持局域网（需要在手机 App 里运行）</div>'}
+    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
   `);
 }
 
@@ -180,37 +180,46 @@ export function difficultyHTML({ current, difficulties, faction, factions, mode 
 // 局域网
 // ══════════════════════════════════════════════════════════
 
-export function lanMenuHTML({ lanSupported, localIp }) {
+export function lanMenuHTML({ lanSupported, localIp, online }) {
   if (!lanSupported) {
-    return subScreen('局域网对决', `
-      <div class="rp-empty">当前环境不支持局域网<br><span>需要在手机上安装 APK 后使用</span></div>
+    return subScreen('联机对决', `
+      <div class="rp-empty">当前环境不支持联机<br><span>需要在手机上安装 APK，或用浏览器打开线上地址</span></div>
     `);
   }
-  return subScreen('局域网对决', `
+  // 公网与局域网共用这一个菜单：对玩家来说都是「开一间房，把入口告诉对面」，
+  // 只是对面拿到的是房间号还是一串内网地址。两种宿主同时可用时优先公网。
+  const hostSub = online ? '我来当主机 · 公网房间' : '我来当主机 · 同一 Wi-Fi';
+  const joinSub = online ? '输入对面的房间号，或扫同一 Wi-Fi 下的房' : '扫描同一 Wi-Fi 下的房间';
+  return subScreen('联机对决', `
     <button class="hm-btn hm-primary" data-act="lan-host">
       <span class="hm-ico">＋</span><span class="hm-text">创建房间</span>
-      <span class="hm-sub">我来当主机</span>
+      <span class="hm-sub">${hostSub}</span>
     </button>
     <button class="hm-btn" data-act="lan-scan">
       <span class="hm-ico">⌕</span><span class="hm-text">加入房间</span>
-      <span class="hm-sub">扫描同一 Wi-Fi 下的房间</span>
+      <span class="hm-sub">${joinSub}</span>
     </button>
     <div class="hf-warn">主机中途退出会导致房间消失，对手将直接判负。</div>
     ${localIp ? `<div class="set-tip">本机地址：${esc(localIp)}</div>` : ''}
   `);
 }
 
-export function lanScanHTML({ rooms, scanning, manualError }) {
+export function lanScanHTML({ rooms, scanning, manualError, online }) {
   // 手动兜底：UDP 广播在很多路由器上会被拦（「PP 隔离」/访客网络/企业 Wi-Fi），
   // 这时扫描永远是空的 —— 让玩家照抄主机屏幕上那串地址就能连上。
+  // 公网房间则根本扫不到：房间不在同一网段，只能靠房间号。
   // 不能用 prompt()：WebView 里它是静默失效的（会什么都不发生），必须内嵌输入框。
+  const manualTip = online
+    ? '让主机把大厅里显示的<b>房间号</b>念给你，填在这里（也可以直接粘整条链接）：'
+    : '搜不到房间？让主机把大厅里显示的那串地址念给你，填在这里：';
+  const manualPh = online ? '例如 K7QM2P' : '例如 192.168.1.7:8765';
   const manual = `
     <div class="lan-manual">
-      <div class="lan-manual-tip">搜不到房间？让主机把大厅里显示的那串地址念给你，填在这里：</div>
-      <input id="lan-manual-ip" class="lan-input" type="text" inputmode="decimal"
-             autocomplete="off" autocapitalize="off" spellcheck="false"
-             placeholder="例如 192.168.1.7:8765">
-      <button class="rp-btn" data-act="lan-join-manual">手动连接</button>
+      <div class="lan-manual-tip">${manualTip}</div>
+      <input id="lan-manual-ip" class="lan-input" type="text" inputmode="${online ? 'text' : 'decimal'}"
+             autocomplete="off" autocapitalize="${online ? 'characters' : 'off'}" spellcheck="false"
+             placeholder="${manualPh}">
+      <button class="rp-btn" data-act="lan-join-manual">加入</button>
       ${manualError ? `<div class="lan-err">${esc(manualError)}</div>` : ''}
     </div>`;
 
@@ -231,7 +240,11 @@ export function lanScanHTML({ rooms, scanning, manualError }) {
         </div>
         <span class="room-badge">${r.started ? '已开始' : '可加入'}</span>
       </button>`).join('')
-    : '<div class="rp-empty">没找到房间<br><span>确认两台设备连的是同一个 Wi-Fi，且主机已经创建房间</span></div>';
+    : `<div class="rp-empty">${online ? '公网房间扫不到' : '没找到房间'}<br><span>${
+      online
+        ? '房间在别的网络里，只能靠房间号加入 —— 填下面的房间号'
+        : '确认两台设备连的是同一个 Wi-Fi，且主机已经创建房间'
+    }</span></div>`;
 
   return subScreen('加入房间', `
     <div class="rp-summary">找到 ${rooms.length} 个房间</div>
@@ -242,7 +255,7 @@ export function lanScanHTML({ rooms, scanning, manualError }) {
 }
 
 /** 联机大厅：主机等对手，客人等主机开始 */
-export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge }) {
+export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge, online, joinUrl, code }) {
   const isHost = mode === 'host';
   const statusText = {
     connected: peerName ? `已连接：${peerName}` : '等待对手加入…',
@@ -250,7 +263,23 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
     closed: '对方已离开',
   }[status] || status;
 
-  const joinUrl = isHost && localIp ? `http://${localIp}:${port}/` : '';
+  // 主机要把「对面怎么进来」告诉玩家：
+  //  · 公网：房间号（口念六个字符）+ 完整链接（微信里发过去就能点）
+  //  · 局域网：内网地址（靠扫描或手抄）
+  //
+  // 房间号和链接各自占一行：链接是一串没有空格的字符，混在句子里一定会顶出卡片
+  // （作者截图看到的就是右侧被裁掉的半截 URL）。分成块级元素后，长链接在自己那行里折行。
+  const lanUrl = !online && isHost && localIp ? `http://${localIp}:${port}/` : '';
+  const invite = online && code
+    ? `<div class="lobby-url">
+         <div>把这个房间号念给对面：</div>
+         <b class="lobby-code">${esc(code)}</b>
+         <div class="lobby-link-tip">或者把这串地址发给他：</div>
+         <b class="lobby-link">${esc(joinUrl || '')}</b>
+       </div>`
+    : (isHost && lanUrl
+      ? `<div class="lobby-url">同一 Wi-Fi 下的另一台设备可以扫描到这个房间，<br>或直接访问 <b>${esc(lanUrl)}</b></div>`
+      : '');
 
   /**
    * 阵营（作者 2026-10-05：联机选不了阵营）。
@@ -298,7 +327,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
       <div class="lobby-card">
         <div class="lobby-role">${isHost ? '你是主机' : '你是客人'}</div>
         <div class="lobby-room">${esc(roomName || '未命名房间')}</div>
-        ${isHost && joinUrl ? `<div class="lobby-url">同一 Wi-Fi 下的另一台设备可以扫描到这个房间，<br>或直接访问 <b>${esc(joinUrl)}</b></div>` : ''}
+        ${invite}
         <div class="lobby-status lobby-${status}">${esc(statusText)}</div>
         <div class="lobby-mode">房间模式：${forgeMode ? '强化模式（双方各带自己的强化卡组）' : '普通模式（卡面原值）'}${peerName
           ? `　·　对手：${peerForge ? '强化模式' : '普通模式'}${!!peerForge !== !!forgeMode ? '（与房间不一致，开局以主机为准）' : ''}`
@@ -309,7 +338,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
 
       ${facBlock}
 
-      <div class="hf-warn">联机中请勿退出 App 或切换 Wi-Fi；中途掉线会暂停并等待最多 60 秒重连。<br>⚠ 联机对局<b>没有金币保底</b>：赢了加金币，输了扣金币，扣到 0 就只能先打 AI。</div>
+      <div class="hf-warn">联机中请勿退出 App 或切换网络；中途掉线会暂停并等待最多 60 秒重连。<br>⚠ 联机对局<b>没有金币保底</b>：赢了加金币，输了扣金币，扣到 0 就只能先打 AI。</div>
     </div>
   </div>`;
 }

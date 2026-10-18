@@ -1,0 +1,22 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "ka-pai"
+main = "src/room.js"
+compatibility_date = "2026-10-01"
+# 房间对象用到 SQLite 后端存储（房间闲置两小时后整个回收）
+compatibility_flags = ["nodejs_compat"]
+
+# 前端静态资源：由 tools/build-online.mjs 从 app/ 组装进来（不要手改 assets/）
+[assets]
+directory = "./assets"
+binding = "ASSETS"
+# /api/* 与 /ws 必须先到 Worker —— 否则 SPA 兜底会把它们也回成 index.html
+run_worker_first = ["/api/*", "/ws"]
+not_found_handling = "single-page-application"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

@@ -1,0 +1,16 @@
+{
+  "name": "ka-pai-online",
+  "private": true,
+  "version": "0.60.0",
+  "description": "王座交锋 · 联机房间服务（Cloudflare Worker + Durable Object）",
+  "type": "module",
+  "scripts": {
+    "build": "node ../tools/build-online.mjs",
+    "dev": "wrangler dev",
+    "deploy": "node ../tools/build-online.mjs && wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}

@@ -16,16 +16,24 @@ import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 
 /** 进入联机大厅并建立会话 */
 function enterLobby(mode) {
+  const room = Net.currentRoom();
   lanInfo = {
     roomName: Net.queryParam('room') || '未命名房间',
     port: Number(globalThis.location.port) || 8765,
     peerName: '',
     status: 'connected',
     gameReady: false,
+    // 公网房间：链接是 `站点/?net=guest&room=CODE`，局域网则是 `主机IP:端口/?net=guest`
+    online: Net.onlineAvailable(),
+    joinUrl: room && Net.onlineAvailable()
+      ? `${Net.siteBase()}/?net=guest&room=${room}`
+      : '',
+    code: room,
   };
 
   session = new Net.Session({
     who: mode,
+    room,
     cardLib: TEST_CARD_LIB,
     onUpdate: () => { refresh(); if (screen === 'game') tick(); },
     onStatus: (s) => {
@@ -106,12 +114,36 @@ function normalizeHostInput(raw) {
   return `${m[1]}:${port}`;
 }
 
-/** 手动连接：读输入框 → 校验 → 导航过去 */
+/**
+ * 手动连接。
+ *
+ * 两种输入都要认，因为玩家手里可能只有其中一种：
+ *  · **房间号**（公网）：`K7QM2P`，或整条链接 `https://…/?net=guest&room=K7QM2P`；
+ *  · **主机地址**（局域网）：`192.168.1.7` 或 `192.168.1.7:8765`。
+ *
+ * 先试房间号：如果当前页面本身就是公网站点，那就是在同一站点里换个房间号。
+ */
 function joinByManualAddress() {
   const el = document.getElementById('lan-manual-ip');
-  const addr = normalizeHostInput(el && el.value);
+  const raw = String((el && el.value) || '');
+  const code = Net.roomCode(raw);
+
+  if (code && Net.onlineAvailable()) {
+    lanManualError = '';
+    const target = `${Net.siteBase()}/?net=guest&room=${code}`;
+    try {
+      globalThis.location.href = target;
+      return;
+    } catch {
+      lanManualError = '浏览器不允许跳转，请手动打开：' + target;
+      refresh();
+      return;
+    }
+  }
+
+  const addr = normalizeHostInput(raw);
   if (!addr) {
-    lanManualError = '地址看起来不对。应该是 192.168.x.x 或 192.168.x.x:8765 这样的形式。';
+    lanManualError = '没看懂这个输入。公网填房间号（例如 K7QM2P），局域网填 192.168.x.x 或 192.168.x.x:8765。';
     refresh();
     return;
   }
@@ -128,12 +160,33 @@ function randomRoomName() {
 }
 
 /**
- * 创建房间：让原生层起 HTTP + UDP 服务，然后把 WebView 导航过去。
- * 导航之后页面会**重新加载**（这次是从 http://127.0.0.1:port 加载），
- * 所以这里不需要保留任何内存状态 —— 房间在 Java 侧活着。
+ * 创建房间。
+ *
+ * 两种宿主，一条入口：
+ *  · **公网（Cloudflare）**：房间号当场生成，把页面导航到 `?net=host&room=CODE`。
+ *    服务端不用预热 —— 房间对象是第一次收到请求时按房间号建出来的。
+ *  · **局域网（APK）**：让原生层起 HTTP + UDP 服务，再导航过去。
+ *    导航之后页面会**重新加载**（这次是从 http://127.0.0.1:port 加载），
+ *    所以这里不需要保留任何内存状态 —— 房间在 Java 侧活着。
  */
 function createRoom() {
+  const online = Net.onlineAvailable();
+  const code = Net.newRoomCode();
   const room = randomRoomName();
+
+  if (online) {
+    // 公网：不经过原生层，直接换成带房间号的地址。location 会重载，房间在服务端。
+    const target = `${Net.siteBase()}/?net=host&room=${code}`;
+    try {
+      globalThis.location.href = target;
+      return;
+    } catch {
+      view.hint = '浏览器不允许跳转，请手动打开这个地址：' + target;
+      refresh();
+      return;
+    }
+  }
+
   const r = Net.startHost(room, '主机');
   if (!r || !r.ok) {
     view.hint = (r && r.error) || '无法创建房间';
@@ -214,7 +267,18 @@ async function quitRoom() {
   }
   if (Net.netMode() === 'host') Net.stopHost();
 
-  // 联机时页面是从主机的 HTTP 服务加载的，回「首页」只能重新加载本地资产页。
+  const online = Net.onlineAvailable();
+
+  // 公网房间：首页就是同一个站点的根路径，换过去即可（房间号从 URL 上消失，
+  // 服务端那边的房间两小时没人说话会自己回收）。
+  if (online) {
+    try {
+      globalThis.location.href = `${Net.siteBase()}/`;
+      return;
+    } catch { /* 非浏览器环境，往下走 goHome() */ }
+  }
+
+  // 局域网：页面是从主机的 HTTP 服务加载的，回「首页」只能重新加载本地资产页。
   //
   // ⚠️ 必须走**原生桥**去导航，不能自己改 location.href：
   //    http 源**不允许**跳到 file://（WebView 会把 local resource 拦掉，且是静默的），

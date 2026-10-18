@@ -314,6 +314,27 @@
   word-break: break-all;
 }
 .lobby-url b { color: var(--accent, #58a6ff); }
+/* 公网房间号：要让对面一眼看清并念得出来，所以单独放大、等宽、加字距 */
+.lobby-code {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--gold, #e8b84b) !important;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 6px;
+}
+.lobby-link-tip { margin-top: 2px; }
+/* 邀请链接是一串没有空格的字符：必须允许在任意字符处折行，
+   否则它会把 .lobby-card 顶宽、右侧被裁掉（作者截图里就是这个现象）。 */
+.lobby-link {
+  display: block;
+  margin-top: 2px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
 .lobby-status {
   font-size: 13px;
   padding: 8px;
@@ -531,6 +552,14 @@
   transition: background-color .12s ease, border-color .15s ease, transform .08s ease;
 }
 .hm-btn:active { transform: scale(.985); }
+/* 禁用态：`.hm-btn` 以前**完全没有**这条规则，于是带 disabled 的金色主按钮
+   看起来和能点的一模一样（作者截图里「开始对战」就是这个观感）。
+   压暗 + 去光标 + 按下不缩放，三个信号一起给，才不会被误当成「按钮坏了」。 */
+.hm-btn:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+.hm-btn:disabled:active { transform: none; }
 /* 按下时换一档底色，不只是缩一下 —— 手感是"按进去了"。
    主按钮的底色是它自己的金渐变，别被这条盖掉，所以排掉 .hm-primary。 */
 .hm-btn:not(.hm-primary):active {
