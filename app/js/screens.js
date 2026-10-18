@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.59.0';
+export const APP_VERSION = '0.60.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。

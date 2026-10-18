@@ -20,3 +20,16 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+# 自定义域名（可选 —— 但**中国大陆必须配**）
+#
+# `*.workers.dev` 在国内被 DNS 投毒 + SNI 关键字拦截，浏览器直接打不开
+# （实测：解析结果落到境外无关 IP，即使手动指到正确的边缘 IP，TLS 握手也会被掐）。
+# 绑一个自己的域名就绕开了：同一个 Worker、同一份代码，只是换个门牌。
+#
+#   [[routes]]
+#   pattern = "kapai.你的域名.com"
+#   custom_domain = true
+#
+# 前提：该域名已经加进**同一个 Cloudflare 账号**（在控制台把 NS 指过来即可）。
+# 加好之后 `npx wrangler deploy` 会自动签发证书，什么都不用改。
