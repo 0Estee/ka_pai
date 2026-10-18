@@ -9,6 +9,7 @@
  * 依赖方向：board ← damage ← stats
  */
 
+import { fixNum } from './constants.js';
 import { checkSuperpowerThresholds, findVoodooDoll } from './factions.js';
 import { getKw, hasKw, isFrozen, computeFinalDamage, nimbleShouldDrown, isUntargetable } from './keywords.js';
 import { chance } from './rng.js';
@@ -222,7 +223,9 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
         return 0;
       }
     }
-    p.kingHp -= kingAmount;
+    // 国王生命也可能被强化出小数（国王本身不会被强化，但伤害量可能是小数值），
+    // 统一过 fixNum，别在状态条上露出 15.299999999999999
+    p.kingHp = fixNum(p.kingHp - kingAmount);
     log(state, { type: 'king-damage', side: target.side, amount: kingAmount, hp: p.kingHp, source: source ? source.uid : null });
 
     // 「造成伤害:」异能**包括对国王造成伤害**（作者确认，规则书 §1 已同步修订）。
@@ -236,7 +239,9 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
   } else {
     const unit = target.unit;
     if (unit.removed) return 0;
-    unit.hp -= finalAmount;
+    // 强化出来的 0.1 档生命会让「6.3 再挨 1 点」变成 1.2999999999999998，
+    // 界面上直接露出浮点尾巴。所有伤害扣血都在这里过一次规范化。
+    unit.hp = fixNum(unit.hp - finalAmount);
     unit.lastDamageSource = source ? source.uid : null;
     // 带上位置：界面要按格子放「掉字」单位被打死之后就已经不在棋盘上了，光有 uid 找不到格子。
   log(state, { type: 'damage', uid: unit.uid, amount: finalAmount, hp: unit.hp, source: source ? source.uid : null, lane: unit.lane, side: unit.side, row: unit.row });
@@ -390,7 +395,7 @@ export function queueKingTrigger(state, side, triggerName, payload = {}) {
 export function healUnit(state, unit, amount) {
   if (!unit || unit.removed || amount <= 0) return;
   const before = unit.hp;
-  unit.hp = Math.min(unit.maxHp, unit.hp + amount);
+  unit.hp = fixNum(Math.min(unit.maxHp, unit.hp + amount));
   log(state, { type: 'heal', uid: unit.uid, from: before, to: unit.hp });
   checkNimble(state, unit);
 }
@@ -407,7 +412,7 @@ export function healKing(state, side, amount) {
   const p = state.players[side];
   if (p.kingHp <= 0) return;
   const before = p.kingHp;
-  p.kingHp = Math.min(p.kingMaxHp, p.kingHp + amount);
+  p.kingHp = fixNum(Math.min(p.kingMaxHp, p.kingHp + amount));
   log(state, { type: 'king-heal', side, from: before, to: p.kingHp, amount: p.kingHp - before });
 }
 
@@ -423,8 +428,8 @@ export function healKing(state, side, amount) {
  */
 export function debuffMaxHp(state, unit, amount) {
   if (!unit || unit.removed || amount <= 0) return;
-  unit.maxHp = Math.max(0, unit.maxHp - amount);
-  unit.hp -= amount;
+  unit.maxHp = fixNum(Math.max(0, unit.maxHp - amount));
+  unit.hp = fixNum(unit.hp - amount);
   log(state, { type: 'debuff-maxhp', uid: unit.uid, amount, maxHp: unit.maxHp, hp: unit.hp });
   if (unit.hp <= 0) {
     destroyUnit(state, unit, 'stat-loss');
@@ -441,10 +446,10 @@ export function debuffMaxHp(state, unit, amount) {
 export function setUnitStats(state, unit, { hp, maxHp, atk }) {
   if (!unit || unit.removed) return;
   /** 被「永久设为0」锁死的单位：攻击力只能是 0（卡牌「诅咒」「神罚」，见 stats.js 的 lockAtk） */
-  if (atk !== undefined && unit.atkLocked === undefined) unit.atk = Math.max(0, atk);
-  if (atk !== undefined && unit.atkLocked !== undefined) unit.atk = unit.atkLocked;
-  if (maxHp !== undefined) unit.maxHp = Math.max(0, maxHp);
-  if (hp !== undefined) unit.hp = hp;
+  if (atk !== undefined && unit.atkLocked === undefined) unit.atk = fixNum(Math.max(0, atk));
+  if (atk !== undefined && unit.atkLocked !== undefined) unit.atk = fixNum(unit.atkLocked);
+  if (maxHp !== undefined) unit.maxHp = fixNum(Math.max(0, maxHp));
+  if (hp !== undefined) unit.hp = fixNum(hp);
   if (unit.hp > unit.maxHp) unit.hp = unit.maxHp;
   log(state, { type: 'set-stats', uid: unit.uid, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk });
   if (unit.hp <= 0) { destroyUnit(state, unit, 'stat-set'); return; }

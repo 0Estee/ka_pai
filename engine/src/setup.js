@@ -11,7 +11,7 @@
  * 依赖方向：constants/rng/keywords ← mechanics ← setup ← turns/play/choices/combat
  */
 
-import { LANES, KING_MAX_HP } from './constants.js';
+import { LANES, KING_MAX_HP, fixNum } from './constants.js';
 import { createRng, shuffle } from './rng.js';
 import { parseKeyword } from './keywords.js';
 import { effectiveAtk } from './auras.js';
@@ -255,13 +255,15 @@ export function instantiateUnit(state, def, side, lane, row) {
   // 强化 / 精通：只在这一处把增量落到单位身上，之后所有规则都照常读实例字段。
   // 牌库是双方共享的，所以增量必须按 side 取，不能写进 def。
   const enh = enhanceFor(state, side, def.id);
-  const hp = (Number(def.hp) || 0) + enh.hp;
+  // 强化是 0.1 一档，直接相加会得到 6.300000000000001；落地就算成两位小数，
+  // 之后界面、伤害、回血读到的都是干净的数。
+  const hp = fixNum((Number(def.hp) || 0) + enh.hp);
   return {
     uid: state.nextUid++,
     cardId: def.id,
     name: def.name,
     side, lane, row,
-    atk: (Number(def.atk) || 0) + enh.atk,
+    atk: fixNum((Number(def.atk) || 0) + enh.atk),
     hp,
     maxHp: hp,
     keywords: mergeKeywords((def.keywords || []).map(parseKeyword), enh.kw),

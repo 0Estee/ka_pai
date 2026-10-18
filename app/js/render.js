@@ -1095,6 +1095,31 @@ function restoreHandScroll(stage, x) {
   try { const el = stage.querySelector && stage.querySelector('.hand'); if (el) el.scrollLeft = x; } catch (e) { /* stub */ }
 }
 
+/**
+ * 二级页的纵向滚动位置（作者 2026-10-18 报的「每次强化/精通都会刷新界面，
+ * 导致返回最上方」）。
+ *
+ * 原因：refresh() 是整块重写 #stage.innerHTML，`.screen-body`（overflow-y:auto）
+ * 被换成新节点，浏览器自然回到 scrollTop=0 —— 工坊一屏一百多张卡，点一次强化
+ * 就弹回顶部，等于没法连着强化同一张牌。
+ *
+ * 所以非对局屏在重绘前后记一次 / 写回一次。列表顺序是稳定的（按名称排序），
+ * 因此恢复同一个 scrollTop 就是同一批卡还在原位。
+ */
+function screenScrollOf(stage) {
+  try {
+    const el = stage.querySelector && stage.querySelector('.screen-body');
+    return el ? el.scrollTop || 0 : 0;
+  } catch (e) { return 0; }
+}
+function restoreScreenScroll(stage, y) {
+  if (!y) return;
+  try {
+    const el = stage.querySelector && stage.querySelector('.screen-body');
+    if (el) el.scrollTop = y;
+  } catch (e) { /* stub */ }
+}
+
 const LANE_LABEL = { mountain: '山地', plainL: '平地左', plainR: '平地右', water: '水路' };
 
 // ══════════════════════════════════════════════════════════
@@ -1104,7 +1129,22 @@ const LANE_LABEL = { mountain: '山地', plainL: '平地左', plainR: '平地右
 /** 按当前屏幕渲染。所有屏幕都写进同一个 #stage */
 function refresh() {
   const stage = document.getElementById('stage');
+  /*
+   * 非对局屏的纵向滚动位置必须在重绘之后还原。
+   * refresh() 是整块重写 #stage.innerHTML，`.screen-body` 换成新节点后
+   * scrollTop 自然归零 —— 工坊一屏一百多张卡，点一次强化就弹回最上方（作者 2026-10-18 报的）。
+   * 只在**同一屏**内重绘时还原：换屏时保留上一屏的滚动位置是没有意义的。
+   */
+  const sameScreen = lastScreen === screen;
+  const scrollY = sameScreen ? screenScrollOf(stage) : 0;
+  try {
+    renderScreen(stage);
+  } finally {
+    if (sameScreen) restoreScreenScroll(stage, scrollY);
+  }
+}
 
+function renderScreen(stage) {
   // 回放时底部有一条固定的控制条，给内容留出高度，别盖住手牌
   try { stage.classList.toggle('stage-replay', screen === 'replay'); } catch { /* stub */ }
 

@@ -9,6 +9,7 @@
  * 依赖方向：board ← damage ← stats
  */
 
+import { fixNum } from './constants.js';
 import { getKw, parseKeyword } from './keywords.js';
 import { shuffle } from './rng.js';
 import { log, allUnits } from './board.js';
@@ -117,7 +118,7 @@ export function revokeKeyword(state, unit, keywordId) {
  */
 export function lockAtk(state, unit, value = 0) {
   if (!unit || unit.removed) return;
-  unit.atk = Math.max(0, value);
+  unit.atk = fixNum(Math.max(0, value));
   unit.atkLocked = Math.max(0, value);
   log(state, { type: 'atk-locked', uid: unit.uid, atk: unit.atk });
 }
@@ -140,15 +141,15 @@ export function buffAtk(state, unit, amount) {
   if (!unit || unit.removed) return;
   /** 被「永久设为0」锁死的单位不再接受任何攻击力加成（卡牌「诅咒」「神罚」） */
   if (unit.atkLocked !== undefined && unit.atkLocked !== null) return;
-  unit.atk = Math.max(0, unit.atk + amount);
+  unit.atk = fixNum(Math.max(0, unit.atk + amount));
   log(state, { type: 'buff-atk', uid: unit.uid, amount, atk: unit.atk });
 }
 
 /** 提升生命上限并同时治疗等量生命 */
 export function buffMaxHp(state, unit, amount) {
   if (!unit || unit.removed) return;
-  unit.maxHp += amount;
-  unit.hp += amount;
+  unit.maxHp = fixNum(unit.maxHp + amount);
+  unit.hp = fixNum(unit.hp + amount);
   log(state, { type: 'buff-maxhp', uid: unit.uid, amount, maxHp: unit.maxHp, hp: unit.hp });
   checkNimble(state, unit);
 }

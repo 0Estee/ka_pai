@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 测试卡牌库（占位用，即用即弃）
  *
  * ⚠️ 这不是正式卡牌设计。它的唯一目的是让规则引擎能跑起来并被验证。
@@ -49,6 +49,15 @@ import { USER_CARDS_B3 } from './user-cards-b3.js';
 /** 作者设计的全部卡牌（第二批 U01~U17 + 第三批 U20~） */
 export const AUTHOR_CARDS = [...USER_CARDS, ...USER_CARDS_B3];
 
+/**
+ * ⚠️ 这些是**引擎自检用的白板测试卡**（W01~W05 / K* / E*），不是正式卡牌。
+ * 作者 2026-10-18 要求把白板测试卡从游戏里清干净 —— 但它们仍留在 cardLib 里，
+ * 只为两件事：
+ *   1. engine/test/smoke.mjs 用它们做「基础战斗数学」的基准对照；
+ *   2. 老回放的 cardSetId 里含这些 id，删掉会让历史回放全部判成「卡牌库已变动」。
+ * 所以给它们打上 legacy 标记：**不进工坊、不进牌库、不进 AI 强化池**，
+ * 玩家在游戏里再也见不到它们（见 enhance.js 的 isForgeable 与 buildTestDeck）。
+ */
 export const DEMO_CARDS = [
   // ── 白板（用于验证基础战斗数学）─────────────────────────
   { id: 'W01', name: '白板新兵', type: 'unit', cost: 1, atk: 1, hp: 2, keywords: [] },
@@ -148,6 +157,16 @@ export const DEMO_CARDS = [
 ];
 
 /**
+ * 给白板测试卡打上 legacy 标记。
+ *
+ * 打上之后：工坊不列（enhance.js 的 isForgeable）、AI 不强化、
+ * 牌库不抽（buildTestDeck 只从 AUTHOR_CARDS 里取）—— 玩家在游戏里见不到它们。
+ * 但 TEST_CARD_LIB 里仍然保留，engine/test/smoke.mjs 的白板基准与
+ * 老回放的 cardSetId 都还要靠它们。
+ */
+for (const c of DEMO_CARDS) c.legacy = true;
+
+/**
  * 最终卡牌库 = 引擎自检用的演示卡 + 作者设计的卡牌（user-cards.js）。
  * 界面与 AI 只认 TEST_CARDS，所以两边都能自动用上。
  */
@@ -192,34 +211,22 @@ function mixSeed(x) {
  * @param {number} seed 抽子集用的种子（应用内传当局种子）
  */
 export function buildTestDeck(size = 30, seed = 0) {
-  // 「令」= 令牌，不可抽得
-  const pool = AUTHOR_CARDS.filter((c) => !c.token && !c.faction); // 「令」= 令牌、带阵营的 = 超能力，都不进普通牌库
+  // 「令」= 令牌，带阵营的 = 超能力，都不进普通牌库。
+  // **白板测试卡（DEMO_CARDS）也不再进牌库**（作者 2026-10-18：清干净）。
+  const pool = AUTHOR_CARDS.filter((c) => !c.token && !c.faction);
   if (pool.length === 0) return [];
 
-  // 卡池比卡组大 → 按种子洗牌后取前 size 张（每张 1 份）
-  if (pool.length > size) {
-    const ids = pool.map((c) => c.id);
-    const rng = createRng(mixSeed(seed));
-    shuffle(rng, ids);
-    return ids.slice(0, size);
-  }
+  const ids = pool.map((c) => c.id);
+  const rng = createRng(mixSeed(seed));
+  shuffle(rng, ids);
 
+  // 卡池比卡组大 → 取洗好的前 size 张（每张 1 份）
+  if (ids.length >= size) return ids.slice(0, size);
+
+  // 卡池比卡组小时按洗好的顺序循环补足 —— 只补卡池里的牌，不掺白板卡
   const deck = [];
-  // 卡池装得下：每张至少 1 份，份数按卡组大小均分（上限 3 份）
-  const copies = Math.max(1, Math.min(3, Math.floor(size / pool.length)));
-  for (let c = 0; c < copies; c++) {
-    for (const card of pool) deck.push(card.id);
-  }
-  // 演示卡：单位 2 份
-  for (const card of DEMO_CARDS) {
-    const n = card.type === 'unit' ? 2 : 1;
-    for (let i = 0; i < n; i++) if (deck.length < size) deck.push(card.id);
-  }
-  // 补足到指定张数
-  const filler = ['W01', 'W02', 'W03'];
-  let i = 0;
-  while (deck.length < size) deck.push(filler[i++ % filler.length]);
-  return deck.slice(0, size);
+  while (deck.length < size) deck.push(ids[deck.length % ids.length]);
+  return deck;
 }
 
 /**

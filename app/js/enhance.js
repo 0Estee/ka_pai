@@ -160,9 +160,14 @@ function isSpell(def) {
   return !!def && def.type === 'spell';
 }
 
-/** 这张牌能不能进强化工坊（令牌与阵营专属牌不进） */
+/**
+ * 这张牌能不能进强化工坊（令牌、阵营专属牌、白板测试卡都不进）。
+ *
+ * `legacy` 标记见 engine/cards/test-cards.js 的 DEMO_CARDS：
+ * 那些 W01/K04/E01 是引擎自检用的白板，作者 2026-10-18 要求从玩家可见处清干净。
+ */
 export function isForgeable(def) {
-  return !!def && !!def.id && !def.token && !def.faction;
+  return !!def && !!def.id && !def.token && !def.faction && !def.legacy;
 }
 
 /**

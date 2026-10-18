@@ -23,19 +23,22 @@ function grabLib() {
 const lib = grabLib();
 api.__go('home');
 
-/** 找一张能进工坊的单位 / 锦囊 */
-const unitId = Object.keys(lib).find((id) => {
-  const d = lib[id];
-  return d.type === 'unit' && !d.token && !d.faction;
-});
+/**
+ * 找一张能进工坊的单位 / 锦囊。
+ *
+ * 必须和 enhance.js 的 isForgeable 同口径：白板测试卡（legacy）已经被排除，
+ * 测试若还挑到 W01 就会一直收到「这张牌不能强化」。
+ */
+const forgeable = (d) => !!d && !d.token && !d.faction && !d.legacy;
+const unitId = Object.keys(lib).find((id) => forgeable(lib[id]) && lib[id].type === 'unit');
 /** 原费 ≥3 的锦囊（精通一次 −1 费）；≤2 的走另一条规则 */
 const spellId = Object.keys(lib).find((id) => {
   const d = lib[id];
-  return d.type === 'spell' && !d.token && !d.faction && (Number(d.cost) || 0) >= 3;
+  return forgeable(d) && d.type === 'spell' && (Number(d.cost) || 0) >= 3;
 });
 const cheapSpellId = Object.keys(lib).find((id) => {
   const d = lib[id];
-  return d.type === 'spell' && !d.token && !d.faction && (Number(d.cost) || 0) <= 2;
+  return forgeable(d) && d.type === 'spell' && (Number(d.cost) || 0) <= 2;
 });
 
 /** 全新档案（自带一点钱，方便连续强化） */
@@ -288,4 +291,52 @@ check('强化学到对局里：开局把增量交给引擎，回放也带着同�
     api.__nav('start-game', {});   // 切回普通模式，避免影响后续用例
     api.__go('home');
   }
+});
+
+check('数值干净：强化/伤害/治疗不会留下浮点尾巴', () => {
+  // 作者 2026-10-18：强化加成会出现 6.300000000000001 / 1.2999999999999998 这种数。
+  // 根因是 IEEE754 存不下 0.1，必须在**写入状态时**就规范到两位小数。
+  const isClean = (v) => typeof v === 'number' && Number.isFinite(v) && Math.round(v * 100) / 100 === v;
+  const st = api.__game();
+  if (!st) throw new Error('没有对局');
+  // 直接构造一个强化过的单位（走和玩家完全相同的 instantiateUnit 路径）
+  const placed = api.__place(0, unitId, 'mountain', 'front');
+  if (!placed) throw new Error('摆不上单位');
+  const u = st.board.mountain.units[0].front;
+  if (!u) throw new Error('格子里没有单位');
+  if (!isClean(u.atk) || !isClean(u.hp) || !isClean(u.maxHp)) {
+    throw new Error('单位落地就带浮点尾巴：' + u.atk + '/' + u.hp + '/' + u.maxHp);
+  }
+  // 再走一遍伤害 / 治疗：0.1 档血量连掉几次最容易露出尾巴
+  api.dealDamage(st, null, { kind: 'unit', unit: u }, 1, { noThorns: true, noKeywords: true });
+  if (!isClean(u.hp)) throw new Error('扣血后带浮点尾巴：' + u.hp);
+  api.healUnit(st, u, 1);
+  if (!isClean(u.hp)) throw new Error('治疗后带浮点尾巴：' + u.hp);
+  api.dealDamage(st, null, { kind: 'unit', unit: u }, 0.1, { noThorns: true, noKeywords: true });
+  if (!isClean(u.hp)) throw new Error('小数伤害后带浮点尾巴：' + u.hp);
+  const str = String(u.hp);
+  if (str.length > 6) throw new Error('生命显示成了长串小数：' + str);
+});
+
+check('白板测试卡不再出现在玩家可见的地方（工坊 / 牌库）', () => {
+  // 作者 2026-10-18：白板测试卡没删干净。它们仍是引擎自检与老回放的依赖，
+  // 所以留在 cardLib 里，但必须打上 legacy 并把工坊与牌库都排除掉。
+  const demoIds = ['W01','W02','W03','W04','W05','K01','K04','K07','E01'];
+  for (const id of demoIds) {
+    if (!lib[id]) throw new Error('白板卡 ' + id + ' 应该还在 cardLib 里（自检/老回放要用）');
+    if (!lib[id].legacy) throw new Error('白板卡 ' + id + ' 没有 legacy 标记');
+    if (api.isForgeable(lib[id])) throw new Error('白板卡 ' + id + ' 还能进工坊');
+  }
+  // 牌库：任意种子都不能抽到白板卡
+  for (const seed of [1, 7, 99, 12345]) {
+    const deck = api.buildTestDeck(80, seed);
+    const bad = deck.filter((id) => demoIds.indexOf(id) >= 0);
+    if (bad.length) throw new Error('种子 ' + seed + ' 的牌库里还有白板卡：' + bad.join(','));
+  }
+  // 工坊列表也不能列
+  const p = api.__profile();
+  const w = api.workshopCards(lib, p, 'initial');
+  const all = w.groups.reduce((acc, g) => acc.concat(g.cards), []);
+  const leaked = all.filter((c) => demoIds.indexOf(c.id) >= 0);
+  if (leaked.length) throw new Error('工坊里还能看到白板卡：' + leaked.map((c) => c.id).join(','));
 });

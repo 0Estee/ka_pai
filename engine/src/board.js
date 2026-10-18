@@ -9,7 +9,7 @@
  * 依赖方向：constants/keywords/rng ← board ← damage/stats
  */
 
-import { LANES, ROWS, REBIRTH_HP } from './constants.js';
+import { LANES, ROWS, REBIRTH_HP, fixNum } from './constants.js';
 import { hasKw, canPlaceInLane, isUntargetable } from './keywords.js';
 // ⚠ board ←→ damage 是一个**函数声明的环**：board 要 queueTrigger / queueKingTrigger，
 //   damage 要 destroyUnit。两边都只有函数声明（没有加载期求值的顶层 const），
@@ -120,7 +120,7 @@ export function destroyUnit(state, unit, reason = 'destroy') {
   //   · 复活不触发打出效果
   if (hasKw(unit, 'rebirth')) {
     unit.keywords = unit.keywords.filter((k) => k.id !== 'rebirth');
-    unit.hp = Math.min(REBIRTH_HP, unit.maxHp);
+    unit.hp = fixNum(Math.min(REBIRTH_HP, unit.maxHp));
     unit.marks = [];
     unit.lastDamageSource = null;
     log(state, {
