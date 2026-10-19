@@ -30,7 +30,7 @@
 import { AI, me, foe } from './app-state.js';
 import {
   makeView, applyTheme, setTheme, goHome, goSettings, goReplays,
-  refresh, toggleMenu,
+  refresh, toggleMenu, revealBoardAll, resetCardFlights,
   beginDragChip, moveDragChip, endDragChip, flyDragChipBack,
 } from './render.js';
 import {
@@ -303,6 +303,26 @@ window.__newGameFirst = () => {
   return state;
 };
 window.__screen = () => screen;
+/** 截图 / 自检用：清掉正在飞的卡，棋盘立刻显示真实单位 */
+window.__clearFlights = () => {
+  resetCardFlights();
+  refresh();
+  return true;
+};
+/** 截图 / 自检用：改我方费用，避免调试时手牌全不可出 */
+window.__setMana = (m, cap) => {
+  if (!state || !state.players) return null;
+  const p = state.players[0];
+  p.mana = Math.max(0, Number(m) || 0);
+  p.manaCap = Math.max(1, Number(cap) || p.mana);
+  refresh();
+  return { mana: p.mana, cap: p.manaCap };
+};
+/** 截图 / 自检用：跳过开局铺开动画，直接把棋盘和手牌全部显示出来 */
+window.__revealAll = () => {
+  revealBoardAll();
+  return view ? view.revealShown : null;
+};
 /** 云存档自检用：返回 Cloud.cloudStatus() 的只读快照 */
 window.__cloud = () => Cloud.cloudStatus();
 /** 云存档自检用：直接调公开 API（登录 / 同步 / 管理员），返回 Promise */

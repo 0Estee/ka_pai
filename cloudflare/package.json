@@ -1,7 +1,7 @@
 {
   "name": "ka-pai-online",
   "private": true,
-  "version": "0.61.0",
+  "version": "0.62.0",
   "description": "王座交锋 · 联机房间服务（Cloudflare Worker + Durable Object）",
   "type": "module",
   "scripts": {

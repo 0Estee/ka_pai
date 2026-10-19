@@ -119,6 +119,13 @@ function setDifficulty(key) {
 // 屏幕切换
 // ══════════════════════════════════════════════════════════
 
+/** 截图 / 自检：跳过开局铺开，把棋盘和手牌全部显示出来 */
+function revealBoardAll() {
+  stopBoardReveal();
+  if (view) view.revealShown = null;
+  refresh();
+}
+
 function goHome() {
   stopReplay();
   clearTimeout(bannerTimer);
@@ -1614,7 +1621,7 @@ function renderScreen(stage) {
 
 export {
   makeView, applyTheme, setTheme, setDifficulty, setFaction, goHome, goSettings, goReplays,
-  showBanner, refresh, toggleMenu, fillMenuLog,
+  showBanner, refresh, toggleMenu, fillMenuLog, revealBoardAll,
   resetCardFlights, captureHandCardSource, captureDiscardSource, cardFlightLog, cardFlightSeq, flushCardFlights,
   beginDragChip, moveDragChip, endDragChip, flyDragChipBack,
 };

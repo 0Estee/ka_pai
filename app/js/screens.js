@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.61.0';
+export const APP_VERSION = '0.62.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -366,8 +366,15 @@ export function homeHTML({ profile, level, storageMode, replays = [], cloud = nu
     </header>
 
     <section class="home-hero">
+      <div class="home-emblem" aria-hidden="true">
+        <span class="emblem-ring"></span>
+        <span class="emblem-crown"></span>
+        <span class="emblem-lanes"><i></i><i></i><i></i><i></i></span>
+      </div>
       <h1 class="home-logo">王座交锋</h1>
+      <p class="home-kicker">四线战场 · 王座争夺</p>
       <p class="home-lead">四条线路，一座王座。<br>把对手的国王打到 0 点生命。</p>
+      <div class="home-rule" aria-hidden="true"><i></i><b></b><i></i></div>
       <button class="hm-btn hm-primary" data-act="start-game">
         <span class="hm-text">开始游戏</span>
         <span class="hm-sub">单机 AI · 联机对战</span>

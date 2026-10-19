@@ -46,8 +46,8 @@ PLATFORM="${PLATFORM:-android-34}"
 # ── 默认参数 ──────────────────────────────────────────────
 # 这两个值必须和 android/app/AndroidManifest.xml 里的 versionCode/versionName、
 # 以及 app/js/screens.js 里的 APP_VERSION 保持一致，[0] 会做三处对账。
-VERSION_NAME="0.61.0"
-VERSION_CODE=65
+VERSION_NAME="0.62.0"
+VERSION_CODE=66
 MIN_SDK=24
 TARGET_SDK=34
 KEYSTORE_PASS="kapai123"
@@ -66,7 +66,7 @@ usage() {
 
   --skip-web            跳过网页打包与门禁（node build-web / check-bundle / engine smoke）
   --skip-icon           跳过图标生成（tools/make-icon.mjs）
-  --version-name <值>   版本名，默认 0.61.0
+  --version-name <值>   版本名，默认 0.62.0
   --version-code <值>   版本号，默认 64
   -h, --help            显示本帮助
 

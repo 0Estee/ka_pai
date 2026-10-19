@@ -1740,3 +1740,1012 @@
   .cloud-user { flex-wrap: wrap; }
   .cloud-user .cloud-btn { flex: 1 1 auto; }
 }
+
+
+/* ══════════════════════════════════════════════════════════
+   王座交锋 · 卡牌桌皮肤（0.62.0）
+   ──────────────────────────────────────────────────────────
+   这一层不改变任何 data-act / 功能类，只把外观从「后台面板」
+   改成一张摊开的卡牌桌：胡桃木、暗红绒布、黄铜、羊皮纸。
+   加载顺序：style.css → screens.css（本文件），所以直接覆盖即可。
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  --table-0: #0a0604;
+  --table-1: #1a100a;
+  --table-2: #2b1a10;
+  --felt-0: #2b1411;
+  --felt-1: #3a1b16;
+  --wood-0: #2b1a10;
+  --wood-1: #3d2717;
+  --wood-2: #56361f;
+  --brass: #c9a15a;
+  --brass-hi: #f4dda4;
+  --brass-lo: #7d5524;
+  --ink: #f3e6cd;
+  --ink-dim: #bea67e;
+  --ink-faint: #8e7757;
+  --blood: #a63b32;
+  --steel: #7ba3c0;
+  --moss: #8fa96d;
+  --card-face-1: #3d2b1c;
+  --card-face-2: #21140d;
+  --deep-shadow: 0 14px 34px rgba(0, 0, 0, .55);
+
+  /* 直接覆盖旧变量：所有既有组件都会跟着换色 */
+  --bg: #0f0a07;
+  --bg-2: #1b110b;
+  --panel: #24170f;
+  --panel-2: #321f13;
+  --panel-active: #432817;
+  --line: #6b4a26;
+  --text: #f3e6cd;
+  --dim: #b49a73;
+  --desc-text: #d8c4a2;
+  --gold: #e0b45c;
+  --accent: #9aa7b3;
+  --me: #7ba3c0;
+  --foe: #c76b5c;
+  --legal: #8fa96d;
+  --target: #e0b45c;
+  --hp: #8fb573;
+  --atk: #e3a262;
+  --mana: #8db6cf;
+  --mark: #a58bc4;
+  --slot-line: #5b3d22;
+  --slot-bg: #1a110b;
+  --slot-front: #21150d;
+  --slot-mine: #7b5527;
+  --slot-foe: #7b3b31;
+  --legal-bg: #2c2413;
+  --legal-glow-1: rgba(224, 180, 92, .48);
+  --unit-bg-1: #3a291b;
+  --unit-bg-2: #24160f;
+  --unit-line: #7a562c;
+  --unit-front-line: #7ba3c0;
+  --unit-back-line: #c9a15a;
+  --unit-back-bg-1: #3d2c1a;
+  --unit-back-bg-2: #2a1a0f;
+  --hpbar-bg: #3a1d18;
+  --hand-bg: #120c08;
+  --card-bg-1: #3d2b1c;
+  --card-bg-2: #21140d;
+  --card-line: #a9824a;
+  --card-spell-bg-1: #33263d;
+  --card-spell-bg-2: #1e1426;
+  --card-spell-line: #7f65a0;
+  --card-item-bg-1: #22362d;
+  --card-item-bg-2: #13211b;
+  --card-item-line: #4f8a72;
+  --card-dim: .44;
+  --btn-bg-1: #7b5427;
+  --btn-bg-2: #4a2e14;
+  --btn-text: #fff1d0;
+  --btn-disabled-bg: #25170e;
+  --btn-disabled-text: #7d6a4f;
+  --cost-bg-1: #f0d28a;
+  --cost-bg-2: #a3742b;
+  --cost-text: #2a1a05;
+  --btn-danger-bg: #3a1712;
+  --btn-danger-text: #f0b0a3;
+  --pip-off: #3a2a1a;
+  --hint-bg: rgba(28, 17, 10, .97);
+  --hint-text: #f0d9ae;
+  --banner-bg: rgba(201, 161, 90, .97);
+  --banner-text: #241506;
+  --menu-bg: rgba(18, 11, 7, .98);
+  --panel-float: #24170f;
+  --overlay: rgba(6, 4, 3, .84);
+  --shadow: rgba(0, 0, 0, .5);
+  --shadow-2: rgba(0, 0, 0, .55);
+  --shadow-3: rgba(0, 0, 0, .6);
+  --target-bg: rgba(224, 180, 92, .15);
+  --target-ring: rgba(224, 180, 92, .66);
+  --target-pulse-1: rgba(224, 180, 92, .44);
+  --legend-me: #7ba3c0;
+  --legend-foe: #c76b5c;
+  --lg-act: rgba(243, 230, 205, .68);
+  --lg-tgt: #e0b45c;
+  --radius: 5px;
+  --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+}
+
+:root[data-theme="light"] {
+  --table-0: #d8c19a;
+  --table-1: #ead7b5;
+  --table-2: #f5e7c9;
+  --felt-0: #e2c9a2;
+  --felt-1: #f0ddb9;
+  --wood-0: #c9a874;
+  --wood-1: #b08a55;
+  --wood-2: #8d6636;
+  --brass: #8a5a12;
+  --brass-hi: #6b4310;
+  --brass-lo: #c9a15a;
+  --ink: #2f2114;
+  --ink-dim: #6f5638;
+  --ink-faint: #8d7656;
+  --bg: #e8d7b4;
+  --bg-2: #f2e4c7;
+  --panel: #f7ead0;
+  --panel-2: #e6d2ae;
+  --panel-active: #dcc196;
+  --line: #a98655;
+  --text: #2f2114;
+  --dim: #6f5638;
+  --desc-text: #4a3622;
+  --gold: #8a5a12;
+  --accent: #4d6070;
+  --me: #35607f;
+  --foe: #8f463c;
+  --legal: #48633c;
+  --target: #8a5c28;
+  --hp: #33682f;
+  --atk: #8a5624;
+  --mana: #33607d;
+  --mark: #5a4a7a;
+  --slot-line: #b79a6c;
+  --slot-bg: #e6d4b1;
+  --slot-front: #f0e0c2;
+  --slot-mine: #9a7b4b;
+  --slot-foe: #a8695c;
+  --legal-bg: #e7f0da;
+  --legal-glow-1: rgba(72, 99, 60, .32);
+  --unit-bg-1: #f7ead0;
+  --unit-bg-2: #e8d3aa;
+  --unit-line: #b08a52;
+  --unit-front-line: #4a7194;
+  --unit-back-line: #a38b56;
+  --unit-back-bg-1: #fcf5e3;
+  --unit-back-bg-2: #f1e7cd;
+  --hpbar-bg: #ddc8c3;
+  --hand-bg: #d9c39a;
+  --card-bg-1: #fbf0d9;
+  --card-bg-2: #ecd7b2;
+  --card-line: #a9824a;
+  --card-spell-bg-1: #f8f2f8;
+  --card-spell-bg-2: #ede4ef;
+  --card-spell-line: #9a7fb0;
+  --card-item-bg-1: #f2f8f5;
+  --card-item-bg-2: #e3f0eb;
+  --card-item-line: #5f8f7d;
+  --card-dim: .42;
+  --btn-bg-1: #8a5a12;
+  --btn-bg-2: #6b4310;
+  --btn-text: #fff6e0;
+  --cost-bg-1: #d5a94e;
+  --cost-bg-2: #a87824;
+  --cost-text: #2a1a05;
+  --hint-bg: rgba(252, 248, 236, .97);
+  --hint-text: #2b2620;
+  --banner-bg: rgba(214, 189, 129, .97);
+  --banner-text: #2a2313;
+  --menu-bg: rgba(251, 247, 237, .98);
+  --panel-float: #fcf8ec;
+  --overlay: rgba(43, 38, 32, .45);
+  --radius: 5px;
+  --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+}
+
+:root[data-theme="glass"] {
+  --table-0: #060c16;
+  --table-1: #0b1522;
+  --table-2: #13243a;
+  --felt-0: #0e1b2b;
+  --felt-1: #16293e;
+  --wood-0: #162230;
+  --wood-1: #1e3144;
+  --wood-2: #29465f;
+  --brass: #d9c08a;
+  --brass-hi: #f5e6bd;
+  --brass-lo: #8b6e3c;
+  --ink: #eef4fb;
+  --ink-dim: #a7b8cc;
+  --ink-faint: #7f92a8;
+  --blood: #c76b5c;
+  --steel: #8fb6d4;
+  --bg: #07101c;
+  --bg-2: #0d1a2b;
+  --panel: #111e2e;
+  --panel-2: #182b40;
+  --panel-active: #20374f;
+  --line: #3f5a78;
+  --text: #eef4fb;
+  --dim: #a7b8cc;
+  --desc-text: #c9d6e6;
+  --gold: #e0c486;
+  --accent: #93a4b8;
+  --me: #8fb0c6;
+  --foe: #c9888a;
+  --legal: #9cb083;
+  --target: #e0c486;
+  --hp: #93c39b;
+  --atk: #e0b08a;
+  --mana: #94aec4;
+  --mark: #b3a6cf;
+  --slot-line: #3c5570;
+  --slot-bg: #0b1724;
+  --slot-front: #101f30;
+  --slot-mine: #5b8fb5;
+  --slot-foe: #a86a70;
+  --legal-bg: #14261c;
+  --legal-glow-1: rgba(156, 176, 131, .5);
+  --unit-bg-1: #172a3d;
+  --unit-bg-2: #0e1b2a;
+  --unit-line: #4e6f8e;
+  --unit-front-line: #8fb6d4;
+  --unit-back-line: #d9c08a;
+  --unit-back-bg-1: #1d3247;
+  --unit-back-bg-2: #122235;
+  --hpbar-bg: #2a1c24;
+  --hand-bg: #08121e;
+  --card-bg-1: #182b40;
+  --card-bg-2: #0d1a2a;
+  --card-line: #6f8aa6;
+  --card-spell-bg-1: #252a44;
+  --card-spell-bg-2: #141a30;
+  --card-spell-line: #7d86b8;
+  --card-item-bg-1: #16332f;
+  --card-item-bg-2: #0c211f;
+  --card-item-line: #4f8a82;
+  --card-dim: .46;
+  --btn-bg-1: #29465f;
+  --btn-bg-2: #1b3145;
+  --btn-text: #eef4fb;
+  --cost-bg-1: #e0c486;
+  --cost-bg-2: #9c7a3a;
+  --cost-text: #17202b;
+  --hint-bg: rgba(10, 20, 34, .94);
+  --hint-text: #e8f0fa;
+  --banner-bg: rgba(224, 196, 134, .95);
+  --banner-text: #1b1608;
+  --menu-bg: rgba(8, 16, 28, .96);
+  --panel-float: #101d2d;
+  --overlay: rgba(3, 8, 16, .7);
+  --target-bg: rgba(224, 196, 134, .15);
+  --target-ring: rgba(224, 196, 134, .68);
+  --target-pulse-1: rgba(224, 196, 134, .42);
+  --radius: 5px;
+  --font-title: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+}
+
+/* ── 桌面：木纹 + 绒布 + 顶光 ─────────────────────────────── */
+html, body { background-color: var(--table-0); }
+body {
+  background-image:
+    radial-gradient(120% 80% at 50% -12%, rgba(214, 164, 88, .20), transparent 58%),
+    radial-gradient(90% 60% at 50% 112%, rgba(120, 26, 22, .24), transparent 62%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, .020) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #1d120b 0%, #0e0805 58%, #070403 100%);
+  background-attachment: fixed;
+}
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(120% 80% at 50% -12%, rgba(255, 248, 228, .75), transparent 60%),
+    repeating-linear-gradient(94deg, rgba(90, 60, 25, .045) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #f4e6c8 0%, #e4cfa8 62%, #d6bd94 100%);
+}
+:root[data-theme="glass"] body {
+  background-image:
+    radial-gradient(100% 70% at 50% -10%, rgba(112, 158, 210, .24), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(30, 70, 105, .35), transparent 65%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #0d1a2b 0%, #07101c 60%, #040a12 100%);
+}
+
+/* 屏幕壳：两边的金线是「桌子边缘」，内容仍然滚动 */
+.home, .screen {
+  position: relative;
+}
+.home::before, .screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(224, 180, 92, .14);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35);
+}
+
+/* ── 首页：标题画面 ──────────────────────────────────────── */
+.home {
+  display: flex;
+  flex-direction: column;
+  align-content: initial;
+  row-gap: 14px;
+  scrollbar-width: none;
+  max-width: 620px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  background: transparent;
+  overflow-y: auto;
+}
+.home-top {
+  background: linear-gradient(180deg, rgba(56, 34, 19, .96), rgba(24, 14, 8, .96));
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 8px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .20), 0 5px 14px rgba(0, 0, 0, .44);
+}
+:root[data-theme="light"] .home-top,
+:root[data-theme="light"] .home-foot,
+:root[data-theme="light"] .home .hm-btn,
+:root[data-theme="light"] .set-group,
+:root[data-theme="light"] .diff-row,
+:root[data-theme="light"] .room-row,
+:root[data-theme="light"] .rp-row,
+:root[data-theme="light"] .cloud-card,
+:root[data-theme="light"] .cloud-user,
+:root[data-theme="light"] .cloud-conflict,
+:root[data-theme="light"] .lobby-card,
+:root[data-theme="light"] .screen-head {
+  background-image: linear-gradient(180deg, rgba(255, 248, 232, .96), rgba(232, 211, 176, .96));
+}
+.home-brand { gap: 12px; flex: 0 0 auto; }
+.home-mark { height: 22px; gap: 3px; }
+.home-mark i {
+  width: 4px;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass-lo));
+  box-shadow: 0 0 8px rgba(224, 180, 92, .35);
+}
+.home-version { color: var(--ink-faint); letter-spacing: .08em; }
+.hud { gap: 12px; }
+.hud-gold, .hud-dust { flex: 0 0 auto; white-space: nowrap; }
+.hud-label { color: var(--ink-faint); letter-spacing: .12em; white-space: nowrap; }
+.hud-gold b, .hud-dust b {
+  color: var(--brass-hi);
+  text-shadow: 0 1px 0 #000;
+  font-family: var(--font-title);
+}
+:root[data-theme="light"] .hud-gold b,
+:root[data-theme="light"] .hud-dust b { color: #6b4310; text-shadow: none; }
+.home-hero {
+  align-items: center;
+  text-align: center;
+  gap: 9px;
+  padding: 16px 0 6px;
+}
+.home-emblem {
+  position: relative;
+  width: 96px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 2px;
+}
+.emblem-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(224, 180, 92, .42);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, .22), 0 0 26px rgba(224, 180, 92, .12);
+}
+.emblem-ring::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px dashed rgba(224, 180, 92, .30);
+  border-radius: 50%;
+}
+.emblem-crown {
+  width: 56px;
+  height: 36px;
+  background: linear-gradient(180deg, #fff1cd 0%, #e6bd6b 42%, #9a6a25 100%);
+  clip-path: polygon(0 100%, 0 16%, 20% 44%, 34% 0, 50% 36%, 66% 0, 80% 44%, 100% 16%, 100% 100%);
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .5)) drop-shadow(0 0 10px rgba(224, 180, 92, .25));
+}
+.emblem-lanes {
+  position: absolute;
+  bottom: 2px;
+  display: flex;
+  gap: 4px;
+}
+.emblem-lanes i {
+  display: block;
+  width: 3px;
+  height: 10px;
+  background: var(--brass);
+  border-radius: 1px;
+}
+.emblem-lanes i:nth-child(2), .emblem-lanes i:nth-child(3) { height: 15px; }
+.home-kicker {
+  margin: 0;
+  color: var(--brass);
+  font-size: 11px;
+  letter-spacing: .38em;
+  text-indent: .38em;
+}
+.home-logo {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: clamp(40px, 14vw, 68px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .08em;
+  text-indent: .08em;
+  white-space: nowrap;
+  color: #f7e2b3;
+  background: linear-gradient(180deg, #fff6db 0%, #efcf8d 42%, #b98534 72%, #7b4f1d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 #2a180b) drop-shadow(0 8px 16px rgba(0, 0, 0, .55));
+}
+:root[data-theme="light"] .home-logo {
+  background-image: linear-gradient(180deg, #7b4f1d 0%, #a8762a 50%, #5a3610 100%);
+}
+.home-lead {
+  max-width: 21em;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--ink-dim);
+}
+.home-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(300px, 80%);
+  margin: 2px auto 4px;
+}
+.home-rule i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(224, 180, 92, .55), transparent);
+}
+.home-rule b {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--brass);
+  box-shadow: 0 0 8px rgba(224, 180, 92, .4);
+}
+.home .hm-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 2px;
+  padding: 0 20px;
+  border: 1px solid var(--brass);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #805727 0%, #4b2e13 58%, #351f0e 100%);
+  color: #ffe9bd;
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 190, .48), inset 0 -2px 0 rgba(0, 0, 0, .45), 0 5px 0 #1b0f07, 0 9px 18px rgba(0, 0, 0, .55);
+  position: relative;
+}
+.home .hm-primary::before, .home .hm-primary::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--brass-hi);
+  box-shadow: 0 0 0 1px #6b4310, 0 0 6px rgba(224, 180, 92, .45);
+}
+.home .hm-primary::before { left: 10px; }
+.home .hm-primary::after { right: 10px; }
+.home .hm-primary .hm-text {
+  color: #ffe9bd;
+  text-shadow: 0 1px 0 #2a180b;
+}
+.home .hm-primary .hm-sub {
+  margin: 0;
+  max-width: none;
+  color: #d8bb8c;
+  opacity: .9;
+  font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.home .hm-primary:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 0 rgba(255, 235, 190, .35), 0 2px 0 #1b0f07, 0 4px 10px rgba(0, 0, 0, .5);
+}
+.home-menu {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.home .hm-btn {
+  min-height: 54px;
+  padding: 11px 16px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(56, 34, 19, .96), rgba(26, 15, 9, .96));
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .14), 0 3px 0 #120a05, 0 6px 12px rgba(0, 0, 0, .3);
+  position: relative;
+}
+.home .hm-btn::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 50%;
+  background: var(--brass);
+  opacity: .6;
+}
+.home-menu .hm-btn + .hm-btn { border-top: 1px solid var(--line); }
+.home .hm-btn .hm-text {
+  color: var(--ink);
+  font-family: var(--font-title);
+  font-size: 16px;
+  letter-spacing: .04em;
+}
+.home .hm-btn .hm-sub { color: var(--ink-faint); font-size: 11px; }
+.home .hm-btn:active {
+  background: linear-gradient(180deg, #4a2e16, #24140b);
+  border-color: var(--brass);
+  transform: translateY(1px);
+}
+.home-menu .hm-btn:active { background: linear-gradient(180deg, #4a2e16, #24140b); }
+.home-foot {
+  gap: 12px;
+  padding: 11px 14px;
+  background: linear-gradient(180deg, rgba(44, 27, 15, .96), rgba(20, 12, 7, .96));
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .12), 0 4px 12px rgba(0, 0, 0, .3);
+}
+.hf-stat span { color: var(--ink-faint); letter-spacing: .12em; }
+.hf-stat b {
+  color: var(--brass-hi);
+  font-family: var(--font-title);
+  font-size: 24px;
+  text-shadow: 0 1px 0 #000;
+}
+:root[data-theme="light"] .hf-stat b { color: #6b4310; text-shadow: none; }
+.hf-level-note { color: var(--ink-dim); }
+.hf-level-note b { color: var(--brass); }
+.hud-lv-bar {
+  height: 5px;
+  border: 1px solid #3b2714;
+  background: #120a05;
+  box-shadow: inset 0 1px 3px #000;
+}
+.hud-lv-bar > i {
+  background: linear-gradient(90deg, #8a5a12, #e0b45c, #f7e1a9);
+  box-shadow: 0 0 8px rgba(224, 180, 92, .45);
+}
+.hf-warn { color: #e5a79b; }
+
+/* ── 对局：桌面、格子、单位、手牌 ─────────────────────────── */
+.topbar {
+  background: linear-gradient(180deg, #2e1c11, #170d07);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-dim);
+  padding: 6px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+}
+.topbar .turn { color: var(--brass-hi); font-family: var(--font-title); }
+.statusbar {
+  background: linear-gradient(180deg, rgba(54, 34, 19, .96), rgba(24, 14, 8, .96));
+  border: 1px solid #5b3d22;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .14), 0 2px 6px rgba(0, 0, 0, .3);
+}
+.statusbar.foe { border-left: 3px solid var(--foe); }
+.statusbar.me { border-left: 3px solid var(--me); border-top: 1px solid var(--line); }
+.statusbar.active {
+  background: linear-gradient(180deg, rgba(78, 48, 25, .97), rgba(35, 20, 10, .97));
+  box-shadow: inset 0 -2px 0 var(--brass), 0 0 16px rgba(224, 180, 92, .16);
+}
+.board-wrap {
+  margin: 0 6px;
+  padding: 5px;
+  border: 1px solid #5b3d22;
+  border-radius: 6px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(94, 36, 28, .55), transparent 66%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, #23120e 0%, #160b07 100%);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, .6), 0 4px 14px rgba(0, 0, 0, .35);
+}
+.lane-name {
+  color: var(--brass);
+  font-family: var(--font-title);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-shadow: 0 1px 0 #000;
+}
+.row-label { color: var(--ink-faint); font-size: 9px; letter-spacing: .08em; }
+.slot {
+  border: 1px solid #4e331b;
+  border-radius: 5px;
+  background: rgba(10, 6, 4, .42);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, .55);
+}
+.slot.row-front { background: rgba(28, 16, 9, .55); }
+.slot.mine { border-color: #6d4b26; }
+.slot.foe { border-color: #6d3b32; }
+.slot.occupied { border-style: solid; }
+.slot.legal {
+  border-color: var(--brass);
+  background: rgba(64, 44, 19, .72);
+  box-shadow: inset 0 0 0 2px rgba(224, 180, 92, .28), 0 0 12px rgba(224, 180, 92, .12);
+}
+.slot.trap {
+  border-color: #5a3f56;
+  background: repeating-linear-gradient(45deg, #1a0f16, #1a0f16 6px, #21131b 6px, #21131b 12px);
+}
+.trap-mark { color: #9b86b0; }
+.unit {
+  background: linear-gradient(160deg, #3d2b1c 0%, #21140d 100%);
+  border: 1px solid #7a562c;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35), 0 2px 5px rgba(0, 0, 0, .45);
+}
+.unit::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(224, 180, 92, .18);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+}
+.unit.in-front { border-color: #6d8fa8; }
+.unit.in-back { border-color: #b08a52; background: linear-gradient(160deg, #3d2c1a, #27180e); }
+.u-name {
+  font-family: var(--font-title);
+  color: #f0d9ae;
+  font-size: 11px;
+  text-shadow: 0 1px 0 #000;
+}
+.u-kw { color: #d8b06a; }
+.u-marks { color: #b9a0d0; }
+.unit.targetable {
+  border-color: var(--brass) !important;
+  box-shadow: 0 0 0 2px rgba(224, 180, 92, .55), inset 0 0 0 1px rgba(224, 180, 92, .25), 0 0 14px rgba(224, 180, 92, .16);
+}
+.hand-wrap {
+  background: linear-gradient(180deg, #24150d, #100904);
+  border-top: 2px solid #6b4a26;
+  box-shadow: inset 0 2px 0 rgba(255, 225, 160, .10), 0 -6px 18px rgba(0, 0, 0, .5);
+}
+.hand { gap: 7px; padding: 9px 8px 8px; }
+.hand-empty { color: var(--ink-faint); }
+.card {
+  flex: 0 0 86px;
+  padding: 7px 6px 6px;
+  border: 1px solid var(--card-line);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #3f2d1d 0%, #24160e 64%, #180d08 100%);
+  box-shadow: 0 3px 0 #090402, 0 7px 14px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 225, 160, .14);
+  overflow: visible;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(224, 180, 92, .26);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.card::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 1px;
+  height: 38%;
+  border-radius: 5px 5px 40% 40%;
+  background: linear-gradient(180deg, rgba(255, 245, 215, .10), transparent);
+  pointer-events: none;
+}
+.card.is-spell { background: linear-gradient(180deg, #392b46 0%, #22172c 64%, #160e1d 100%); border-color: #7f65a0; }
+.card.is-item { background: linear-gradient(180deg, #243b31 0%, #14231c 64%, #0c1712 100%); border-color: #4f8a72; }
+.card.is-superpower { border-color: #d8b06a; box-shadow: 0 0 0 1px rgba(224, 180, 92, .35), 0 0 14px rgba(224, 180, 92, .18); }
+.c-cost {
+  top: -6px;
+  left: -6px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #f4dda4;
+  background: radial-gradient(circle at 35% 30%, #fff3cf 0%, #e0b45c 40%, #8a5a12 100%);
+  color: #2a1a05;
+  font-family: var(--font-title);
+  font-size: 12px;
+  box-shadow: 0 0 0 2px rgba(20, 11, 5, .85), 0 2px 5px rgba(0, 0, 0, .5);
+}
+.c-name {
+  margin-top: 9px;
+  text-align: center;
+  font-family: var(--font-title);
+  color: #f4dfb4;
+  font-size: 11.5px;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 0 #000;
+}
+.c-stats {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 12px;
+  text-shadow: 0 1px 0 #000;
+}
+.c-stats span:first-child { color: #f0b07a; }
+.c-stats span:last-child { color: #f09a8c; }
+.c-stats span::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 3px;
+  transform: rotate(45deg);
+  background: currentColor;
+  vertical-align: 1px;
+}
+.c-kw { color: #d8b06a; font-size: 9px; text-align: center; }
+.c-desc { color: #cbb48f; font-size: 9px; line-height: 1.3; }
+.card.playable { border-color: #8fa96d; }
+.card.selected {
+  transform: translateY(-10px) scale(1.02);
+  border-color: #f4dda4;
+  box-shadow: 0 0 0 2px rgba(224, 180, 92, .85), 0 0 20px rgba(224, 180, 92, .35), 0 10px 20px rgba(0, 0, 0, .55);
+  z-index: 5;
+}
+.card.unplayable, .card.unafford { opacity: .44; filter: grayscale(.35); }
+.c-sp, .c-raw {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 4px;
+  border: 1px solid rgba(224, 180, 92, .5);
+  border-radius: 3px;
+  background: rgba(10, 6, 3, .8);
+  color: #e0b45c;
+  font-size: 8px;
+  z-index: 2;
+}
+.c-raw { color: #9fd0b4; border-color: rgba(159, 208, 180, .45); }
+.hint {
+  background: rgba(24, 14, 8, .96);
+  border: 1px solid #6b4a26;
+  color: #e8d3ae;
+}
+.banner {
+  background: linear-gradient(180deg, #f0d28a, #c9a15a);
+  color: #2a1a05;
+  border: 1px solid #f4dda4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .55), inset 0 1px 0 #fff3cf;
+  font-family: var(--font-title);
+}
+.phasebar {
+  background: linear-gradient(180deg, #2e1c11, #170d07);
+  border-top: 1px solid #6b4a26;
+  border-bottom: 1px solid #6b4a26;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .10);
+}
+.phase-name { color: #f0d9ae; font-family: var(--font-title); letter-spacing: .06em; }
+.phase-status { color: var(--ink-faint); }
+
+/* 结算 / 弹层 / 详情：卷轴与黄铜 */
+.result, .choice-box, .unit-info .ui-card, .menu-panel {
+  background: linear-gradient(180deg, #2e1e12 0%, #1b100a 100%);
+  border: 1px solid #a9824a;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 18px 40px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 225, 160, .18);
+}
+.result h2, .menu-head h3, .ui-name { font-family: var(--font-title); color: #f4dda4; }
+.result.win h2 { color: #a8d18c; }
+.result.lose h2 { color: #e08a7c; }
+.result.draw h2 { color: #e0b45c; }
+.menu-head h3 { color: #f4dda4; }
+.btn, .btn-menu, .btn-danger {
+  background: linear-gradient(180deg, #7b5427, #4a2e14);
+  border: 1px solid #b08a52;
+  color: #ffe9bd;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 190, .35), 0 3px 0 #1b0f07;
+}
+.btn:active, .btn-menu:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255, 235, 190, .2), 0 1px 0 #1b0f07; }
+
+/* ── 二级页面 / 菜单 / 列表 ──────────────────────────────── */
+.screen {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.screen-head {
+  background: linear-gradient(180deg, rgba(56, 34, 19, .96), rgba(24, 14, 8, .96));
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 9px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .16), 0 4px 12px rgba(0, 0, 0, .35);
+}
+.screen-head h1 {
+  color: #f4dda4;
+  font-family: var(--font-title);
+  font-size: 18px;
+  letter-spacing: .08em;
+  text-shadow: 0 1px 0 #000;
+}
+:root[data-theme="light"] .screen-head h1 { color: #6b4310; text-shadow: none; }
+.btn-back, .btn-home {
+  background: linear-gradient(180deg, #3d2717, #24150c);
+  border: 1px solid #6b4a26;
+  color: #e0c28e;
+  border-radius: 4px;
+}
+.btn-back:active, .btn-home:active { background: #4a2e16; }
+.screen-body { gap: 10px; }
+.set-group, .diff-row, .room-row, .rp-row, .cloud-card, .cloud-user, .cloud-conflict, .cloud-admin-card, .lobby-card {
+  background: linear-gradient(180deg, rgba(54, 34, 19, .96), rgba(24, 14, 8, .96));
+  border: 1px solid #5b3d22;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .12), 0 4px 12px rgba(0, 0, 0, .32);
+}
+.set-name, .lobby-room, .cloud-card-head, .cloud-user-name, .rp-res {
+  color: #f0d9ae;
+  font-family: var(--font-title);
+  letter-spacing: .04em;
+}
+:root[data-theme="light"] .set-name,
+:root[data-theme="light"] .lobby-room,
+:root[data-theme="light"] .cloud-card-head,
+:root[data-theme="light"] .cloud-user-name,
+:root[data-theme="light"] .rp-res { color: #6b4310; }
+.set-desc, .diff-tag, .room-sub, .rp-date, .cloud-user-meta, .cloud-hint { color: var(--ink-faint); }
+.diff-row.on, .seg-item.on, .room-row:hover {
+  border-color: var(--brass);
+  background: linear-gradient(180deg, #4a2e16, #2a180d);
+}
+:root[data-theme="light"] .diff-row.on,
+:root[data-theme="light"] .seg-item.on { background: #e6d2ae; }
+.seg {
+  background: #160d07;
+  border: 1px solid #5b3d22;
+  border-radius: 4px;
+}
+.seg-item { color: var(--ink-dim); }
+.seg-item.on { color: #ffe9bd; background: linear-gradient(180deg, #7b5427, #4a2e14); }
+.diff-go, .cloud-btn, .rp-mini, .btn-home {
+  background: linear-gradient(180deg, #3d2717, #24150c);
+  border: 1px solid #6b4a26;
+  color: #e8d3ae;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .12), 0 2px 0 #120a05;
+}
+.diff-go, .cloud-btn.primary {
+  background: linear-gradient(180deg, #805727, #4b2e13);
+  border-color: var(--brass);
+  color: #ffe9bd;
+}
+.cloud-btn.primary { border-color: var(--brass); color: #ffe9bd; }
+.cloud-btn.danger, .rp-mini.danger { border-color: #8f4a3e; color: #efa99c; }
+.cloud-input, .rp-input, .lan-input {
+  background: #120b06;
+  border: 1px solid #6b4a26;
+  color: #f3e6cd;
+  border-radius: 4px;
+}
+.cloud-input:focus, .rp-input:focus, .lan-input:focus { border-color: var(--brass); box-shadow: 0 0 0 1px rgba(224, 180, 92, .25); }
+.cloud-note, .cloud-ok, .set-tip {
+  background: rgba(20, 12, 7, .7);
+  border-color: #5b3d22;
+  color: var(--ink-dim);
+}
+.cloud-err, .hf-warn, .rp-bad, .lan-err {
+  background: rgba(70, 18, 14, .35);
+  border-color: #8f4a3e;
+  color: #efa99c;
+}
+.cloud-row { color: var(--ink-faint); }
+.cloud-row b { color: #f0d9ae; }
+.cloud-role { color: #d8b06a; border-color: #6b4a26; }
+.rp-bar {
+  background: linear-gradient(180deg, #24150d, #100904);
+  border-top: 1px solid #6b4a26;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, .45);
+}
+.rp-summary, .cloud-admin-count { color: var(--ink-faint); }
+.rp-note { color: var(--ink-dim); }
+.lobby-code, .cloud-user-name { text-shadow: 0 1px 0 #000; }
+.room-badge, .lobby-role { color: var(--ink-faint); }
+
+/* 小屏幕：标题再收一点，保证四线棋盘不挤 */
+@media (max-width: 380px) {
+  .home-logo { font-size: 44px; }
+  .home { padding-left: 14px; padding-right: 14px; }
+  .home .hm-btn { padding-left: 13px; padding-right: 13px; }
+}
+
+/* 矮屏：把标题画面收紧，保证「开始游戏」和四个入口在第一屏附近 */
+@media (max-height: 780px) and (max-width: 700px) {
+  .home { row-gap: 12px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
+  .home-hero { gap: 7px; padding: 10px 0 4px; }
+  .home-emblem { width: 78px; height: 58px; }
+  .emblem-crown { width: 44px; height: 28px; }
+  .emblem-lanes i { height: 8px; }
+  .emblem-lanes i:nth-child(2), .emblem-lanes i:nth-child(3) { height: 12px; }
+  .home-logo { font-size: clamp(40px, 12vw, 56px); }
+  .home-lead { font-size: 13px; line-height: 1.6; }
+  .home .hm-primary { min-height: 52px; font-size: 17px; }
+  .home .hm-btn { min-height: 50px; padding: 10px 14px; }
+  .home-foot { padding: 10px 12px; gap: 10px; }
+  .hf-stat b { font-size: 21px; }
+}
+
+/* 状态条 / 费用 / 结束阶段：黄铜小件 */
+.sb-side b {
+  color: #f4dda4;
+  font-family: var(--font-title);
+  letter-spacing: .06em;
+}
+:root[data-theme="light"] .sb-side b { color: #6b4310; }
+.sb-role {
+  color: var(--ink-faint);
+  border-color: #6b4a26;
+  background: rgba(10, 6, 3, .35);
+}
+.sb-king {
+  padding: 1px 7px;
+  border: 1px solid #6b4a26;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(60, 22, 18, .6), rgba(28, 12, 9, .6));
+  color: #f09a8c;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.statusbar.me .sb-king { color: #a8d18c; }
+.sb-king.targetable {
+  border-color: var(--brass);
+  background: rgba(224, 180, 92, .16);
+  box-shadow: 0 0 12px rgba(224, 180, 92, .22);
+}
+.sb-mana { color: #a9c8dc; font-variant-numeric: tabular-nums; }
+.pips { gap: 3px; }
+.pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: #24160e;
+  border: 1px solid #5b3d22;
+}
+.pip.on {
+  background: radial-gradient(circle at 35% 30%, #e8f6ff, #8db6cf 55%, #4f7a99);
+  border-color: #cfe6f5;
+  box-shadow: 0 0 5px rgba(141, 182, 207, .55);
+}
+.sb-hand { color: var(--ink-faint); }
+.btn-menu, .btn-end, .btn-brew, .btn-sac {
+  border: 1px solid #6b4a26;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #3d2717, #24150c);
+  color: #e8d3ae;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .12), 0 2px 0 #120a05;
+}
+.btn-menu:active, .btn-end:active { transform: translateY(1px); background: #4a2e16; }
+.btn-end:disabled { opacity: .4; }
+
+/* 场上单位：名字做成卡牌铭牌，和手牌同一套语言 */
+.unit .u-name {
+  margin: -3px -4px 2px;
+  padding: 2px 4px 1px;
+  background: linear-gradient(90deg, rgba(224, 180, 92, .04), rgba(224, 180, 92, .16), rgba(224, 180, 92, .04));
+  border-bottom: 1px solid rgba(224, 180, 92, .20);
+}
+.unit.in-back .u-name { border-bottom-color: rgba(224, 180, 92, .38); }
+.unit .u-hpbar { height: 3px; background: #2a120e; }
+.unit .u-hpbar i { background: linear-gradient(90deg, #6f9a55, #a8d18c); }
+
+.home::-webkit-scrollbar, .screen-body::-webkit-scrollbar { width: 0; height: 0; }
+.screen-body { scrollbar-width: none; }
