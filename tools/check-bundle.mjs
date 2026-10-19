@@ -57,6 +57,7 @@ import './checks/34-flame-faction.mjs';
 import './checks/35-forge.mjs';
 import './checks/36-interaction.mjs';
 import './checks/37-online.mjs';
+import './checks/40-cloud.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

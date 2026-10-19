@@ -1,7 +1,41 @@
 /** § 联机：锁步一致性（整个设计成立的前提） */
-import { api, check } from './harness.mjs';
+import { api, check, timers } from './harness.mjs';
 
 console.log('\n§ 联机：锁步一致性（整个设计成立的前提）');
+
+check('联机开局：回合循环自己复位（上一局残留的 autoAdvancing 不该把新对局卡死）', () => {
+  // 先把前面几节留下的计时器倒空 —— 否则下面「有没有排队」的断言没有意义
+  timers.clear();
+  // 走真实的联机开局路径（lan.js 的 beginLanMatch），并故意留下
+  // 「上一局在自动阶段被退出」的现场：autoAdvancing = true。
+  let before = null;
+  try {
+  before = api.__demoLanStart({ leak: true });
+  if (before.screen !== 'game') throw new Error('联机开局没切到对局屏');
+  if (before.phase !== 'TURN_START') throw new Error('开局应当停在第 1 回合的自动阶段，实际 ' + before.phase);
+  // 关键：开局必须自己把回合循环复位并排上推进自动阶段的计时器
+  if (timers.size === 0) {
+    throw new Error('联机开局后没有任何计时器在排队 —— 回合循环没启动'
+      + '（autoAdvancing 残留没被复位，表现为「回合开始…」卡死、点牌没反应）');
+  }
+  // 把计时器跑掉，模拟时间流逝：自动阶段必须真的往前走
+  let guard = 0;
+  while (timers.size > 0 && guard++ < 20) {
+    const [id, t] = [...timers.entries()][0];
+    timers.delete(id);
+    t.fn();
+  }
+  const after = api.__game();
+  if (after.phase === 'TURN_START') {
+    throw new Error('跑了 20 轮计时器，阶段还停在 TURN_START —— 回合循环卡住了');
+  }
+  } finally {
+    // 必须恢复现场：假会话留在原地会让后面所有「单人 UI」检查都按联机语义跑
+    api.__demoLanEnd();
+    timers.clear();
+  }
+});
+
 
 check('一局的真实操作序列喂给两个引擎，全程保持一致', () => {
   // 直接拿上面录制下来的真实对局操作流，灌进两个全新的引擎。

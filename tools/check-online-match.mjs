@@ -9,7 +9,7 @@
  *
  * 用法：
  *   node tools/check-online-match.mjs                    # 本地
- *   node tools/check-online-match.mjs https://xxx.workers.dev
+ *   node tools/check-online-match.mjs https://www.wangzuo.icu   # 线上（正式站）
  */
 
 import * as G from '../engine/src/engine.js';

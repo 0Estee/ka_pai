@@ -473,7 +473,8 @@ export function render(root, state, view) {
    */
   const myP = state.players && state.players[view.humanSide];
   const hasOwnUnit = !!allUnits(state).find((u) => u.side === view.humanSide);
-  const canSac = canAct && !view.isReplay && !!myP && !!myP.faction && hasOwnUnit;
+  // 献祭是**恶魔阵营**专属（规则 D72）：不能只看「选过阵营」—— 别的阵营同样有 faction。
+  const canSac = canAct && !view.isReplay && !!myP && myP.faction === 'demon' && hasOwnUnit;
   const sacBtn = canSac ? '<button class="btn-sac" data-act="sac">献祭</button>' : '';
 
   /**

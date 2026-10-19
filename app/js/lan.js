@@ -40,26 +40,7 @@ function enterLobby(mode) {
       lanInfo.status = s;
       refresh();
     },
-    onStart: (st) => {
-      // 模式以主机为准：客人是通过 URL 进房的，本地默认是普通模式，
-      // 必须按广播过来的这一份切换，否则界面说一套、引擎跑另一套。
-      playMode = session && session.mode === 'forge' ? 'forge' : 'normal';
-      // 两端各自建立同一个对局，并从此刻开始录制回放
-      state = st;
-      view = makeView();
-      recording = RP.newRecording({
-        seed: recordingSeed, firstPlayer: st.firstPlayer, deck: recordingDeck,
-        cardSet: RP.cardSetId(TEST_CARD_LIB),
-        // 双方阵营由主机广播过来（见 hostStartMatch），不带上客人那侧重建不出超能力
-        factions: recordingFactions,
-        // 双方强化增量同理：随 start 一起广播下来，两端必须用同一份
-        enhance: recordingEnhance,
-      });
-      lanInfo.gameReady = true;
-      screen = 'game';
-      refresh();
-      tick();   // 联机开局后同样要启动回合循环（主机负责推进自动阶段）
-    },
+    onStart: (st) => beginLanMatch(st),
     onAction: (action) => {
       RP.recAction(recording, action);
       if (state && state.winner !== null) settleIfNeeded();
@@ -90,6 +71,38 @@ function enterLobby(mode) {
 
 function isHostName() {
   return Net.netMode() === 'host' ? '主机' : '客人';
+}
+
+/**
+ * 收到 start、正式开局那一刻要做的事（主机与客人共用这一条路径）。
+ *
+ * ⚠ 这里的第一件事必须是 `resetTurnLoop()`。单机开局走 `newGame()`，
+ * 那里已经清过回合循环的定时器与 `autoAdvancing`；联机开局走的是这里，
+ * 漏了这份清理就会出现 —— 上一局在自动阶段被退出（`autoAdvancing` 停在 true），
+ * 新对局 tick() 直接撞上 `if (autoAdvancing) return;`，整个回合循环不启动：
+ * 界面显示「回合开始…」、`busy` 恒为 true，**玩家点牌没有任何反应**
+ * （作者 2026-10 报的「联机开始后无法出牌」就是这个）。
+ */
+function beginLanMatch(st) {
+  // 模式以主机为准：客人是通过 URL 进房的，本地默认是普通模式，
+  // 必须按广播过来的这一份切换，否则界面说一套、引擎跑另一套。
+  playMode = session && session.mode === 'forge' ? 'forge' : 'normal';
+  resetTurnLoop();
+  // 两端各自建立同一个对局，并从此刻开始录制回放
+  state = st;
+  view = makeView();
+  recording = RP.newRecording({
+    seed: recordingSeed, firstPlayer: st.firstPlayer, deck: recordingDeck,
+    cardSet: RP.cardSetId(TEST_CARD_LIB),
+    // 双方阵营由主机广播过来（见 hostStartMatch），不带上客人那侧重建不出超能力
+    factions: recordingFactions,
+    // 双方强化增量同理：随 start 一起广播下来，两端必须用同一份
+    enhance: recordingEnhance,
+  });
+  lanInfo.gameReady = true;
+  screen = 'game';
+  refresh();
+  tick();   // 联机开局后同样要启动回合循环（主机负责推进自动阶段）
 }
 
 /**
@@ -261,6 +274,9 @@ async function hostStartMatch() {
 
 /** 退出房间：告诉对方、停服务、回首页 */
 async function quitRoom() {
+  // 退出房间要把回合循环也停掉：不然 autoAdvancing 会停在 true，
+  // 下一次联机开局就会一直卡在「回合开始…」（见 beginLanMatch 的说明）。
+  resetTurnLoop();
   if (session) {
     await session.leave();
     session = null;
@@ -299,5 +315,5 @@ async function quitRoom() {
 
 export {
   enterLobby, isHostName, normalizeHostInput, joinByManualAddress,
-  randomRoomName, createRoom, scanLanRooms, hostStartMatch, quitRoom,
+  randomRoomName, createRoom, scanLanRooms, hostStartMatch, beginLanMatch, quitRoom,
 };

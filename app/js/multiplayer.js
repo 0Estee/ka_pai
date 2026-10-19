@@ -18,6 +18,17 @@ const HASH_EVERY = 8;
 const POLL_TIMEOUT = 20000;
 /** WebSocket 握手超时 —— 旧版服务端不会有 /ws，不能让界面干等 */
 const WS_OPEN_TIMEOUT_MS = 4000;
+/**
+ * 发一条消息时**最多让回合循环等它多久**（毫秒）。
+ *
+ * 为什么要有这个上限：锁步的回合循环是 `await session.submit()` 串起来的
+ * （game-flow.js 的 tick 推进自动阶段 → submit → 再 tick）。
+ * 网络一慢，await 就把整局停在那里：界面显示「回合开始…」、busy 恒为 true，
+ * 玩家点牌毫无反应 —— 但本地其实什么都不缺，只是被"等广播"拖住了。
+ * 所以操作**照发**，只是等够这么久就先往下走（真正的失败由 onStatus 报）。
+ */
+const BROADCAST_WAIT_MS = 3000;
+
 /** 掉线后等待重连的上限（毫秒）—— 协议 §7 */
 const RECONNECT_LIMIT_MS = 60000;
 
@@ -127,6 +138,27 @@ export function newRoomCode() {
   return s;
 }
 
+/**
+ * 请求超时（毫秒）。
+ *
+ * 为什么必须有：锁步的**回合循环**是 `await session.submit()` 串起来的
+ * （见 game-flow.js 的 tick）。浏览器里一条 fetch 没有超时的话，
+ * 移动网络一卡就可能是几十秒到两分钟：这期间本地操作其实早就应用了，
+ * 但 `autoAdvancing` 一直被挂着，界面停在「回合开始…」，玩家点什么都没反应。
+ * 超时之后请求会 reject，submit 那边的 catch 把状态标成 reconnecting，
+ * 本地的循环照常往下走（操作会在重连后补发）。
+ */
+const REQUEST_TIMEOUT_MS = 12000;
+
+function fetchWithTimeout(url, opts) {
+  try {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      return fetch(url, { ...(opts || {}), signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    }
+  } catch { /* 老环境没有 AbortSignal：退回不带超时 */ }
+  return fetch(url, opts);
+}
+
 function parseJson(s, fallback) {
   try { return JSON.parse(s); } catch { return fallback; }
 }
@@ -192,7 +224,7 @@ export class Transport {
   }
 
   async send(msg) {
-    const r = await fetch(this.url('/api/send'), {
+    const r = await fetchWithTimeout(this.url('/api/send'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
@@ -208,7 +240,7 @@ export class Transport {
    */
   async poll(timeout = POLL_TIMEOUT) {
     if (this.stopped) return { msgs: [], peerLeft: false };
-    const r = await fetch(this.url('/api/poll', { since: this.since, timeout }), { cache: 'no-store' });
+    const r = await fetchWithTimeout(this.url('/api/poll', { since: this.since, timeout }), { cache: 'no-store' });
     const data = await r.json();
     if (data && data.ok === false && data.error === 'peer-left') {
       return { msgs: [], peerLeft: true };
@@ -223,12 +255,12 @@ export class Transport {
   }
 
   async start() {
-    try { await fetch(this.url('/api/start'), { method: 'POST' }); } catch { /* 忽略 */ }
+    try { await fetchWithTimeout(this.url('/api/start'), { method: 'POST' }); } catch { /* 忽略 */ }
   }
 
   async leave() {
     this.stopped = true;
-    try { await fetch(this.url('/api/leave'), { method: 'POST', keepalive: true }); } catch { /* 忽略 */ }
+    try { await fetchWithTimeout(this.url('/api/leave'), { method: 'POST', keepalive: true }); } catch { /* 忽略 */ }
   }
 }
 
@@ -379,13 +411,10 @@ export class Session {
     this.lastError = '';
     this.step++;
     this.onAction(action, true);
-    await this.maybeHash();
+    // 界面先更新：后面的广播再慢，也不该让对局停在「回合开始…」。
     this.onUpdate();
-    try {
-      await this.transport.send({ t: 'act', a: action });
-    } catch {
-      this.setStatus('reconnecting');
-    }
+    await this.maybeHash();
+    await this.broadcast({ t: 'act', a: action });
     return true;
   }
 
@@ -407,11 +436,26 @@ export class Session {
     else throw new Error(`未知操作 ${a.k}`);
   }
 
+  /**
+   * 发一条消息，但**不让回合循环等它超过 BROADCAST_WAIT_MS**。
+   *
+   * 操作照发（`transport.send` 那边有 REQUEST_TIMEOUT_MS 兜底，失败会把状态
+   * 标成 reconnecting），只是不把界面卡在等回包上 —— 这才是
+   * 「联机开始后无法出牌」的另一半：广播慢，整个回合循环跟着停。
+   */
+  async broadcast(msg, quiet) {
+    const sending = this.transport.send(msg).catch(() => {
+      if (!quiet) this.setStatus('reconnecting');
+    });
+    try {
+      await Promise.race([sending, sleep(BROADCAST_WAIT_MS)]);
+    } catch { /* 忽略：状态由 onStatus 反映 */ }
+  }
+
   async maybeHash() {
     if (this.step % HASH_EVERY !== 0) return;
-    try {
-      await this.transport.send({ t: 'hash', step: this.step, h: stateHash(this.state) });
-    } catch { /* 断线时忽略，重连后会补 */ }
+    // 指纹包失败不算问题（重连后另一端会按 seq 补齐对话）—— 所以 quiet
+    await this.broadcast({ t: 'hash', step: this.step, h: stateHash(this.state) }, true);
   }
 
   setStatus(s) {

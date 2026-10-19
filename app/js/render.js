@@ -21,9 +21,10 @@ import { render, esc } from './ui.js';
 import {
   homeHTML, settingsHTML, replayListHTML, replayBarHTML,
   playMenuHTML, forgeMenuHTML, difficultyHTML, lanMenuHTML, lanScanHTML, lobbyHTML,
-  workshopHTML, setNavDir,
+  workshopHTML, accountHTML, adminHTML, setNavDir,
 } from './screens.js';
 import * as Enh from './enhance.js';
+import * as Cloud from './cloud.js';
 
 /** 建立一份新的界面状态 */
 function makeView() {
@@ -121,7 +122,9 @@ function setDifficulty(key) {
 function goHome() {
   stopReplay();
   clearTimeout(bannerTimer);
-  clearTimeout(autoAdvanceTimer);
+  // 回首页 = 离开这一局：回合循环的定时器与 autoAdvancing 必须一起复位，
+  // 否则残留的 autoAdvancing=true 会让**下一次**开局（尤其是联机开局）卡在「回合开始…」。
+  resetTurnLoop();
   screen = 'home';
   rpUI.editingNoteId = null;
   rpUI.confirmDelId = null;
@@ -130,6 +133,19 @@ function goHome() {
 
 function goSettings() {
   screen = 'settings';
+  refresh();
+}
+
+/** 云存档账户页：登录 / 注册 / 同步状态 / 冲突二选一 */
+function goAccount() {
+  screen = 'account';
+  refresh();
+}
+
+/** 管理后台：只有管理员进得去（服务端仍会再验一次 role） */
+function goAdmin() {
+  screen = 'admin';
+  Cloud.loadAdminUsers();
   refresh();
 }
 
@@ -271,7 +287,7 @@ function fillMenuLog() {
  * 屏幕层级：数字变大 = 前进（进二级 / 三级菜单、进对局），变小 = 返回。
  * 切换时用它决定滑动方向，于是「返回动画与进入相反」是自动成立的。
  */
-const SCREEN_DEPTH = { home: 0, settings: 1, replays: 1, play: 1, forgeMenu: 1, forge: 2, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, game: 3, replay: 4 };
+const SCREEN_DEPTH = { home: 0, account: 1, settings: 1, replays: 1, play: 1, forgeMenu: 1, forge: 2, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, admin: 2, game: 3, replay: 4 };
 let lastScreen = null;
 let navTimer = null;
 
@@ -1014,7 +1030,18 @@ let dragChip = null;
  * 开始拖动：在 #fx-layer 里造一张跟着手指走的卡。
  * html 来自手牌节点（和退场残影同一套做法），所以外观和手上那张一致。
  */
-function beginDragChip(html, x, y) {
+/**
+ * 开始拖动：把手指下面那张牌原样复制一份跟着走。
+ *
+ * **必须给定尺寸**（w/h 来自源卡的实测值）。以前只加个 .fx-drag-card 就完事，
+ * 里面那层 .card 写的是 width/height:100%，而绝对定位的父元素宽度是 auto ——
+ * 百分比没有可解析的基准，浏览器退回到包含块（整块 #fx-layer）去算，
+ * 克隆卡就摊成一条通屏宽的长条（作者 2026-10 报的「拖动直接变成一长条」）。
+ */
+const DRAG_CHIP_W = 84;    // 兜底尺寸，与 .card 的 flex-basis 一致
+const DRAG_CHIP_H = 112;
+
+function beginDragChip(html, x, y, w, h) {
   if (!canFlyDom()) return;
   const layer = flightLayerEl();
   if (!layer) return;
@@ -1022,6 +1049,10 @@ function beginDragChip(html, x, y) {
   try {
     const el = document.createElement('div');
     el.className = 'fx-drag-card';
+    const cw = Math.max(1, Math.round(w || DRAG_CHIP_W));
+    const ch = Math.max(1, Math.round(h || DRAG_CHIP_H));
+    el.style.width = cw + 'px';
+    el.style.height = ch + 'px';
     el.innerHTML = html ? '<div class="card fly-face">' + html + '</div>' : '';
     layer.appendChild(el);
     dragChip = el;
@@ -1340,6 +1371,8 @@ function renderScreen(stage) {
       level,
       storageMode: Store.storageMode(),
       lastSettle,
+      replays,
+      cloud: Cloud.cloudStatus(),
     });
     applyHomeFx(stage, level.level);
     applyScreenFx(stage);
@@ -1432,11 +1465,24 @@ function renderScreen(stage) {
     return;
   }
 
+  if (screen === 'account') {
+    stage.innerHTML = accountHTML({ cloud: Cloud.cloudStatus() });
+    applyScreenFx(stage);
+    return;
+  }
+
+  if (screen === 'admin') {
+    stage.innerHTML = adminHTML({ cloud: Cloud.cloudStatus() });
+    applyScreenFx(stage);
+    return;
+  }
+
   if (screen === 'settings') {
     stage.innerHTML = settingsHTML({
       settings,
       storageMode: Store.storageMode(),
       replaysBytes: Store.replaysBytes(),
+      cloud: Cloud.cloudStatus(),
     });
     applyScreenFx(stage);
     return;

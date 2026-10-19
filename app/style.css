@@ -567,6 +567,11 @@ html, body {
   align-items: stretch;
   scrollbar-width: none;
 }
+/* 手牌区可以横向滑动，但**纵向**手势要留给长按拖动：
+   浏览器一旦把移动判定成滚屏，就会发 pointercancel 把拖动掐断
+   （以前拖动"刚开始动就没了"就是它）。pan-x = 只允许横向平移。 */
+.hand { touch-action: pan-x; }
+.hand .card { touch-action: pan-x; }
 .hand::-webkit-scrollbar { display: none; }
 .hand-empty { color: var(--dim); padding: 40px 0; text-align: center; width: 100%; }
 
@@ -1228,10 +1233,17 @@ html, body {
 /* 拖动时手牌里那张牌自己让位（克隆卡在 #fx-layer 里跟着手指） */
 .hand .card.dragging { opacity: .32; }
 /* 拖动中随手指出来的克隆卡 */
+/* 拖动时跟着手指走的克隆卡。
+   ⚠ width/height 必须是个**确定值**：里面那层 .card 写的是 100%，
+   父元素宽度若为 auto，百分比会退到包含块（整块 #fx-layer）去算，
+   克隆卡就摊成一条通屏宽的长条。JS 会按源卡实测尺寸覆盖这两个值，
+   这里的 84×112 是同 .card flex-basis 一致的兜底。 */
 .fx-drag-card {
   position: absolute;
   pointer-events: none;
   z-index: 70;
+  width: 84px;
+  height: 112px;
   will-change: transform;
   filter: drop-shadow(4px 6px 0 var(--shadow-2, rgba(0, 0, 0, .35)));
 }

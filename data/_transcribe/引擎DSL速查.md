@@ -252,11 +252,11 @@ when: { deathsAtLeast: 4 }    // 全场累计被消灭数 ≥ 4 时（卫兵）
 
 | op | 参数 | 说明 |
 |---|---|---|
-| `choose` | `prompt`, `options:[{label, actions}]` | **抉择**（歼-10）。效果打到一半反问玩家，选完继续。界面是一层盖屏的二选一面板 |
+| `choose` | `prompt`, `options:[{label, actions, if?}]` | **抉择**（歼-10）。效果打到一半反问玩家，选完继续。界面是一层盖屏的二选一面板。**选项可以带 `if`**：条件不成立就**不出现在选项里**、也不会执行（见下方「选项的前提」） |
 | `untargetable` | `target`, `turns`（默认 1） | **无法选中**（神威）。挂着这个标记的单位**任何点选类目标都选不中它**（连友方增益也点不到）；回合结束自动摘掉。**不挡交战**（交战按线路打，不经过选择） |
 | `cycleStats` | `steps:[{atk,hp},...]`, `target` | **依次变为**（劫匪团队）。每次触发往后走一格身材，走到末尾就停 |
 | `capDamage` | `value`, `side`（默认 `'opponent'`）, `turns` | **伤害封顶**（反应装甲）。被限制的那一方打出的伤害，本回合至多 X 点 |
-| `conditional` | `if:{compare}`, `then:[]`, `else:[]` | **条件分支**（四号坦克H型）。`compare` 支持 `enemiesLEAllies` / `enemiesLTAllies` / `enemiesGEAllies` / `enemiesGTAllies` |
+| `conditional` | `if:{compare}`, `then:[]`, `else:[]` | **条件分支**（四号坦克H型）。`compare` 支持 `enemiesLEAllies` / `enemiesLTAllies` / `enemiesGEAllies` / `enemiesGTAllies` / `ownUnitsGE` / `foeUnitsGE`（都可带 `n` 与 `excludeSource`） |
 | `taxMana` | `side`（默认 `'opponent'`）, `amount` | **费用税**（盗贼）。对方**下回合**少 N 点费用上限；只吃一次，不累积 |
 | `lockLane` | `lane` 或 `lanes`, `turns` | **线路封锁**（氢弹）。`turns:1` = 施放当回合 + 下一回合不能放单位 |
 | `discardDrawn` | `side` | 弃掉**刚抽到的那几张牌**（希佩尔）。牌从触发 payload 的 `cards` 来 |
@@ -266,6 +266,27 @@ when: { deathsAtLeast: 4 }    // 全场累计被消灭数 ≥ 4 时（卫兵）
 | `extraAttack` | `target` | **立刻**再打一次（咖啡豆/狂犬病/黑龙）。每单位每回合仍只一次 |
 | `returnToDeck` | `from`, `to`, `count?`, `cardFilter?` | 放回牌堆。写了 `count` 就**让玩家挑**那么几张（回收）；不写=符合条件的一整批 |
 | `modifyHandCost` | `amount`, `cardFilter?`, `side?` | 改**手牌实例**的费用，可叠加 |
+
+## 选项的前提（`choose` 的 `if`）
+
+```js
+{ op: choose, prompt: 死神:要献祭一名队友吗？, options: [
+  { label: 不发动，直接打出, actions: [] },
+  { label: 献祭一名队友,
+    // 场上得**另有**一个我方单位可献（不可献祭自身，裁决 B14）
+    if: { compare: ownUnitsGE, n: 1, excludeSource: true },
+    actions: [ /* 献祭 + 后续效果 */ ] },
+]}
+```
+
+条件不成立时这个选项**不会出现在面板里**，也**不会被执行**。
+
+为什么必须有：卡面写「献祭一名队友:获得…」，前提是场上真有队友。
+以前选项是死的 —— 空场打死神照样能选这一项：`sacrifice` 解析不到目标被静默跳过
+（不报错），但这条分支**后面的效果照常结算**：白拿 +1/+1、自己的国王照掉 3 血、
+对敌 5 点伤害照打（作者 2026-10 报的「恶魔阵营在场上没有友军的情况下也可以献祭」）。
+
+**凡是「先付代价再拿好处」的选项，代价付不出来时都要写 `if`。**
 
 ## `bounce` 的 `preserveStats`
 

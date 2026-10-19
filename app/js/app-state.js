@@ -76,6 +76,14 @@ let paused = false;
 
 /** 玩家存档（金币 / 等级 / 战绩） */
 let profile = null;
+/**
+ * 云端恢复存档时换掉整份 profile。
+ * 单独开一个 setter 而不是让 cloud.js 直接写裸变量：以后拆包 / 加类型时，
+ * 只有这一处需要改，读侧仍然沿用「裸名字」的旧约定。
+ */
+function setProfile(next) {
+  profile = next;
+}
 /** 设置（主题 / AI 难度） */
 let settings = null;
 /** 回放档案（全部对局） */
@@ -138,7 +146,7 @@ let recordingEnhance = null;
 export {
   AI, me, foe, foeName, canAnswerChoice,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
-  profile, settings, replays, recording, lastSettle,
+  profile, settings, replays, recording, lastSettle, setProfile,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,
   lanInfo, lanManualError, difficulty, myFaction, playMode, HOME_ASSET_URL,
   recordingSeed, recordingDeck, recordingFactions, recordingEnhance,

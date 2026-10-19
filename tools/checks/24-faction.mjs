@@ -58,6 +58,22 @@ check('恶魔阵营：结束阶段左边出现「献祭」按钮；不是阵营�
   api.refresh();
 });
 
+check('献祭按钮只属于恶魔阵营：换成别的阵营就该消失（选过阵营 ≠ 恶魔）', () => {
+  const st = freshGame();
+  if (!api.__place(0, 'U242', 'mountain', 'front')) throw new Error('没能摆上自己的单位');
+  api.refresh();
+  if (!stage().includes('data-act="sac"')) throw new Error('恶魔阵营没出现献祭按钮');
+  for (const key of ['alchemy', 'god', 'flame']) {
+    st.players[0].faction = key;
+    api.refresh();
+    if (stage().includes('data-act="sac"')) {
+      throw new Error('阵营 ' + key + ' 不是恶魔，却也出现了献祭按钮（以前只看「有没有阵营」）');
+    }
+  }
+  st.players[0].faction = 'demon';
+  api.refresh();
+});
+
 check('献祭：点「献祭」再点自己的单位 -> 真的被消灭、进弃牌堆、录进回放', () => {
   const st = freshGame();
   const before = api.__recordingActions().filter((a) => a.k === 'x').length;

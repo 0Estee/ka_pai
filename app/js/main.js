@@ -39,9 +39,9 @@ import {
 import {
   clearSelection, selectCard, resolvePlayerChoice,
   handleSlotClick, handleUnitClick, handleKingClick, handleAction,
-  canDragCard, beginCardDrag, updateCardDrag, endCardDrag,
+  canDragCard, beginCardDrag, updateCardDrag, endCardDrag, abortCardDrag, applyDragHit,
 } from './play-input.js';
-import { enterLobby } from './lan.js';
+import { enterLobby, beginLanMatch } from './lan.js';
 import {
   updateReplay, deleteReplay, openReplay, stopReplay, seekReplayTo,
 } from './replay-ui.js';
@@ -53,6 +53,7 @@ import * as Store from './store.js';
 import * as Eco from './economy.js';
 import * as RP from './replay.js';
 import * as Net from './multiplayer.js';
+import * as Cloud from './cloud.js';
 
 // ══════════════════════════════════════════════════════════
 // 启动：读存档、套主题、进首页
@@ -75,6 +76,17 @@ function boot() {
   applyTheme();
   // 界面状态在任何屏幕上都要有，不然首页点「扫描房间」之类的会碰到 null
   view = makeView();
+
+  // 云存档：读登录态 + 注册「本地存档后自动上传」的钩子。
+  // 放在联机分支**之前**：公网站点从 ?net=host 直接进大厅时，也要能继续同步；
+  // 异步校验 token / 拉状态会通过 onChange 自己刷新，不阻塞启动。
+  Cloud.init({
+    onChange: () => {
+      try {
+        if (screen === 'home' || screen === 'account' || screen === 'admin') refresh();
+      } catch { /* DOM 桩环境忽略 */ }
+    },
+  });
 
   // ── 联机模式：页面是从主机的 HTTP 服务加载的，URL 带 ?net=host|guest。
   //    这时直接进大厅，不走首页。
@@ -136,6 +148,16 @@ document.addEventListener('click', (ev) => {
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+// 账户页按回车直接登录：手机上多一步点按钮，体验会差一截
+document.addEventListener('keydown', (ev) => {
+  if (!ev || ev.key !== 'Enter') return;
+  const id = ev.target && ev.target.id;
+  if (id === 'cloud-user' || id === 'cloud-pass') {
+    ev.preventDefault();
+    handleAction('cloud-login', { dataset: {} });
+  }
+});
+
 /* ══════════════════════════════════════════════════════════════════════
    长按拖动放置（作者 2026-10）
 
@@ -178,7 +200,16 @@ document.addEventListener('pointerdown', (ev) => {
   if (!canDragCard(iid)) return;
 
   const pt = dragPointOf(ev);
-  dragOrigin = { iid, x: pt.x, y: pt.y, html: cardEl.innerHTML || '' };
+  // 克隆卡必须按**源卡的实测尺寸**画：以前只配了 .fx-drag-card 一个 class，
+  // 里面那层 .card 写的是 width/height:100%，而绝对定位的父元素宽度是 auto ——
+  // 百分比回退到包含块（整块 #fx-layer）解析，克隆卡就成了一条通屏宽的长条。
+  let w = 0;
+  let h = 0;
+  try {
+    const r = typeof cardEl.getBoundingClientRect === 'function' ? cardEl.getBoundingClientRect() : null;
+    if (r && r.width) { w = Math.round(r.width); h = Math.round(r.height); }
+  } catch (e) { /* 量不到就交给 render.js 的兜底尺寸 */ }
+  dragOrigin = { iid, x: pt.x, y: pt.y, html: cardEl.innerHTML || '', w, h };
   dragActive = false;
   dragMoved = false;
   clearTimeout(dragHoldTimer);
@@ -187,7 +218,7 @@ document.addEventListener('pointerdown', (ev) => {
     if (!dragOrigin) return;
     if (!beginCardDrag(dragOrigin.iid)) { dragOrigin = null; return; }
     dragActive = true;
-    beginDragChip(dragOrigin.html, dragOrigin.x, dragOrigin.y);
+    beginDragChip(dragOrigin.html, dragOrigin.x, dragOrigin.y, dragOrigin.w, dragOrigin.h);
     refresh();
   }, DRAG_HOLD_MS);
 });
@@ -215,14 +246,25 @@ function finishDrag(failed) {
   const moved = dragMoved;
   clearDragHold();
   if (!wasActive) { endDragChip(); return; }
+  /**
+   * 被 pointercancel 打断（滚动抢手势 / 来电 / 切后台）：**不能当成放手放下去**。
+   * 以前这里和 pointerup 走同一条路，只要取消那一刻手指正好压在高亮格子上，
+   * 牌就被放了下去 —— 表现是「刚开始动，牌自己就落位了」（作者 2026-10 报的）。
+   * 也不留「没放到格子上」的提示：玩家什么都没做错。
+   */
+  if (failed) {
+    dragSwallowClick = false;   // 浏览器不会补 click，吞了反而吃掉玩家下一次点击
+    abortCardDrag();
+    flyDragChipBack(iid);
+    return;
+  }
   // 拖过一段距离才吞掉后面的 click；原地长按又原地松手仍然按「点一下」处理，
   // 这样「长按选中、再点格子」这条老手感不会丢。
-  // 被 pointercancel 打断时不吞：那种情况浏览器不会补 click，吞了反而会吃掉玩家下一次点击。
-  dragSwallowClick = moved && !failed;
+  dragSwallowClick = moved;
   const res = endCardDrag();
   if (res && res.placed) endDragChip();
-  else if (failed) flyDragChipBack(iid);
-  else endDragChip();
+  // 失败一律飞回手牌：提示行写的就是「牌已飞回手牌」，不能只把克隆卡悄悄删掉。
+  else flyDragChipBack(iid);
 }
 
 document.addEventListener('pointerup', () => finishDrag(false));
@@ -261,9 +303,21 @@ window.__newGameFirst = () => {
   return state;
 };
 window.__screen = () => screen;
+/** 云存档自检用：返回 Cloud.cloudStatus() 的只读快照 */
+window.__cloud = () => Cloud.cloudStatus();
+/** 云存档自检用：直接调公开 API（登录 / 同步 / 管理员），返回 Promise */
+window.__cloudCall = (name, ...args) => {
+  try {
+    return typeof Cloud[name] === 'function' ? Cloud[name](...args) : null;
+  } catch (e) {
+    return Promise.reject(e);
+  }
+};
 /** 直接切屏（截图 / 自检用） */
 window.__go = (name) => {
   if (name === 'home') goHome();
+  else if (name === 'account') { screen = 'account'; refresh(); }
+  else if (name === 'admin') { screen = 'admin'; Cloud.loadAdminUsers(); refresh(); }
   else if (name === 'settings') goSettings();
   else if (name === 'replays') goReplays();
   else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby') {
@@ -346,14 +400,14 @@ window.__slotClick = (lane, row) => {
 };
 window.__canDrag = (iid) => canDragCard(iid);
 window.__beginDrag = (iid) => beginCardDrag(iid);
-window.__dragTo = (lane, row) => {
-  // 门禁没有 elementFromPoint，直接喂判定函数一个已知落点，其余逻辑（是否在 legalSlots 里、
-  // 是否要重绘）走的还是真实那条。
-  const ok = !!(lane && view.legalSlots.some((s) => s.lane === lane && s.row === row));
-  view.dragOver = ok ? { lane, row } : null;
-  return !!ok;
+window.__dragTo = (lane, row, side) => {
+  // 门禁没有 elementFromPoint，直接喂真实的判定函数一个已知落点；
+  // 是否合法、提示怎么写、要不要重绘，走的都是 updateCardDrag 那一套。
+  applyDragHit({ side: side === undefined ? me() : Number(side), lane, row });
+  return !!(view.dragOver && view.dragOver.lane === lane && view.dragOver.row === row);
 };
 window.__endDrag = () => endCardDrag();
+window.__abortDrag = () => abortCardDrag();        // 模拟手势被系统取消（pointercancel）
 
 /**
  * 自检用：丢掉内存里的对局，模拟「刚启动、还没打过任何一局」。
@@ -914,6 +968,50 @@ window.__demoLobby = (peerName) => {
  *   opts.mySide : 我这一侧（0 = 主机 / 1 = 客人，默认 0）
  *   opts.owner  : 这张牌归谁打（'me' | 'foe'，默认 'foe'）
  */
+/** 联机开局自检用：保存/恢复真实会话 */
+let __lanDemoSaved = null;
+
+/**
+ * 自检钩子：走**真实的联机开局路径**（lan.js 的 beginLanMatch），
+ * 并故意留下「上一局中途退出」的现场（autoAdvancing = true）。
+ *
+ * 钉的是作者 2026-10 报的「联机开始后无法出牌」：联机开局以前只调 tick()，
+ * 不像单机 newGame() 那样复位回合循环。残留的 autoAdvancing=true 会让
+ * tick() 在防重入那一行直接返回 —— 阶段永远停在 TURN_START、
+ * busy 恒为 true、点牌毫无反应。开局自己复位是本钩子要守住的契约。
+ */
+window.__demoLanStart = (opts = {}) => {
+  __lanDemoSaved = { session, screen };
+  const mySide = opts.mySide === 1 ? 1 : 0;
+  session = {
+    isHost: mySide === 0, mySide, started: true, step: 0, lastError: '', peerName: '对手',
+    // 真 Session 会本地应用 + 广播；这里只要本地那一半
+    submit(a) { applyLocalAction(a); this.step++; return true; },
+  };
+  if (opts.leak !== false) autoAdvancing = true;   // 上一局没退干净
+  paused = false;                                  // 真实开局时界面不是暂停态
+  const seed = opts.seed === undefined ? 2024 : opts.seed;
+  const deck = buildTestDeck(80, seed);
+  recordingSeed = seed;
+  recordingDeck = deck;
+  recordingFactions = ['demon', 'demon'];
+  recordingEnhance = null;
+  const st = G.createGame({ seed, firstPlayer: 0, deck, cardLib: TEST_CARD_LIB, factions: ['demon', 'demon'], enhance: null });
+  G.startGame(st);
+  // 与 multiplayer.js 的 applyStart 一致：联机没有 AI 代答
+  st.autoResolveChoices = false;
+  beginLanMatch(st);
+  return { phase: state.phase, actor: G.getActor(state), busy: view.busy, screen };
+};
+
+/** 收尾：恢复真实会话并回到一局干净的单机对局 */
+window.__demoLanEnd = () => {
+  session = __lanDemoSaved ? __lanDemoSaved.session : null;
+  __lanDemoSaved = null;
+  startNewGame();
+  refresh();
+};
+
 window.__demoLanChoice = (opts = {}) => {
   const mySide = opts.mySide === undefined ? 0 : opts.mySide;
   const owner = opts.owner === undefined ? 'foe' : opts.owner;

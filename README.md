@@ -24,7 +24,7 @@ ka_pai/
 │   ├── cards/user-cards.js      ★ 作者设计的卡牌 第二批（U01~U17）
 │   ├── cards/user-cards-b3.js   ★ 作者设计的卡牌 第三批（U20~U362，由 tools/merge-b3.mjs 从 A~V 二十二组片段合并生成）
 │   ├── cards/test-cards.js      引擎自检用的演示卡 + 合并后的卡牌库 + 牌库构建（80 张抽样）
-│   └── test/smoke.mjs           126 个规则回归测试
+│   └── test/smoke.mjs           182 个规则回归测试
 │
 ├── .dsh/skills/card-authoring/  ★ 制作卡牌的流程（给 AI 用的 skill）
 │
@@ -54,7 +54,7 @@ ka_pai/
 │   │   └── multiplayer.js       局域网：传输层 + 锁步会话
 │   └── dist/
 │       ├── bundle.js            加载器（自动生成，勿手改）：按顺序插入下面那些脚本
-│       └── modules/             真正的代码：一个源文件一个脚本（39 个，按依赖顺序编号）
+│       └── modules/             真正的代码：一个源文件一个脚本（40 个，按依赖顺序编号）
 │
 ├── android/                     APK 外壳工程
 │   ├── app/                     Manifest / res / java（assets 构建时生成）
@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File tools/setup-android-sdk.ps1
 powershell -ExecutionPolicy Bypass -File tools/build-apk.ps1
 ```
 
-产物：`dist/ka-pai-0.24.0.apk`
+产物：`dist/ka-pai-0.61.0.apk`
 
 ### 验证 APK 产物
 
@@ -130,7 +130,7 @@ powershell -ExecutionPolicy Bypass -File tools/verify-apk.ps1
 ### 安装到手机
 
 ```bash
-adb install -r dist/ka-pai-0.24.0.apk
+adb install -r dist/ka-pai-0.61.0.apk
 ```
 
 或把 APK 传到手机上直接点击安装（需在系统设置里允许「安装未知来源应用」）。

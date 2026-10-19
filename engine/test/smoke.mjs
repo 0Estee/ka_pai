@@ -2526,6 +2526,58 @@ test('佛怒火莲 U477：异火堆和手牌都没有异火时入手；重置后
   assert.equal(checkFlameLotus(s, 0), 'U477', '重置后的堆再抽干、手牌也没异火 -> 再入手一次');
 });
 
+//
+group('恶魔：献祭的前提（作者 2026-10 报的「场上没有友军也能献祭」）');
+//
+
+test('死神 U401：场上没有别的队友时，「献祭一名队友」不出现在选项里（D72 / 2026-10 修）', () => {
+  const s = game({ factions: ['demon', 'demon'] });
+  s.autoResolveChoices = false;
+  forcePhase(s, 0, 'deploy');
+  deploy(s, 1, 'U242', LANES[1], ROWS[0]);      // 只摆敌方的靶子，我方空场
+  const hc = give(s, 0, 'U401');
+  G.playCard(s, 0, hc.iid, { lane: LANES[2], row: ROWS[0] });
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseOption', '应当挂起问要不要献祭');
+  const labels = (rq.options || []).map((o) => o.label);
+  assert.equal(labels.length, 1, '没有队友时只该剩「不发动」，实际：' + JSON.stringify(labels));
+  assert.equal(labels[0], '不发动，直接打出');
+  // 选「不发动」：整条献祭分支都不结算（以前选了那个选项会白送全部效果）
+  const kingBefore = king(s, 0);
+  G.resolveChoice(s, { index: 0 });
+  const self = at(s, LANES[2], 0, ROWS[0]);
+  assert.equal(self.atk, 2, '没献祭到人，死神不该 +1 攻');
+  assert.equal(self.maxHp, 2, '没献祭到人，死神不该 +1 生命上限');
+  assert.equal(king(s, 0), kingBefore, '没献祭到人，不该对自己的国王造成 3 点');
+  assert.equal(s.pending, null, '不该再问对敌 5 点伤害');
+});
+
+test('死神 U401：有队友时献祭照常结算（消灭队友 + 死神 3/3 + 国王 -3 + 对敌 5 点）', () => {
+  const s = game({ factions: ['demon', 'demon'] });
+  s.autoResolveChoices = false;
+  forcePhase(s, 0, 'deploy');
+  const ally = deploy(s, 0, 'U242', LANES[0], ROWS[0]);
+  const foe = deploy(s, 1, 'U242', LANES[1], ROWS[0]);
+  const foeHp = foe.hp;
+  const hc = give(s, 0, 'U401');
+  const kingBefore = king(s, 0);
+  G.playCard(s, 0, hc.iid, { lane: LANES[2], row: ROWS[0] });
+  const rq = s.pending && s.pending.request;
+  assert.equal((rq.options || []).length, 2, '有队友时两个选项都在');
+  G.resolveChoice(s, { index: 1 });
+  assert.ok(s.pending && s.pending.request.type === 'chooseUnit', '应当挂起选要献祭的队友');
+  G.resolveChoice(s, { uid: ally.uid });
+  if (s.pending) G.resolveChoice(s, { uid: foe.uid });
+  assert.ok(!at(s, LANES[0], 0, ROWS[0]), '队友应当被献祭掉');
+  assert.ok(s.discard.includes('U242'), '被献祭的单位要进弃牌堆');
+  const self = at(s, LANES[2], 0, ROWS[0]);
+  assert.equal(self.atk, 3, '死神 +1 攻');
+  assert.equal(self.maxHp, 3, '死神 +1 生命上限');
+  assert.equal(king(s, 0), kingBefore - 3, '对自己国王造成 3 点');
+  const foeNow = at(s, LANES[1], 1, ROWS[0]);
+  assert.equal(foeNow ? foeNow.hp : foeHp - 5, foeHp - 5, '对一个敌方目标造成 5 点');
+});
+
 console.log('\n' + BAR);
 if (failures.length === 0) {
   console.log(OK_ALL + ' 全部通过：' + passed + ' 个测试');

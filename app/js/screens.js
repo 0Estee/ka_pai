@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.60.0';
+export const APP_VERSION = '0.61.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -58,13 +58,13 @@ export function setNavDir(dir) {
 }
 const navAttr = () => (NAV_DIR ? ' data-nav="' + NAV_DIR + '"' : '');
 
-/** 通用：带返回按钮的二级页面外壳 */
-function subScreen(title, body) {
+/** 通用：带返回按钮的二级页面外壳（管理后台要回账户页，所以 backAct 可覆盖） */
+function subScreen(title, body, backAct = 'back-home') {
   return `
   <div class="screen"${navAttr()}>
     <div class="screen-head">
-      <button class="btn-back" data-act="back-home">‹ 返回</button>
-      <h2>${esc(title)}</h2>
+      <button class="btn-back" data-act="${backAct}">‹ 返回</button>
+      <h1>${esc(title)}</h1>
     </div>
     <div class="screen-body">${body}</div>
   </div>`;
@@ -75,16 +75,14 @@ export function playMenuHTML({ difficulty, lanSupported, profile }) {
   const dust = (profile && profile.dust) || 0;
   return subScreen('开始游戏', `
     <button class="hm-btn hm-primary" data-act="choose-ai">
-      <span class="hm-ico">⚔</span>
       <span class="hm-text">AI 对决</span>
       <span class="hm-sub">${esc(d.name)}</span>
     </button>
     <button class="hm-btn" data-act="lan-menu">
-      <span class="hm-ico">⇄</span>
       <span class="hm-text">联机对决</span>
       <span class="hm-sub">公网房间号，或同一 Wi-Fi 下两台设备</span>
     </button>
-    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
+    ${lanSupported ? '' : '<div class="set-tip">当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
     <div class="set-tip">普通模式：双方都用卡面原值，强化与精通不生效。</div>
   `);
 }
@@ -102,21 +100,18 @@ export function forgeMenuHTML({ difficulty, lanSupported, profile }) {
     <div class="forge-mode-tip">这一模式里，你的强化 / 精通会真正生效；AI 也会按难度强化它的牌。<br>
       普通模式不受影响 —— 两边完全分开。</div>
     <button class="hm-btn hm-primary" data-act="choose-ai">
-      <span class="hm-ico">⚔</span>
       <span class="hm-text">强化 AI 对决</span>
       <span class="hm-sub">${esc((difficulty && difficulty.name) || '普通')}</span>
     </button>
     <button class="hm-btn" data-act="lan-menu">
-      <span class="hm-ico">⇄</span>
       <span class="hm-text">强化 联机对决</span>
       <span class="hm-sub">双方各自带上自己的强化卡组</span>
     </button>
     <button class="hm-btn" data-act="open-forge">
-      <span class="hm-ico">✦</span>
       <span class="hm-text">强化工坊</span>
       <span class="hm-sub">金币 ${gold} · 星尘 ${dust}</span>
     </button>
-    ${lanSupported ? '' : '<div class="set-tip">⚠ 当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
+    ${lanSupported ? '' : '<div class="set-tip">当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
   `);
 }
 
@@ -321,7 +316,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
   <div class="screen"${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="lan-quit">‹ 退出房间</button>
-      <h2>联机大厅</h2>
+      <h1>联机大厅</h1>
     </div>
     <div class="screen-body">
       <div class="lobby-card">
@@ -338,7 +333,7 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
 
       ${facBlock}
 
-      <div class="hf-warn">联机中请勿退出 App 或切换网络；中途掉线会暂停并等待最多 60 秒重连。<br>⚠ 联机对局<b>没有金币保底</b>：赢了加金币，输了扣金币，扣到 0 就只能先打 AI。</div>
+      <div class="hf-warn">联机中请勿退出 App 或切换网络；中途掉线会暂停并等待最多 60 秒重连。<br>注意：联机对局<b>没有金币保底</b>：赢了加金币，输了扣金币，扣到 0 就只能先打 AI。</div>
     </div>
   </div>`;
 }
@@ -347,61 +342,75 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
 // 首页
 // ══════════════════════════════════════════════════════════
 
-export function homeHTML({ profile, level, storageMode }) {
+export function homeHTML({ profile, level, storageMode, replays = [], cloud = null }) {
   const pct = Math.round(level.ratio * 100);
+  // 云存档行的副标题：未登录提示登录 / 注册，已登录显示账号（用户名来自 Cloud.cloudStatus()）
+  const cloudUser = cloud && cloud.user && cloud.user.username ? String(cloud.user.username) : '';
+  const dust = (profile && profile.dust) || 0;
+  const recent = Array.isArray(replays) ? replays.length : 0;
   return `
   <div class="home"${navAttr()}>
-    <div class="home-top">
+    <header class="home-top">
+      <div class="home-brand">
+        <span class="home-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="home-version">v${APP_VERSION}</span>
+      </div>
       <div class="hud">
         <div class="hud-gold" title="金币">
-          <i class="coin"></i><b>${profile.gold}</b>
+          <span class="hud-label">金币</span><b>${profile.gold}</b>
         </div>
         <div class="hud-dust" title="星尘（用于精通）">
-          <i class="dust"></i><b>${profile.dust || 0}</b>
-        </div>
-        <div class="hud-lv" title="等级">
-          <span class="hud-lv-num">Lv.${level.level}</span>
-          <span class="hud-lv-bar"><i style="width:${pct}%"></i></span>
+          <span class="hud-label">星尘</span><b>${dust}</b>
         </div>
       </div>
-    </div>
+    </header>
 
-    <div class="home-hero">
-      <div class="home-logo">王座交锋</div>
-      <div class="home-sub">原型 v${APP_VERSION}</div>
-    </div>
-
-    <div class="home-menu">
+    <section class="home-hero">
+      <h1 class="home-logo">王座交锋</h1>
+      <p class="home-lead">四条线路，一座王座。<br>把对手的国王打到 0 点生命。</p>
       <button class="hm-btn hm-primary" data-act="start-game">
-        <span class="hm-ico">⚔</span><span class="hm-text">开始游戏</span>
+        <span class="hm-text">开始游戏</span>
+        <span class="hm-sub">单机 AI · 联机对战</span>
       </button>
+    </section>
+
+    <nav class="home-menu" aria-label="更多入口">
       <button class="hm-btn" data-act="start-forge">
-        <span class="hm-ico">✦</span><span class="hm-text">强化模式</span>
-        <span class="hm-sub">强化 / 精通 · 星尘 ${(profile && profile.dust) || 0}</span>
+        <span class="hm-text">强化模式</span>
+        <span class="hm-sub">9 次强化 / 精通 · 星尘 ${dust}</span>
       </button>
       <button class="hm-btn" data-act="open-replays">
-        <span class="hm-ico">⟲</span><span class="hm-text">回放对局</span>
+        <span class="hm-text">回放对局</span>
+        <span class="hm-sub">${recent ? '最近 ' + recent + ' 局' : '还没有对局'}</span>
+      </button>
+      <button class="hm-btn" data-act="open-account">
+        <span class="hm-text">云存档</span>
+        <span class="hm-sub">${cloudUser ? '已登录 · ' + esc(cloudUser) : '登录 / 注册'}</span>
       </button>
       <button class="hm-btn" data-act="open-settings">
-        <span class="hm-ico">⚙</span><span class="hm-text">设置</span>
+        <span class="hm-text">设置</span>
+        <span class="hm-sub">主题 · 本地数据</span>
       </button>
-    </div>
+    </nav>
 
-    <div class="home-foot">
+    <section class="home-foot" aria-label="战绩与等级">
       <div class="hf-stats">
-        <span>共 ${profile.games} 局</span>
-        <span>胜 ${profile.wins}</span>
-        <span>负 ${profile.losses}</span>
-        <span>平 ${profile.draws}</span>
+        <div class="hf-stat"><span>对局</span><b>${profile.games}</b></div>
+        <div class="hf-stat"><span>胜</span><b>${profile.wins}</b></div>
+        <div class="hf-stat"><span>负</span><b>${profile.losses}</b></div>
+        <div class="hf-stat"><span>平</span><b>${profile.draws}</b></div>
       </div>
-      <div class="hf-level">
-        距 Lv.${level.level + 1} 还差 <b>${level.remain}</b> 表现分
-        <span class="hf-dim">（累计 ${level.perf}）</span>
+      <div class="hf-level hud-lv" title="等级">
+        <div class="hf-level-top">
+          <span class="hud-lv-num">Lv.${level.level}</span>
+          <span class="hf-level-note">还差 <b>${level.remain}</b> 表现分</span>
+        </div>
+        <span class="hud-lv-bar"><i style="width:${pct}%"></i></span>
       </div>
       ${storageMode === 'memory'
-        ? '<div class="hf-warn">⚠ 当前环境无法保存进度，金币与回放只在本回合有效</div>'
+        ? '<div class="hf-warn">当前环境无法保存进度，金币与回放只在本回合有效</div>'
         : ''}
-    </div>
+    </section>
   </div>`;
 }
 
@@ -409,14 +418,15 @@ export function homeHTML({ profile, level, storageMode }) {
 // 设置
 // ══════════════════════════════════════════════════════════
 
-export function settingsHTML({ settings, storageMode, replaysBytes }) {
+export function settingsHTML({ settings, storageMode, replaysBytes, cloud = null }) {
   // 三个外观选项：深色 / 浅色 / 玻璃（认不出的取值一律当深色，和 render.js 的白名单一致）
   const theme = settings.theme === 'light' || settings.theme === 'glass' ? settings.theme : 'dark';
+  const cloudUser = cloud && cloud.user && cloud.user.username ? String(cloud.user.username) : '';
   return `
   <div class="screen">
     <div class="screen-head">
       <button class="btn-back" data-act="back-home">‹ 返回</button>
-      <h2>设置</h2>
+      <h1>设置</h1>
     </div>
 
     <div class="screen-body">
@@ -436,6 +446,16 @@ export function settingsHTML({ settings, storageMode, replaysBytes }) {
       <div class="set-group">
         <div class="set-row">
           <div class="set-label">
+            <div class="set-name">云存档</div>
+            <div class="set-desc">同步金币、等级与强化进度；回放只保留在本机</div>
+          </div>
+          <button class="cloud-btn" data-act="open-account">${cloudUser ? '已登录 · ' + esc(cloudUser) : '登录 / 注册'}</button>
+        </div>
+      </div>
+
+      <div class="set-group">
+        <div class="set-row">
+          <div class="set-label">
             <div class="set-name">本地数据</div>
             <div class="set-desc">
               ${storageMode === 'local'
@@ -449,6 +469,208 @@ export function settingsHTML({ settings, storageMode, replaysBytes }) {
       <div class="set-tip">更多设置待补充。</div>
     </div>
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// 云存档（账户页 / 管理后台）
+// ══════════════════════════════════════════════════════════
+
+/** 服务端时间既可能是毫秒数，也可能是 ISO 字符串；认不出就返回空串 */
+function cloudTime(value) {
+  if (value === undefined || value === null || value === '') return '';
+  let ts = 0;
+  if (typeof value === 'number') ts = value;
+  else if (typeof value === 'string') ts = Date.parse(value);
+  if (!Number.isFinite(ts) || ts <= 0) return '';
+  return fmtDate(ts);
+}
+
+/** 云存档的范围说明：回放不同步是作者口径，账户页要写清楚 */
+function cloudScopeNote() {
+  return '<div class="cloud-note">云存档同步金币、等级与强化进度；回放仍只保留在本机。</div>';
+}
+
+/**
+ * 账户页：未登录显示登录 / 注册；已登录显示同步状态、冲突二选一、改密码。
+ * 纯 HTML 函数，不调 Cloud 的任何方法 —— 动作全部交给 play-input 的 data-act 路由。
+ */
+export function accountHTML({ cloud } = {}) {
+  const c = cloud && typeof cloud === 'object' ? cloud : {};
+  const user = c.user && c.user.username ? c.user : null;
+  const busy = !!c.busy;
+  const conflict = c.conflict || null;
+  const messages = [
+    c.error ? `<div class="cloud-err">${esc(c.error)}</div>` : '',
+    c.notice ? `<div class="cloud-ok">${esc(c.notice)}</div>` : '',
+  ].join('');
+
+  if (!user) {
+    return subScreen('云存档', `
+      ${cloudScopeNote()}
+      ${messages}
+      <div class="cloud-card">
+        <div class="cloud-card-head">登录 / 注册</div>
+        <div class="cloud-field">
+          <label class="cloud-label" for="cloud-user">用户名</label>
+          <input id="cloud-user" class="cloud-input" type="text" autocomplete="username"
+                 autocapitalize="off" autocorrect="off" spellcheck="false"
+                 placeholder="2~20 个字符，中文 / 字母 / 数字 / 下划线">
+        </div>
+        <div class="cloud-field">
+          <label class="cloud-label" for="cloud-pass">密码</label>
+          <input id="cloud-pass" class="cloud-input" type="password" autocomplete="current-password"
+                 placeholder="6~128 位">
+        </div>
+        <div class="cloud-actions">
+          <button class="cloud-btn primary" data-act="cloud-login" ${busy ? 'disabled' : ''}>${busy ? '请稍候…' : '登录'}</button>
+          <button class="cloud-btn" data-act="cloud-register" ${busy ? 'disabled' : ''}>注册新账号</button>
+        </div>
+      </div>
+      <div class="cloud-hint">第一次使用请点「注册新账号」；用户名大小写不敏感。登录后本机进度会与云端对齐，换设备登录可以接着玩。</div>
+    `);
+  }
+
+  const versionText = c.lastVersion ? 'v' + esc(String(c.lastVersion)) : '还没有存档';
+  const syncedText = c.lastSavedAt ? cloudTime(c.lastSavedAt) : '';
+  const remoteMeta = conflict
+    ? '云端' + (conflict.remoteVersion ? ' v' + esc(String(conflict.remoteVersion)) : '存档')
+      + (conflict.remoteUpdatedAt ? ' · ' + esc(cloudTime(conflict.remoteUpdatedAt)) : '')
+    : '';
+  const conflictBlock = conflict
+    ? `
+    <div class="cloud-conflict">
+      <div class="cloud-conflict-title">云端和本地都有进度</div>
+      <div class="cloud-conflict-meta">${esc(remoteMeta)}。选一份继续；选之前不会自动覆盖任何一边。</div>
+      <div class="cloud-actions">
+        <button class="cloud-btn primary" data-act="cloud-use-cloud" ${busy ? 'disabled' : ''}>用云端存档</button>
+        <button class="cloud-btn" data-act="cloud-use-local" ${busy ? 'disabled' : ''}>用本地存档</button>
+      </div>
+    </div>`
+    : '';
+
+  const adminEntry = user.role === 'admin'
+    ? `<button class="cloud-btn cloud-btn-wide" data-act="cloud-admin-open">用户管理（管理员）</button>`
+    : '';
+
+  return subScreen('云存档', `
+    ${cloudScopeNote()}
+    ${messages}
+    <div class="cloud-user">
+      <div class="cloud-user-main">
+        <div class="cloud-user-name">${esc(user.username)}</div>
+        <div class="cloud-user-meta">${user.role === 'admin' ? '管理员账号' : '普通账号'} · 登录态只保存在本机</div>
+      </div>
+      <button class="cloud-btn" data-act="cloud-logout">退出登录</button>
+    </div>
+
+    ${conflictBlock}
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">同步</div>
+      <div class="cloud-rows">
+        <div class="cloud-row"><span>云端版本</span><b>${versionText}</b></div>
+        <div class="cloud-row"><span>最近同步</span><b>${syncedText ? esc(syncedText) : '—'}</b></div>
+      </div>
+      <div class="cloud-actions">
+        <button class="cloud-btn primary" data-act="cloud-push" ${busy ? 'disabled' : ''}>上传本地</button>
+        <button class="cloud-btn" data-act="cloud-pull" ${busy ? 'disabled' : ''}>拉取云端</button>
+      </div>
+      <div class="cloud-hint">上传 = 用本机进度覆盖云端；拉取 = 先看云端有什么，再决定用哪一份。</div>
+    </div>
+
+    ${adminEntry}
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">修改密码</div>
+      <div class="cloud-field">
+        <label class="cloud-label" for="cloud-oldpass">当前密码</label>
+        <input id="cloud-oldpass" class="cloud-input" type="password" autocomplete="current-password" placeholder="当前密码">
+      </div>
+      <div class="cloud-field">
+        <label class="cloud-label" for="cloud-newpass">新密码</label>
+        <input id="cloud-newpass" class="cloud-input" type="password" autocomplete="new-password" placeholder="6~128 位">
+      </div>
+      <div class="cloud-actions">
+        <button class="cloud-btn" data-act="cloud-change-password" ${busy ? 'disabled' : ''}>修改密码</button>
+      </div>
+      <div class="cloud-hint">改完密码后，其它设备上的登录会失效，需要重新登录。</div>
+    </div>
+  `);
+}
+
+/** 管理后台：用户列表 / 重置密码 / 删除（删除是两次点击确认） */
+export function adminHTML({ cloud } = {}) {
+  const c = cloud && typeof cloud === 'object' ? cloud : {};
+  const admin = c.admin && typeof c.admin === 'object' ? c.admin : {};
+  const user = c.user && c.user.username ? c.user : null;
+  const isAdmin = !!(user && user.role === 'admin');
+  const messages = [
+    c.error ? `<div class="cloud-err">${esc(c.error)}</div>` : '',
+    c.notice ? `<div class="cloud-ok">${esc(c.notice)}</div>` : '',
+    admin.error ? `<div class="cloud-err">${esc(admin.error)}</div>` : '',
+  ].join('');
+
+  if (!isAdmin) {
+    return subScreen('用户管理', `
+      ${messages}
+      <div class="cloud-err">需要管理员权限</div>
+      <div class="cloud-hint">这个页面只对管理员账号开放。请用管理员账号登录后再来。</div>
+    `, 'cloud-admin-back');
+  }
+
+  const users = Array.isArray(admin.users) ? admin.users : [];
+  const rows = users.map((u) => {
+    const name = String(u.username || '');
+    const confirming = String(admin.confirmDelete || '') === name;
+    const saving = u.save && typeof u.save === 'object' ? u.save : null;
+    const summary = saving && saving.summary ? saving.summary : null;
+    const stats = summary
+      ? '对局 ' + (summary.games || 0) + ' · 胜 ' + (summary.wins || 0)
+        + ' · 表现分 ' + (summary.perf || 0) + ' · 金币 ' + (summary.gold || 0)
+      : '还没有云存档';
+    const saveLine = saving
+      ? '云端 v' + (saving.version || 0) + ' · ' + fmtSize(saving.bytes || 0)
+        + (saving.updatedAt ? ' · ' + cloudTime(saving.updatedAt) : '')
+      : '';
+    const ops = confirming
+      ? `<button class="cloud-btn danger" data-act="cloud-admin-delete-confirm" data-user="${esc(name)}">确认删除</button>
+         <button class="cloud-btn" data-act="cloud-admin-delete-cancel" data-user="${esc(name)}">取消</button>`
+      : `<button class="cloud-btn" data-act="cloud-admin-reset" data-user="${esc(name)}">重置密码</button>
+         <button class="cloud-btn danger" data-act="cloud-admin-delete" data-user="${esc(name)}">删除</button>`;
+    return `
+    <div class="cloud-admin-card">
+      <div class="cloud-admin-head">
+        <b class="cloud-user-name">${esc(name)}</b>
+        <span class="cloud-role">${u.role === 'admin' ? '管理员' : '玩家'}</span>
+      </div>
+      <div class="cloud-admin-line">${esc(stats)}</div>
+      ${saveLine ? `<div class="cloud-admin-line cloud-admin-sub">${esc(saveLine)}</div>` : ''}
+      <div class="cloud-admin-line cloud-admin-sub">上次登录 ${cloudTime(u.lastLoginAt) || '—'}</div>
+      <div class="cloud-actions">${ops}</div>
+    </div>`;
+  }).join('');
+
+  return subScreen('用户管理', `
+    ${messages}
+    <div class="cloud-admin-bar">
+      <span class="cloud-admin-count">共 ${users.length} 个用户${admin.loading ? ' · 正在加载…' : ''}</span>
+      <button class="cloud-btn" data-act="cloud-admin-refresh" ${admin.loading ? 'disabled' : ''}>刷新</button>
+    </div>
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">重置密码用的新口令</div>
+      <div class="cloud-field">
+        <label class="cloud-label" for="cloud-admin-pass">新密码（6~128 位）</label>
+        <input id="cloud-admin-pass" class="cloud-input" type="password" autocomplete="new-password"
+               spellcheck="false" placeholder="先填这里，再点某个用户的「重置密码」">
+      </div>
+      <div class="cloud-hint">重置后该用户所有已登录设备都会失效；管理员不能删除自己。</div>
+    </div>
+
+    <div class="cloud-admin-list">
+      ${rows || `<div class="rp-empty">${admin.loading ? '正在加载用户…' : '还没有用户数据'}<br><span>点「刷新」从云端读取</span></div>`}
+    </div>
+  `, 'cloud-admin-back');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -493,7 +715,7 @@ export function replayListHTML({ records, cardLib, editingNoteId, confirmDelId, 
           <span class="rp-turn">第 ${rec.turns || '?'} 回合</span>
         </div>
         ${noteLine}
-        ${bad ? `<div class="rp-bad">⚠ ${esc(bad)}</div>` : ''}
+        ${bad ? `<div class="rp-bad">注意：${esc(bad)}</div>` : ''}
       </div>
       <div class="rp-ops">${ops}</div>
     </div>`;
@@ -503,12 +725,12 @@ export function replayListHTML({ records, cardLib, editingNoteId, confirmDelId, 
   <div class="screen"${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="back-home">‹ 返回</button>
-      <h2>回放对局</h2>
+      <h1>回放对局</h1>
     </div>
     <div class="screen-body">
       <div class="rp-summary">共 ${records.length} 局${records.length ? ` · 占用约 ${fmtSize(replaysBytes || 0)}` : ''}</div>
       ${records.length ? rows : '<div class="rp-empty">还没有对局记录<br><span>打完一局就会自动存下来</span></div>'}
-      ${storageMode === 'memory' ? '<div class="hf-warn">⚠ 当前环境无法保存，关闭后会丢失</div>' : ''}
+      ${storageMode === 'memory' ? '<div class="hf-warn">当前环境无法保存，关闭后会丢失</div>' : ''}
     </div>
   </div>`;
 }
@@ -655,7 +877,7 @@ export function workshopHTML({ profile, groups, groupBy, pick, hint }) {
   <div class="screen" ${navAttr()}>
     <div class="screen-head">
       <button class="btn-back" data-act="back-play">‹ 返回</button>
-      <h2>强化工坊</h2>
+      <h1>强化工坊</h1>
     </div>
 
     <div class="screen-body">

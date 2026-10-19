@@ -20,7 +20,18 @@ import * as Net from './multiplayer.js';
 import * as Enh from './enhance.js';
 import * as Eco from './economy.js';
 import * as Store from './store.js';
+import * as Cloud from './cloud.js';
 import { TEST_CARD_LIB } from '../../engine/cards/test-cards.js';
+
+/** 账户页 / 管理页的输入框读取：DOM 桩里没有这些节点时安静返回空串 */
+function inputValue(id) {
+  try {
+    const el = document.getElementById(id);
+    return el && el.value !== undefined ? String(el.value) : '';
+  } catch {
+    return '';
+  }
+}
 
 /**
  * 不需要玩家选择的目标选择器 —— 引擎自己就能确定目标。
@@ -148,6 +159,7 @@ function clearSelection() {
   view.pickedSlot = null;
   view.dragIid = null;
   view.dragOver = null;
+  view.dragSeen = null;
 }
 
 /**
@@ -493,20 +505,51 @@ function updateCardDrag(x, y) {
     if (typeof document.elementFromPoint === 'function') {
       const el = document.elementFromPoint(x, y);
       const slot = el && el.closest ? el.closest('.slot') : null;
-      if (slot && slot.dataset && Number(slot.dataset.side) === me()
-          && slot.dataset.lane && slot.dataset.row) {
-        hit = { lane: slot.dataset.lane, row: slot.dataset.row };
+      if (slot && slot.dataset && slot.dataset.lane && slot.dataset.row
+          && LANES.indexOf(slot.dataset.lane) >= 0) {
+        hit = { side: Number(slot.dataset.side), lane: slot.dataset.lane, row: slot.dataset.row };
       }
     }
   } catch (e) { hit = null; }
+  applyDragHit(hit);
+}
 
-  const ok = hit && view.legalSlots.some((s) => s.lane === hit.lane && s.row === hit.row);
-  const next = ok ? hit : null;
+/**
+ * 手指压在某个格子上（或者没压在格子上）：算出合法与否、记下现场、必要时重绘。
+ *
+ * 为什么要记「压到的那个格子」而不只记「合法的那个」：放手时的提示得说清楚
+ * 到底错在哪 —— 压在敌方那侧、压在已经有单位的自己的格子、还是压根没压到格子，
+ * 三种情况的提示不该是同一句（作者 2026-10 报的「拖到错误的地方提示也是错的」）。
+ *
+ * hit = { side, lane, row } | null
+ */
+function applyDragHit(hit) {
+  if (view.dragIid === null) return;
+  let seen = null;
+  if (hit && hit.lane && LANES.indexOf(hit.lane) >= 0 && hit.row) {
+    seen = {
+      side: Number(hit.side),
+      lane: hit.lane,
+      row: hit.row,
+      legal: Number(hit.side) === me()
+        && view.legalSlots.some((s) => s.lane === hit.lane && s.row === hit.row),
+    };
+  }
+  const next = seen && seen.legal ? { lane: seen.lane, row: seen.row } : null;
   const prev = view.dragOver;
   const changed = (!!prev !== !!next)
     || (prev && next && (prev.lane !== next.lane || prev.row !== next.row));
+  view.dragSeen = seen;
   view.dragOver = next;
   if (changed) refresh();
+}
+
+/** 放手位置不对时，按「到底错在哪」说人话 */
+function dragFailHint() {
+  const seen = view.dragSeen;
+  if (!seen) return '没拖到格子上，牌已飞回手牌';
+  if (seen.side !== me()) return '只能放在自己这一侧的格子';
+  return '这个格子放不下（已经有单位了）';
 }
 
 /** 松手：拖在合法格子上就放下去，否则算失败（render 那边负责飞回手牌）。 */
@@ -518,11 +561,14 @@ function endCardDrag() {
   if (iid === null) return { placed: false, iid: null };
   if (over && view.selectedIid === iid) {
     view.pickedSlot = null;
+    view.dragSeen = null;
     const ok = commitPlay(iid, { lane: over.lane, row: over.row });
     return { placed: !!ok, iid };
   }
   // 没落在合法格子：保留选中状态，让玩家可以直接再点格子，或者重新拖。
-  view.hint = '没放到格子上，牌已飞回手牌';
+  // 提示要说清楚到底错在哪（敌方那侧 / 自己的格子放不下 / 根本没压到格子）。
+  view.hint = dragFailHint();
+  view.dragSeen = null;
   refresh();
   return { placed: false, iid };
 }
@@ -531,6 +577,24 @@ function endCardDrag() {
 function cancelCardDrag() {
   view.dragIid = null;
   view.dragOver = null;
+  view.dragSeen = null;
+}
+
+/**
+ * 手势被系统抢走了（pointercancel：滚动抢手势、来电、切后台…）。
+ *
+ * 这**不是放手放下去了**，所以绝不能走 commitPlay —— 以前 pointercancel 和
+ * pointerup 走同一条路，只要被取消那一刻手指正好压在高亮格子上，牌就被放了下去，
+ * 表现是「刚开始动，牌自己就落位了」（作者 2026-10 报的）。
+ * 同理也不该留下「没放到格子上」这种提示：玩家什么都没做错。
+ */
+function abortCardDrag() {
+  const iid = view.dragIid;
+  view.dragIid = null;
+  view.dragOver = null;
+  view.dragSeen = null;
+  view.hint = '';
+  return { placed: false, iid, cancelled: true };
 }
 
 function handleUnitClick(uid) {
@@ -682,6 +746,35 @@ function handleAction(act, el) {
   if (act === 'start-ai') { startNewGame(); return; }
   if (act === 'open-replays') { goReplays(); return; }
   if (act === 'open-settings') { goSettings(); return; }
+
+  // ── 云存档 / 账号
+  if (act === 'open-account') { screen = 'account'; refresh(); return; }
+  if (act === 'cloud-login') { Cloud.login(inputValue('cloud-user'), inputValue('cloud-pass')); return; }
+  if (act === 'cloud-register') { Cloud.register(inputValue('cloud-user'), inputValue('cloud-pass')); return; }
+  if (act === 'cloud-logout') { Cloud.logout(); return; }
+  if (act === 'cloud-push') { Cloud.pushLocal(); return; }
+  if (act === 'cloud-pull') { Cloud.pullRemote(); return; }
+  if (act === 'cloud-use-local') { Cloud.useLocal(); return; }
+  if (act === 'cloud-use-cloud') { Cloud.useCloud(); return; }
+  if (act === 'cloud-change-password') {
+    Cloud.changePassword(inputValue('cloud-oldpass'), inputValue('cloud-newpass'));
+    return;
+  }
+  if (act === 'cloud-admin-open') {
+    screen = 'admin';
+    Cloud.loadAdminUsers();
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-refresh') { Cloud.loadAdminUsers(); return; }
+  if (act === 'cloud-admin-back') { screen = 'account'; refresh(); return; }
+  if (act === 'cloud-admin-delete') { Cloud.setConfirmDelete(el.dataset.user || ''); return; }
+  if (act === 'cloud-admin-delete-cancel') { Cloud.setConfirmDelete(''); return; }
+  if (act === 'cloud-admin-delete-confirm') { Cloud.deleteUser(el.dataset.user || ''); return; }
+  if (act === 'cloud-admin-reset') {
+    Cloud.resetPassword(el.dataset.user || '', inputValue('cloud-admin-pass'));
+    return;
+  }
   if (act === 'back-home') {
     // 强化模式是独立的二级树：从难度页 / 联机页返回时回「强化模式」菜单，
     // 而不是一路跳回首页（否则每次都要重新点一遍强化模式）。
@@ -843,5 +936,5 @@ export {
   NO_CHOICE_TARGET_KINDS, analyzeSpell, isPlayable, computePlayable, clearSelection,
   selectCard, resolvePlayerChoice, commitPlay,
   handleSlotClick, handleUnitClick, handleKingClick, handleAction, toggleBrewPick,
-  canDragCard, beginCardDrag, updateCardDrag, endCardDrag, cancelCardDrag,
+  canDragCard, beginCardDrag, updateCardDrag, endCardDrag, cancelCardDrag, abortCardDrag, applyDragHit,
 };

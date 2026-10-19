@@ -36,6 +36,13 @@ function json(obj, status = 200) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * 云存档（账号 / 存档 / 管理员）住在另一个 Durable Object 里。
+ * Wrangler 要求 **入口模块** 导出所有 DO 类，所以这里转出一手；
+ * 具体实现见 users.js（docs/云存档协议.md §1）。
+ */
+export { Users } from './users.js';
+
 export class Room {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -285,9 +292,28 @@ export class Room {
   }
 }
 
+/** 云存档接口：这些路径不归房间管，统一交给全局 Users 对象（协议 §1.5） */
+function isCloudPath(path) {
+  return path === '/api/save'
+    || path.startsWith('/api/auth/')
+    || path.startsWith('/api/admin/');
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // ── 云存档接口：必须在房间路由**之前**拦下
+    //
+    // 注意顺序：/api/auth/login 之类不带 room，如果落到下面的房间分支会被判成
+    // room-required；而 /api/save 也不该被 SPA 兜底吃掉。
+    if (isCloudPath(url.pathname)) {
+      if (!env.USERS) {
+        return json({ ok: false, error: 'users-unbound', message: '缺少 USERS 绑定' }, 500);
+      }
+      const id = env.USERS.idFromName('global');
+      return env.USERS.get(id).fetch(request);
+    }
 
     // ── 房间接口：按房间号路由到对应的 Durable Object
     if (url.pathname.startsWith('/api/') || url.pathname === '/ws') {

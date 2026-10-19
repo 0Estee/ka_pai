@@ -113,23 +113,17 @@ final class WebSocketPeer {
 
     // ── 读帧 ──────────────────────────────────────────────
 
-    /** 一个已解析的帧 */
-    static final class Frame {
-        int opcode;
-        byte[] payload = new byte[0];
-    }
-
     /**
      * 读一个帧。客户端发来的帧**必须带掩码**，这里负责解掉。
      * 对端正常关闭时返回 opcode=CLOSE 的帧；流结束抛 EOFException。
      */
-    static Frame readFrame(InputStream in) throws IOException {
+    static WebSocketFrame readFrame(InputStream in) throws IOException {
         int b0 = in.read();
         if (b0 < 0) throw new EOFException("对端关闭");
         int b1 = in.read();
         if (b1 < 0) throw new EOFException("对端关闭");
 
-        Frame f = new Frame();
+        WebSocketFrame f = new WebSocketFrame();
         f.opcode = b0 & 0x0F;
         boolean masked = (b1 & 0x80) != 0;
         long len = b1 & 0x7F;

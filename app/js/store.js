@@ -190,14 +190,63 @@ export function loadProfile() {
   return normalizeProfile(raw);
 }
 
+/**
+ * 云存档钩子：profile 成功写进本地之后调一次。
+ *
+ * 为什么放在 store 层：金币 / 等级 / 强化在十几个地方改 profile，逐个调用云同步
+ * 一定会漏。这里只负责「本地已保存」这个既成事实，具体怎么上传由 cloud.js 决定
+ * （它自己会防抖、判断登录态、处理冲突）。钩子抛异常绝不能影响本地存档。
+ */
+let cloudSaveHook = null;
+export function setCloudSaveHook(fn) {
+  cloudSaveHook = typeof fn === 'function' ? fn : null;
+}
+
 export function saveProfile(profile) {
+  let ok = false;
   const ns = nativeBridge('readProfile', 'writeProfile');
   if (ns) {
     try {
-      if (String(ns.writeProfile(JSON.stringify(profile))) === 'true') return true;
+      if (String(ns.writeProfile(JSON.stringify(profile))) === 'true') ok = true;
     } catch { /* 落到 localStorage */ }
   }
-  return writeJSON(PROFILE_KEY, profile);
+  if (!ok) ok = writeJSON(PROFILE_KEY, profile);
+  if (ok && cloudSaveHook) {
+    try { cloudSaveHook(profile); } catch { /* 云同步失败不能影响本地存档 */ }
+  }
+  return ok;
+}
+
+// ══════════════════════════════════════════════════════════
+// 云存档登录态
+// ══════════════════════════════════════════════════════════
+
+const CLOUD_AUTH_KEY = 'kapai.cloud.v1';
+
+/** 读登录态（token + 用户信息）。没有登录过返回 null。 */
+export function loadCloudAuth() {
+  const raw = readJSON(CLOUD_AUTH_KEY, null);
+  if (!raw || typeof raw !== 'object' || typeof raw.token !== 'string' || !raw.token) return null;
+  const user = raw.user && typeof raw.user === 'object' && raw.user.username ? raw.user : null;
+  return { token: raw.token, user, savedAt: Number(raw.savedAt) || 0 };
+}
+
+/** 写登录态；返回是否写入成功。token 只存在本机，不上传到任何日志。 */
+export function saveCloudAuth(auth) {
+  if (!auth || typeof auth.token !== 'string' || !auth.token) return false;
+  return writeJSON(CLOUD_AUTH_KEY, {
+    token: auth.token,
+    user: auth.user && auth.user.username ? { username: auth.user.username, role: auth.user.role } : null,
+    savedAt: Date.now(),
+  });
+}
+
+export function clearCloudAuth() {
+  if (detect() === 'local') {
+    try { globalThis.localStorage.removeItem(CLOUD_AUTH_KEY); } catch { /* 忽略 */ }
+    return;
+  }
+  MEMORY.delete(CLOUD_AUTH_KEY);
 }
 
 // ══════════════════════════════════════════════════════════

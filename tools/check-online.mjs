@@ -7,7 +7,7 @@
  *
  * 用法：
  *   node tools/check-online.mjs                       # 跑本地 wrangler dev（默认 8787）
- *   node tools/check-online.mjs https://xxx.workers.dev   # 跑线上
+ *   node tools/check-online.mjs https://www.wangzuo.icu   # 跑线上（正式站）
  */
 
 const BASE = (process.argv[2] || 'http://127.0.0.1:8787').replace(/\/$/, '');

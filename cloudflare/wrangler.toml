@@ -17,19 +17,35 @@ not_found_handling = "single-page-application"
 name = "ROOMS"
 class_name = "Room"
 
+# 云存档：全局单实例 Users 对象（账号、token 密钥、存档、管理员）
+# 单实例是为了让「用户名查重」与「管理员列表」天然串行（docs/云存档协议.md §1.4）
+[[durable_objects.bindings]]
+name = "USERS"
+class_name = "Users"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
 
-# 自定义域名（可选 —— 但**中国大陆必须配**）
+# v2：新增 Users（SQLite 后端，和 Room 一样允许 hibernation 与空闲回收）
+# ⚠ 迁移是**追加**的：v1 的 Room 必须留着，否则已有房间数据会被判成孤儿
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Users"]
+
+# 自定义域名（**中国大陆必须配**，已启用）
 #
 # `*.workers.dev` 在国内被 DNS 投毒 + SNI 关键字拦截，浏览器直接打不开
 # （实测：解析结果落到境外无关 IP，即使手动指到正确的边缘 IP，TLS 握手也会被掐）。
 # 绑一个自己的域名就绕开了：同一个 Worker、同一份代码，只是换个门牌。
 #
-#   [[routes]]
-#   pattern = "kapai.你的域名.com"
-#   custom_domain = true
-#
 # 前提：该域名已经加进**同一个 Cloudflare 账号**（在控制台把 NS 指过来即可）。
 # 加好之后 `npx wrangler deploy` 会自动签发证书，什么都不用改。
+#
+# ⚠ `custom_domain = true` 时 wrangler 会自己建 DNS 记录并签证书，
+#   不要再去控制台手加一条重复的 CNAME，否则会冲突。
+#
+# 当前线上地址：https://www.wangzuo.icu
+[[routes]]
+pattern = "www.wangzuo.icu"
+custom_domain = true

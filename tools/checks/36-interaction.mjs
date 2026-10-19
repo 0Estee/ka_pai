@@ -320,6 +320,98 @@ check('长按拖动：拖到合法格子即放，拖到别处不算放牌并保�
   if (api.__view().selectedIid !== st2.iid) throw new Error('拖失败后没有保留选中（玩家得重新点牌）');
 });
 
+check('拖动克隆卡必须有确定尺寸：否则 .card 的 100%% 会退到整块层去算，摊成一条通屏宽的长条', () => {
+  const cssRule = (cssSrc.match(/\.fx-drag-card\s*\{[^}]*\}/) || [''])[0];
+  if (!/width:\s*\d+px/.test(cssRule)) throw new Error('.fx-drag-card 没有确定宽度（会变成一长条）');
+  if (!/height:\s*\d+px/.test(cssRule)) throw new Error('.fx-drag-card 没有确定高度');
+  if (!renderSrc.includes('el.style.width') || !renderSrc.includes('el.style.height')) {
+    throw new Error('beginDragChip 没有按源卡实测尺寸设置宽高');
+  }
+  if (!/beginDragChip\(dragOrigin\.html, dragOrigin\.x, dragOrigin\.y, dragOrigin\.w, dragOrigin\.h\)/.test(mainSrc)) {
+    throw new Error('pointerdown 没有把源卡尺寸传给 beginDragChip');
+  }
+});
+
+check('手势被系统取消（pointercancel）不等于放手：不放置、不报「没放到格子上」', () => {
+  const { iid, slot } = setupPicked();
+  const me = api.__me();
+  const before = api.__game().players[me].hand.length;
+  if (!api.__beginDrag(iid)) throw new Error('拖不起来');
+  api.__dragTo(slot.lane, slot.row);          // 手指正压在一个合法格子上
+  if (!api.__view().dragOver) throw new Error('压在合法格子上却没算出落点');
+  const res = api.__abortDrag();              // 此时被 pointercancel 打断
+  if (res && res.placed) throw new Error('手势被取消却把牌放下去了');
+  if (api.__game().players[me].hand.length !== before) throw new Error('手势被取消却消耗了手牌');
+  const hint = api.__view().hint || '';
+  if (hint.includes('飞回手牌')) throw new Error('取消手势不该提示「没放到格子上」：' + hint);
+  if (api.__view().selectedIid !== iid) throw new Error('取消手势后应当保留选中');
+  // 光测 abortCardDrag 不够：真正的中断是 main.js 的 finishDrag(true)，
+  // 它必须把「被系统取消」这条分支导到 abort（而不是走 endCardDrag 那条放置路径）。
+  const finishSrc = (mainSrc.match(/function finishDrag\(failed\) \{[\s\S]*?\n\}/) || [''])[0];
+  if (!finishSrc) throw new Error('main.js 找不到 finishDrag');
+  const failedBlock = (finishSrc.match(/if \(failed\) \{([\s\S]*?)\n  \}/) || [])[1] || '';
+  if (!failedBlock.includes('abortCardDrag()')) {
+    throw new Error('pointercancel 没有导到 abortCardDrag（取消会被当成放手）');
+  }
+  if (failedBlock.includes('endCardDrag()')) {
+    throw new Error('pointercancel 分支还在调 endCardDrag —— 那就会把牌放下去');
+  }
+});
+
+check('拖到错误的落点：提示按「错在哪」分开说，不再一律「没放到格子上」', () => {
+  // a) 压在敌方那侧
+  let g = setupPicked();
+  api.__beginDrag(g.iid);
+  api.__dragTo(g.slot.lane, g.slot.row, 1 - api.__me());
+  api.__endDrag();
+  let hint = api.__view().hint || '';
+  if (!hint.includes('自己这一侧')) throw new Error('压到敌方那侧的提示不对：' + hint);
+
+  // b) 压在自己那侧、但那个格子放不下
+  //    做法：先在**同一局**里把这块格子占掉，再重新选牌让 legalSlots 重算
+  const g2 = setupPicked();
+  const me2 = api.__me();
+  const gg = api.__game();
+  const occ = g2.slot;
+  const unitId = Object.keys(gg.cardLib).find((id) => {
+    const d = gg.cardLib[id];
+    return d.type === 'unit' && !d.token;
+  });
+  api.__selectCard(g2.iid);                       // 点同一张 = 取消选中
+  if (!api.__place(me2, unitId, occ.lane, occ.row)) throw new Error('没能占住格子');
+  api.__selectCard(g2.iid);                       // 重新选中，legalSlots 重算
+  if ((api.__view().legalSlots || []).some((s) => s.lane === occ.lane && s.row === occ.row)) {
+    throw new Error('被占掉的格子仍然在合法落点里');
+  }
+  api.__beginDrag(g2.iid);
+  api.__dragTo(occ.lane, occ.row, me2);
+  api.__endDrag();
+  hint = api.__view().hint || '';
+  if (!hint.includes('放不下')) throw new Error('压到自己放不下的格子时的提示不对：' + hint);
+
+  // c) 压根没压到格子
+  const g3 = setupPicked();
+  api.__beginDrag(g3.iid);
+  api.__dragTo('nope', 'front');
+  api.__endDrag();
+  hint = api.__view().hint || '';
+  if (!hint.includes('没拖到格子')) throw new Error('没压到格子时的提示不对：' + hint);
+});
+
+check('拖动失败要把克隆卡飞回手牌（提示说「已飞回手牌」就得真飞回去）', () => {
+  if (!/else flyDragChipBack\(iid\);/.test(mainSrc)) {
+    throw new Error('拖到别处只把克隆卡删掉，没有飞回手牌（提示行名不副实）');
+  }
+  if (!/abortCardDrag\(\);\s*\n\s*flyDragChipBack\(iid\);/.test(mainSrc)) {
+    throw new Error('pointercancel 分支没有「不放置 + 飞回手牌」');
+  }
+});
+
+// 上面几条会真的摆单位/换局，留一个干净局面给后面的检查
+api.__pause(false);
+api.__go('home');
+api.__newGame();
+
 check('可放区高亮：选中 / 拖动 / 已选落点三态在样式上分得开', () => {
   const i = cssSrc.indexOf('.slot.legal');
   if (i < 0) throw new Error('style.css 缺少 .slot.legal');

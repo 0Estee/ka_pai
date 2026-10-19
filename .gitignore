@@ -41,3 +41,7 @@ node_modules/
 cloudflare/node_modules/
 cloudflare/.wrangler/
 cloudflare/assets/
+
+# 部署用的本地 token（绝不提交）
+.cf-token
+.gh-token

@@ -116,6 +116,10 @@ export const CARDS_M = [
           { label: '不发动，直接打出', actions: [] },
           {
             label: '献祭一名队友',
+            // 前提：场上得**另有**一个队友可献（不可献祭自身，裁决 B14）。
+            // 没有这个 if 的话，空场打死神照样能选这一项：献祭解析不到目标被静默跳过，
+            // 但后面的 +1/+1、国王 -3、对敌 5 点伤害全部照常结算 —— 白嫖整条分支。
+            if: { compare: 'ownUnitsGE', n: 1, excludeSource: true },
             actions: [
               { op: 'sacrifice', target: { kind: 'chosenOwnUnit', excludeSource: true, prompt: '选择要献祭的队友' } },
               { op: 'buffAtk', amount: 1, target: { kind: 'self' } },

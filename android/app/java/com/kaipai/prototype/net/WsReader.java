@@ -36,7 +36,7 @@ final class WsReader implements Runnable {
     public void run() {
         try {
             while (!closed[0]) {
-                WebSocketPeer.Frame f = WebSocketPeer.readFrame(in);
+                WebSocketFrame f = WebSocketPeer.readFrame(in);
                 if (f.opcode == WebSocketPeer.OP_CLOSE) break;
                 if (f.opcode == WebSocketPeer.OP_PING) {
                     synchronized (writeLock) {

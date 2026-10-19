@@ -45,16 +45,38 @@ function startNewGame() {
 // 建局
 // ══════════════════════════════════════════════════════════
 
-function newGame() {
-  clearTimeout(bannerTimer);
-  clearTimeout(autoAdvanceTimer);
-  // 旧对局排出去的回合循环定时器也要取消：它们捕获的是旧 state，
-  // 醒来后会往新对局上推一次；autoAdvancing 同理必须复位，
-  // 否则自动阶段会永久停在防重入那一步。
+/**
+ * 把**回合循环**的调度状态清干净：三个定时器 + `autoAdvancing` 防重入标志。
+ *
+ * 谁必须调它：**每一条开新对局的路径**。
+ *   · 单机：`newGame()`（首页「开始游戏」、再来一局）
+ *   · 联机：`lan.js` 的 `beginLanMatch()`（收到 start 正式开局那一刻）
+ *   · 中途退出：`goHome()` / `quitRoom()`
+ *
+ * 忘了会怎样（作者 2026-10 报的「联机开始后无法出牌」就是这个）：
+ * 上一局在自动阶段（回合开始 / 开战 / 结算）被退出，`autoAdvancing` 停在 true，
+ * 定时器也还排着；新对局开局 tick() 走到 `if (autoAdvancing) return;` 就直接返回 ——
+ * 阶段永远停在 TURN_START，界面显示「回合开始…」、`busy` 一直是 true，
+ * 玩家点牌没有任何反应（selectCard 第一行就被 busy 挡掉）。
+ * 单机因为 newGame() 里有这份清理所以不中招，只有联机这条开局路径漏了。
+ */
+function resetTurnLoop() {
+  // 旧对局排出去的定时器要取消：它们捕获的是旧 state，
+  // 醒来后会往新对局上推一次。
   clearTimeout(autoPhaseTimer);
   clearTimeout(aiTurnTimer);
   clearTimeout(aiAdvanceTimer);
+  clearTimeout(autoAdvanceTimer);
+  autoPhaseTimer = null;
+  aiTurnTimer = null;
+  aiAdvanceTimer = null;
+  // 防重入标志必须复位，否则自动阶段会永久停在防重入那一步。
   autoAdvancing = false;
+}
+
+function newGame() {
+  clearTimeout(bannerTimer);
+  resetTurnLoop();
 
   const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   // 共享牌库 80 张（作者裁决：卡池已超过 80 张，改为「从全部卡里随机抽 80 张」）。
@@ -461,7 +483,7 @@ function summarizeLog(from) {
 
 export {
   startNewGame, newGame, doAction, applyLocalAction, advanceGame,
-  tick, settleIfNeeded, summarizeLog,
+  tick, settleIfNeeded, summarizeLog, resetTurnLoop,
 };
 /**
  * 「放大展示」（作者 2026-10 口径）：

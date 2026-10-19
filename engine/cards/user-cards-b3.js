@@ -3181,6 +3181,11 @@ export const USER_CARDS_B3 = [
               },
               {
                 "label": "献祭一名队友",
+                "if": {
+                  "compare": "ownUnitsGE",
+                  "n": 1,
+                  "excludeSource": true
+                },
                 "actions": [
                   {
                     "op": "sacrifice",

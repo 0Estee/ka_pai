@@ -67,7 +67,20 @@ export function* execAction(state, ctx, action) {
      * AI 侧因为 `autoResolveChoices` 恒为 true，会取第一个选项。
      */
     case 'choose': {
-      const options = action.options || [];
+      const all = action.options || [];
+      if (!all.length) break;
+      /**
+       * 选项可以带 `if`：条件不成立就**不出现在选项里**，也不会被执行。
+       *
+       * 为什么需要：卡面写的是「献祭一名队友:获得…」，这句的**前提**是场上有队友可献。
+       * 以前选项是死的，没有队友时玩家照样能选「献祭一名队友」：
+       *   · `sacrifice` 动作解析不到目标 → 什么也没献祭（不报错）；
+       *   · 但这条分支**后面的效果照常结算** —— 白拿 +1/+1、国王照掉血、
+       *     该打的 5 点伤害照打（作者 2026-10 报的
+       *     「恶魔阵营在场上没有友军的情况下也可以献祭」）。
+       * 与其在每张卡里手写 conditional，不如让选项自己声明前提。
+       */
+      const options = all.filter((o) => !o.if || evalCondition(state, ctx, o.if));
       if (!options.length) break;
       const answer = yield {
         type: 'chooseOption',
@@ -1090,6 +1103,20 @@ export function evalCondition(state, ctx, cond) {  if (!cond) return false;
   const own = allUnits(state).filter((u) => u.side === me).length;
   const foe = allUnits(state).filter((u) => u.side !== me).length;
   switch (cond.compare) {
+    /**
+     * 场上（某方）单位数够不够 `n` 个。`excludeSource: true` 时不把效果来源自己
+     * 算进去 —— 献祭类效果的候选本来就把"自己"排除了（裁决 B14：不可献祭自身）。
+     */
+    case 'ownUnitsGE': {
+      let list = allUnits(state).filter((u) => u.side === me);
+      if (cond.excludeSource && ctx.source) list = list.filter((u) => u !== ctx.source);
+      return list.length >= (cond.n === undefined ? 1 : cond.n);
+    }
+    case 'foeUnitsGE': {
+      let list = allUnits(state).filter((u) => u.side !== me);
+      if (cond.excludeSource && ctx.source) list = list.filter((u) => u !== ctx.source);
+      return list.length >= (cond.n === undefined ? 1 : cond.n);
+    }
     case 'enemiesLEAllies': return foe <= own;
     case 'enemiesLTAllies': return foe < own;
     case 'enemiesGEAllies': return foe >= own;
