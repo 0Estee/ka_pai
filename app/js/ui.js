@@ -235,10 +235,10 @@ function slotHTML(state, view, lane, side, row) {
    * 和「能放但还没选」的绿色区分开，否则玩家不知道刚才那一下算不算数。
    */
   const picked = view.pickedSlot;
-  const isPicked = !!picked && picked.lane === lane && picked.row === row;
+  const isPicked = mine && !!picked && picked.lane === lane && picked.row === row;
   // 长按拖动时手指压着的那一格
   const dragOver = view.dragOver;
-  const isDragOver = !!dragOver && dragOver.lane === lane && dragOver.row === row;
+  const isDragOver = mine && !!dragOver && dragOver.lane === lane && dragOver.row === row;
   const classes = [
     'slot',
     mine ? 'mine' : 'foe',

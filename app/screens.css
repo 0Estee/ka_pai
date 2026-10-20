@@ -2749,3 +2749,183 @@ body {
 
 .home::-webkit-scrollbar, .screen-body::-webkit-scrollbar { width: 0; height: 0; }
 .screen-body { scrollbar-width: none; }
+
+/* ══════════════════════════════════════════════════════════
+   收光层（0.62.1）
+   ──────────────────────────────────────────────────────────
+   0.62.0 的金色太亮、顶光太强，深色模式像打了闪光灯；
+   浅色 / 玻璃模式还有把深色 HUD 的字也染成深色的对比 bug。
+   这一层只做两件事：降低高光与发光；把深色 HUD 的字固定成浅色。
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  --gold: #c9a15a;
+  --brass: #b89355;
+  --brass-hi: #e0c89a;
+  --brass-lo: #6f4b22;
+  --text: #e9dcc6;
+  --ink: #e9dcc6;
+  --target-ring: rgba(201, 161, 90, .58);
+  --target-bg: rgba(201, 161, 90, .12);
+}
+:root[data-theme="light"] {
+  --gold: #7d5310;
+  --brass: #8a6733;
+  --brass-hi: #6b4310;
+  --brass-lo: #c9b18a;
+}
+:root[data-theme="glass"] {
+  --gold: #cdb47e;
+  --brass: #b9a06a;
+  --brass-hi: #e6d6ad;
+  --brass-lo: #7f6638;
+}
+
+/* 桌面顶光收一半，别像打在镜面上 */
+body {
+  background-image:
+    radial-gradient(120% 80% at 50% -12%, rgba(214, 164, 88, .11), transparent 58%),
+    radial-gradient(90% 60% at 50% 112%, rgba(120, 26, 22, .16), transparent 62%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, .015) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #1a100a 0%, #0d0805 58%, #060403 100%);
+}
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(120% 80% at 50% -12%, rgba(255, 249, 233, .55), transparent 60%),
+    repeating-linear-gradient(94deg, rgba(90, 60, 25, .035) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #eeddbc 0%, #e2cda5 62%, #d8c098 100%);
+}
+:root[data-theme="glass"] body {
+  background-image:
+    radial-gradient(100% 70% at 50% -10%, rgba(112, 158, 210, .16), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(30, 70, 105, .24), transparent 65%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, .012) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #0c1725 0%, #07101c 60%, #040a12 100%);
+}
+
+/* 标题：从「白金反光」改成旧金浮雕，去掉大范围黑投影 */
+.home-logo {
+  background-image: linear-gradient(180deg, #e8d3a4 0%, #c8a566 46%, #87602c 100%);
+  filter: drop-shadow(0 1px 0 #2a180b) drop-shadow(0 4px 10px rgba(0, 0, 0, .42));
+}
+:root[data-theme="light"] .home-logo {
+  background-image: linear-gradient(180deg, #6b4310 0%, #8a5f1e 55%, #5a3610 100%);
+  filter: drop-shadow(0 1px 0 rgba(255, 250, 235, .55));
+}
+:root[data-theme="glass"] .home-logo {
+  background-image: linear-gradient(180deg, #f0e2bd 0%, #cdb47e 52%, #8f7440 100%);
+  filter: drop-shadow(0 1px 0 #101a26) drop-shadow(0 4px 10px rgba(0, 0, 0, .4));
+}
+.home-emblem .emblem-ring { box-shadow: inset 0 0 0 4px rgba(0, 0, 0, .18), 0 0 16px rgba(201, 161, 90, .08); }
+.emblem-crown { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .45)) drop-shadow(0 0 6px rgba(201, 161, 90, .14)); }
+
+/* 主按钮：压掉 0.62.0 的镜面高光 */
+.home .hm-primary {
+  background: linear-gradient(180deg, #6b4a24 0%, #3d2715 58%, #2e1c0f 100%);
+  border-color: #a9824a;
+  color: #f0d9ae;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 190, .22), inset 0 -2px 0 rgba(0, 0, 0, .4), 0 3px 0 #120a05, 0 6px 14px rgba(0, 0, 0, .42);
+}
+.home .hm-primary .hm-text { color: #f0d9ae; text-shadow: none; }
+.home .hm-primary .hm-sub { color: #c9b18a; }
+.home .hm-primary::before, .home .hm-primary::after {
+  background: #c9a15a;
+  box-shadow: 0 0 0 1px #5b3d22;
+}
+.home .hm-btn {
+  box-shadow: inset 0 1px 0 rgba(255, 225, 160, .08), 0 2px 0 #120a05, 0 4px 8px rgba(0, 0, 0, .24);
+}
+.home-foot { box-shadow: inset 0 1px 0 rgba(255, 225, 160, .08), 0 3px 8px rgba(0, 0, 0, .24); }
+.hf-stat b { color: var(--brass-hi); text-shadow: none; }
+.hud-lv-bar > i { background: linear-gradient(90deg, #7d5524, #c9a15a); box-shadow: none; }
+
+/* 卡牌：边框与费用宝石降饱和；选中只留一圈薄光 */
+.card {
+  border-color: #8a6a3a;
+  box-shadow: 0 2px 0 #090402, 0 5px 10px rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(255, 225, 160, .10);
+}
+.card::after { opacity: .65; }
+.c-cost {
+  background: radial-gradient(circle at 35% 30%, #f0e0b8 0%, #c9a15a 42%, #7d5524 100%);
+  border-color: #d8c08f;
+  box-shadow: 0 0 0 2px rgba(20, 11, 5, .7), 0 1px 3px rgba(0, 0, 0, .4);
+}
+.c-name { color: #e0c89a; text-shadow: none; }
+.c-kw { color: #c9ad78; }
+.c-desc { color: #bfae90; }
+.card.selected {
+  box-shadow: 0 0 0 1px rgba(201, 161, 90, .8), 0 0 12px rgba(201, 161, 90, .20), 0 8px 16px rgba(0, 0, 0, .45);
+}
+.card.is-superpower { box-shadow: 0 0 0 1px rgba(201, 161, 90, .28), 0 0 8px rgba(201, 161, 90, .10); }
+.unit { border-color: #6b4a2a; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .32); }
+.u-name { color: #e0c89a; text-shadow: none; }
+.unit.targetable {
+  border-color: #c9a15a !important;
+  box-shadow: 0 0 0 1px rgba(201, 161, 90, .55), inset 0 0 0 1px rgba(201, 161, 90, .18);
+}
+.slot.legal {
+  border-color: #c9a15a;
+  background: rgba(48, 34, 16, .66);
+  box-shadow: inset 0 0 0 2px rgba(201, 161, 90, .22);
+}
+.statusbar.active { box-shadow: inset 0 -2px 0 var(--brass); }
+.sb-king.targetable { box-shadow: none; }
+.banner {
+  background: linear-gradient(180deg, #e0c89a, #b89355);
+  border-color: #d8c08f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .45);
+}
+.result, .choice-box, .unit-info .ui-card, .menu-panel {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), 0 12px 28px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 225, 160, .12);
+}
+
+/* 深色 HUD 的字固定成浅色：浅色 / 玻璃主题不能再被主题变量染黑 */
+.topbar, .topbar .deck-left, .topbar .raw-left { color: #b9a37e; }
+.topbar .turn { color: #e0c89a; }
+.statusbar { color: #cdbb9b; }
+.sb-side b,
+:root[data-theme="light"] .sb-side b,
+:root[data-theme="glass"] .sb-side b { color: #e0c89a; }
+.sb-role,
+:root[data-theme="light"] .sb-role,
+:root[data-theme="glass"] .sb-role { color: #b9a37e; border-color: #6b4a26; }
+.sb-hand,
+:root[data-theme="light"] .sb-hand,
+:root[data-theme="glass"] .sb-hand { color: #b9a37e; }
+.sb-mana,
+:root[data-theme="light"] .sb-mana,
+:root[data-theme="glass"] .sb-mana { color: #a9c8dc; }
+.phase-name { color: #e0c89a; }
+.phase-status,
+:root[data-theme="light"] .phase-status,
+:root[data-theme="glass"] .phase-status { color: #b9a37e; }
+.hint { color: #e0c89a; }
+.lane-name,
+:root[data-theme="light"] .lane-name,
+:root[data-theme="glass"] .lane-name { color: #cdb47e; text-shadow: none; }
+.row-label,
+:root[data-theme="light"] .row-label,
+:root[data-theme="glass"] .row-label { color: #a08a68; }
+.trap-mark { color: #a990bd; }
+
+/* 浅色主题里少数「深色条」上的深字 */
+:root[data-theme="light"] .set-tip,
+:root[data-theme="light"] .cloud-note,
+:root[data-theme="light"] .cloud-ok {
+  background: rgba(255, 250, 238, .78);
+  border-color: #c9b18a;
+  color: #4a3622;
+}
+:root[data-theme="light"] .cloud-note { border-left-color: #8a5a12; }
+:root[data-theme="light"] .cloud-hint { color: #6f5638; }
+:root[data-theme="light"] .cloud-err,
+:root[data-theme="light"] .hf-warn { color: #8f463c; background: rgba(143, 70, 60, .08); }
+
+/* 浅色主题的通用 .hm-btn 覆盖会把主按钮也刷成浅底；主按钮必须单独压回来 */
+:root[data-theme="light"] .home .hm-primary {
+  background: linear-gradient(180deg, #6b4a24 0%, #3d2715 58%, #2e1c0f 100%);
+  background-image: linear-gradient(180deg, #6b4a24 0%, #3d2715 58%, #2e1c0f 100%);
+  border-color: #a9824a;
+}
+:root[data-theme="light"] .home .hm-primary .hm-text { color: #f0d9ae; }
+:root[data-theme="light"] .home .hm-primary .hm-sub { color: #c9b18a; }
