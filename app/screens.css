@@ -2973,3 +2973,26 @@ body {
 .u-preview,
 :root[data-theme="light"] .u-preview,
 :root[data-theme="glass"] .u-preview { color: #c9b18a; }
+
+/* 浅色主题的输入框也走羊皮纸，否则深底 + 深色占位符读不出来 */
+:root[data-theme="light"] .cloud-input,
+:root[data-theme="light"] .rp-input,
+:root[data-theme="light"] .lan-input,
+:root[data-theme="light"] .lan-manual {
+  background: #f6ead0;
+  border-color: #b08a52;
+  color: #2a1d12;
+}
+:root[data-theme="light"] .cloud-input::placeholder,
+:root[data-theme="light"] .rp-input::placeholder,
+:root[data-theme="light"] .lan-input::placeholder {
+  color: #8a7355;
+  opacity: .85;
+}
+
+:root[data-theme="light"] .cloud-role {
+  color: #6b4310;
+  border-color: #b08a52;
+  background: rgba(255, 250, 238, .35);
+}
+:root[data-theme="light"] .cloud-row b { color: #2a1d12; }
