@@ -3001,3 +3001,6 @@ body {
 .sb-side { display: inline-flex; align-items: baseline; min-width: 0; max-width: 42%; }
 .sb-side b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-role { word-break: break-word; }
+
+/* 加入房间 / 输入房号的按钮，手机上占满一行更好点 */
+.lan-manual .rp-btn { width: 100%; min-height: 42px; margin-top: 4px; }
