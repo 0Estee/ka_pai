@@ -2996,3 +2996,8 @@ body {
   background: rgba(255, 250, 238, .35);
 }
 :root[data-theme="light"] .cloud-row b { color: #2a1d12; }
+
+/* 联机名字可能很长（账号名）：状态条只给名字 42% 宽度，超出省略 */
+.sb-side { display: inline-flex; align-items: baseline; min-width: 0; max-width: 42%; }
+.sb-side b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-role { word-break: break-word; }

@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File tools/setup-android-sdk.ps1
 powershell -ExecutionPolicy Bypass -File tools/build-apk.ps1
 ```
 
-产物：`dist/ka-pai-0.62.1.apk`
+产物：`dist/ka-pai-0.63.0.apk`
 
 ### 验证 APK 产物
 
@@ -130,7 +130,7 @@ powershell -ExecutionPolicy Bypass -File tools/verify-apk.ps1
 ### 安装到手机
 
 ```bash
-adb install -r dist/ka-pai-0.62.1.apk
+adb install -r dist/ka-pai-0.63.0.apk
 ```
 
 或把 APK 传到手机上直接点击安装（需在系统设置里允许「安装未知来源应用」）。

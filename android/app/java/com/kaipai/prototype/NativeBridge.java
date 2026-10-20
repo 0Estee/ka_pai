@@ -1,6 +1,8 @@
 package com.kaipai.prototype;
 
 import android.app.Activity;
+import android.content.Context;
+import android.net.wifi.WifiManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 
@@ -51,6 +53,11 @@ public final class NativeBridge {
 
     private HttpGameServer server;
     private RoomResponder responder;
+    /**
+     * 部分机型的 Wi-Fi 栈默认过滤多播/广播包，UDP 房间发现会表现为「开房成功但对方扫不到」。
+     * 持有 MulticastLock 期间才允许收这类包。没有权限/机型不支持时静默放弃。
+     */
+    private WifiManager.MulticastLock multicastLock;
 
     public NativeBridge(Activity activity, WebView web) {
         this.activity = activity;
@@ -95,14 +102,20 @@ public final class NativeBridge {
 
                 server = srv;
                 responder = rsp;
+                if (rsp != null) acquireMulticast();
 
                 Map<String, Object> m = Json.obj();
                 m.put("ok", Boolean.TRUE);
                 m.put("port", (long) port);
                 m.put("ip", NetUtil.getLocalIp());
                 m.put("players", (long) srv.getPlayers());
+                // UDP 应答器没起来时明确告诉 JS：HTTP 能连，但对方扫不到。
+                boolean discover = rsp != null;
+                m.put("discover", Boolean.valueOf(discover));
                 // 主机自己走 127.0.0.1：绕开路由器对「自己访问自己的局域网 IP」的处理差异
-                m.put("url", "http://127.0.0.1:" + port + "/?net=host&room=" + urlEncode(room));
+                String url = "http://127.0.0.1:" + port + "/?net=host&room=" + urlEncode(room);
+                if (!discover) url += "&discover=0";
+                m.put("url", url);
                 return Json.encode(m);
             }
         } catch (IOException e) {
@@ -137,10 +150,13 @@ public final class NativeBridge {
     public String scanRooms(int timeoutMs) {
         int wait = timeoutMs <= 0 ? SCAN_DEFAULT_MS : Math.min(timeoutMs, SCAN_MAX_MS);
         List<DiscoveredRoom> rooms;
+        acquireMulticast();
         try {
             rooms = RoomDiscovery.scan(wait);
         } catch (RuntimeException e) {
             return "[]";
+        } finally {
+            releaseMulticast();
         }
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < rooms.size(); i++) {
@@ -257,7 +273,40 @@ public final class NativeBridge {
     }
 
     /** 必须在持有 lock 时调用。 */
+    /** 拿住 MulticastLock；没有权限、机型不支持或已经拿着时安静跳过。 */
+    private void acquireMulticast() {
+        synchronized (lock) {
+            try {
+                if (multicastLock != null && multicastLock.isHeld()) return;
+                WifiManager wm = (WifiManager) activity.getApplicationContext()
+                        .getSystemService(Context.WIFI_SERVICE);
+                if (wm == null) return;
+                if (multicastLock == null) {
+                    multicastLock = wm.createMulticastLock("kapai-discovery");
+                    multicastLock.setReferenceCounted(false);
+                }
+                if (!multicastLock.isHeld()) multicastLock.acquire();
+            } catch (RuntimeException e) {
+                // 普通权限被 ROM 收了 / Wi-Fi 关着：扫描仍可继续，只是可能收不到广播
+                multicastLock = null;
+            }
+        }
+    }
+
+    private void releaseMulticast() {
+        synchronized (lock) {
+            if (multicastLock == null) return;
+            try {
+                if (multicastLock.isHeld()) multicastLock.release();
+            } catch (RuntimeException e) {
+                // 已经释放过：忽略
+            }
+            multicastLock = null;
+        }
+    }
+
     private void stopLocked() {
+        releaseMulticast();
         if (responder != null) {
             responder.stop();
             responder = null;

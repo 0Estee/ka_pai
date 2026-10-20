@@ -59,6 +59,7 @@ import './checks/36-interaction.mjs';
 import './checks/37-online.mjs';
 import './checks/40-cloud.mjs';
 import './checks/41-slot-side.mjs';
+import './checks/42-mp-names.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

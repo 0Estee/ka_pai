@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.62.1';
+export const APP_VERSION = '0.63.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -175,7 +175,7 @@ export function difficultyHTML({ current, difficulties, faction, factions, mode 
 // 局域网
 // ══════════════════════════════════════════════════════════
 
-export function lanMenuHTML({ lanSupported, localIp, online }) {
+export function lanMenuHTML({ lanSupported, localIp, online, native = false }) {
   if (!lanSupported) {
     return subScreen('联机对决', `
       <div class="rp-empty">当前环境不支持联机<br><span>需要在手机上安装 APK，或用浏览器打开线上地址</span></div>
@@ -183,15 +183,18 @@ export function lanMenuHTML({ lanSupported, localIp, online }) {
   }
   // 公网与局域网共用这一个菜单：对玩家来说都是「开一间房，把入口告诉对面」，
   // 只是对面拿到的是房间号还是一串内网地址。两种宿主同时可用时优先公网。
+  const onlineOnly = online && !native;
   const hostSub = online ? '我来当主机 · 公网房间' : '我来当主机 · 同一 Wi-Fi';
-  const joinSub = online ? '输入对面的房间号，或扫同一 Wi-Fi 下的房' : '扫描同一 Wi-Fi 下的房间';
+  const joinSub = onlineOnly
+    ? '输入主机大厅里显示的 6 位房间号'
+    : (online ? '输入对面的房间号，或扫同一 Wi-Fi 下的房' : '扫描同一 Wi-Fi 下的房间');
   return subScreen('联机对决', `
     <button class="hm-btn hm-primary" data-act="lan-host">
       <span class="hm-ico">＋</span><span class="hm-text">创建房间</span>
       <span class="hm-sub">${hostSub}</span>
     </button>
     <button class="hm-btn" data-act="lan-scan">
-      <span class="hm-ico">⌕</span><span class="hm-text">加入房间</span>
+      <span class="hm-ico">⌕</span><span class="hm-text">${onlineOnly ? '输入房间号' : '加入房间'}</span>
       <span class="hm-sub">${joinSub}</span>
     </button>
     <div class="hf-warn">主机中途退出会导致房间消失，对手将直接判负。</div>
@@ -199,7 +202,7 @@ export function lanMenuHTML({ lanSupported, localIp, online }) {
   `);
 }
 
-export function lanScanHTML({ rooms, scanning, manualError, online }) {
+export function lanScanHTML({ rooms, scanning, manualError, online, native = false }) {
   // 手动兜底：UDP 广播在很多路由器上会被拦（「PP 隔离」/访客网络/企业 Wi-Fi），
   // 这时扫描永远是空的 —— 让玩家照抄主机屏幕上那串地址就能连上。
   // 公网房间则根本扫不到：房间不在同一网段，只能靠房间号。
@@ -217,6 +220,14 @@ export function lanScanHTML({ rooms, scanning, manualError, online }) {
       <button class="rp-btn" data-act="lan-join-manual">加入</button>
       ${manualError ? `<div class="lan-err">${esc(manualError)}</div>` : ''}
     </div>`;
+
+  // 公网站点没有原生桥：扫描永远为空。直接给房间号输入，不显示「找到 0 个」。
+  if (online && !native) {
+    return subScreen('加入房间', `
+      <div class="rp-empty">公网房间不能扫描<br><span>房间在别的网络里，输入主机大厅里显示的 6 位房间号</span></div>
+      ${manual}
+    `);
+  }
 
   if (scanning) {
     return subScreen('加入房间', `
@@ -250,8 +261,10 @@ export function lanScanHTML({ rooms, scanning, manualError, online }) {
 }
 
 /** 联机大厅：主机等对手，客人等主机开始 */
-export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge, online, joinUrl, code }) {
+export function lobbyHTML({ mode, roomName, peerName, myName, discoverError, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge, online, joinUrl, code }) {
   const isHost = mode === 'host';
+  const seat = isHost ? '玩家1' : '玩家2';
+  const seatRole = myName && myName !== seat ? `${myName}（${seat} · ${isHost ? '主机' : '客人'}）` : `${seat}（${isHost ? '主机' : '客人'}）`;
   const statusText = {
     connected: peerName ? `已连接：${peerName}` : '等待对手加入…',
     reconnecting: '连接中断，正在等待重连…',
@@ -320,10 +333,11 @@ export function lobbyHTML({ mode, roomName, peerName, status, localIp, port, gam
     </div>
     <div class="screen-body">
       <div class="lobby-card">
-        <div class="lobby-role">${isHost ? '你是主机' : '你是客人'}</div>
+        <div class="lobby-role">${esc(seatRole)}</div>
         <div class="lobby-room">${esc(roomName || '未命名房间')}</div>
         ${invite}
         <div class="lobby-status lobby-${status}">${esc(statusText)}</div>
+        ${isHost && discoverError ? `<div class="hf-warn">${esc(discoverError)}</div>` : ''}
         <div class="lobby-mode">房间模式：${forgeMode ? '强化模式（双方各带自己的强化卡组）' : '普通模式（卡面原值）'}${peerName
           ? `　·　对手：${peerForge ? '强化模式' : '普通模式'}${!!peerForge !== !!forgeMode ? '（与房间不一致，开局以主机为准）' : ''}`
           : ''}</div>

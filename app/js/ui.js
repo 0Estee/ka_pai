@@ -324,7 +324,7 @@ function statusBarHTML(state, side, view) {
 
   return `
     <div class="statusbar ${isMe ? 'me' : 'foe'} ${active ? 'active' : ''}">
-      <span class="sb-side"><b>${isMe ? '你' : 'AI'}</b><i class="sb-role">${isFirst ? '先手' : '后手'}</i></span>
+      <span class="sb-side"><b>${esc(view.playerNames ? view.playerNames[side] : (isMe ? '你' : 'AI'))}</b><i class="sb-role">${esc(view.playerTags ? view.playerTags[side] : (isFirst ? '先手' : '后手'))}</i></span>
       <span class="sb-king ${kingTargetable ? 'targetable' : ''}${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side) ? ' fx-hit' : ''}" data-king="${side}" title="${kingTargetable ? '点击：把国王指定为目标' : '国王生命'}">♥ ${p.kingHp}</span>${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side && view.fx.text) ? '<span class="fx-float fx-float-king' + (view.fx.animateFloat === false ? ' fx-float-rest' : '') + '">' + view.fx.text + '</span>' : ''}
       <span class="sb-mana" title="费用">◈ ${shownMana}/${p.manaCap}<span class="pips">${manaPips}</span></span>
       <span class="sb-hand" title="手牌">手牌 ${p.hand.length}</span>
@@ -463,7 +463,9 @@ export function render(root, state, view) {
     ? view.busyText || '结算中…'
     : (actor === null
       ? '自动阶段'
-      : (actor === view.humanSide ? '轮到你了' : 'AI 行动中'));
+      : (view.playerNames && actor !== null
+        ? `${view.playerNames[actor]} 行动中`
+        : (actor === view.humanSide ? '轮到你了' : 'AI 行动中')));
   const canAct = !view.busy && actor === view.humanSide && !state.winner;
 
   /**

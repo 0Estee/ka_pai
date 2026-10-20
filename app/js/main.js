@@ -1003,8 +1003,10 @@ let __lanDemoSaved = null;
 window.__demoLanStart = (opts = {}) => {
   __lanDemoSaved = { session, screen };
   const mySide = opts.mySide === 1 ? 1 : 0;
+  if (opts.myName !== undefined) lanInfo = { ...(lanInfo || {}), myName: String(opts.myName || '') };
   session = {
-    isHost: mySide === 0, mySide, started: true, step: 0, lastError: '', peerName: '对手',
+    isHost: mySide === 0, mySide, started: true, step: 0, lastError: '',
+    peerName: opts.peerName === undefined ? '对手' : String(opts.peerName),
     // 真 Session 会本地应用 + 广播；这里只要本地那一半
     submit(a) { applyLocalAction(a); this.step++; return true; },
   };

@@ -9,18 +9,34 @@
  */
 
 import * as Net from './multiplayer.js';
+import * as Cloud from './cloud.js';
 import * as Eco from './economy.js';
 import * as Enh from './enhance.js';
 import * as RP from './replay.js';
 import { TEST_CARD_LIB, buildTestDeck } from '../../engine/cards/test-cards.js';
 
+/**
+ * 联机里的显示名：登录了就用账号名，没登录就按座位叫玩家1 / 玩家2。
+ * 作为 hello 的 name 发给对面，双方大厅和对局顶栏都用这一份。
+ */
+function lanPlayerName(mode) {
+  try {
+    const c = Cloud.cloudStatus();
+    if (c && c.user && c.user.username) return String(c.user.username);
+  } catch { /* 云存档没初始化：退回座位名 */ }
+  return mode === 'host' ? '玩家1' : '玩家2';
+}
+
 /** 进入联机大厅并建立会话 */
 function enterLobby(mode) {
   const room = Net.currentRoom();
+  const myName = lanPlayerName(mode);
   lanInfo = {
     roomName: Net.queryParam('room') || '未命名房间',
     port: Number(globalThis.location.port) || 8765,
     peerName: '',
+    myName,
+    discoverError: Net.queryParam('discover') === '0' ? '房间已开，但 UDP 发现端口被占用：对方扫不到，只能手输地址' : '',
     status: 'connected',
     gameReady: false,
     // 公网房间：链接是 `站点/?net=guest&room=CODE`，局域网则是 `主机IP:端口/?net=guest`
@@ -59,7 +75,7 @@ function enterLobby(mode) {
   // 顺便把自己的强化增量报过去：主机开局要把它写进 enhance（见 hostStartMatch）
   session.transport.send({
     t: 'hello',
-    name: isHostName(),
+    name: myName,
     faction: myFaction,
     enhance: Enh.buildSideEnhance(TEST_CARD_LIB, profile),
     // 大厅要提示「两边是不是同一个模式」：不一致时以主机为准，提前让客人知道
@@ -70,7 +86,7 @@ function enterLobby(mode) {
 }
 
 function isHostName() {
-  return Net.netMode() === 'host' ? '主机' : '客人';
+  return lanPlayerName(Net.netMode() === 'host' ? 'host' : 'guest');
 }
 
 /**
@@ -200,7 +216,7 @@ function createRoom() {
     }
   }
 
-  const r = Net.startHost(room, '主机');
+  const r = Net.startHost(room, lanPlayerName('host'));
   if (!r || !r.ok) {
     view.hint = (r && r.error) || '无法创建房间';
     refresh();
@@ -211,6 +227,16 @@ function createRoom() {
 
 /** 扫描同一 Wi-Fi 下的房间 */
 function scanLanRooms() {
+  // 公网站点没有原生桥：UDP 局域网扫描永远是空列表。
+  // 不要再等 1.5 秒给玩家看「找到 0 个房间」—— 直接进「输入房间号」。
+  if (!Net.nativeAvailable()) {
+    lanScanning = false;
+    lanRooms = [];
+    screen = 'lanScan';
+    refresh();
+    return;
+  }
+
   lanScanning = true;
   lanRooms = [];
   screen = 'lanScan';
@@ -264,7 +290,9 @@ async function hostStartMatch() {
   const guestFaction = session.peerFaction || myFaction;
   await session.beginGame({
     seed,
-    firstPlayer: seed % 2,
+    // 联机固定主机（玩家1）先手、客人（玩家2）后手 —— 界面上的「玩家1（先手）」
+    // 与座位一致，不用再让玩家算「我这个座位是先手还是后手」。
+    firstPlayer: 0,
     deck,
     factions: [myFaction, guestFaction],
     enhance,

@@ -1429,6 +1429,7 @@ function renderScreen(stage) {
       // 要么有原生服务（APK 里开房间），要么页面本身就跑在 http(s) 上（公网站点）
       lanSupported: Net.nativeAvailable() || Net.onlineAvailable(),
       online: Net.onlineAvailable(),
+      native: Net.nativeAvailable(),
       localIp: Net.localIp(),
     });
     applyScreenFx(stage);
@@ -1441,6 +1442,7 @@ function renderScreen(stage) {
       scanning: lanScanning,
       manualError: lanManualError,
       online: Net.onlineAvailable(),
+      native: Net.nativeAvailable(),
     });
     applyRoomsFx(stage, lanRooms);
     applyScreenFx(stage);
@@ -1550,6 +1552,23 @@ function renderScreen(stage) {
   // ── 对局
   const handScroll = handScrollOf(stage);
   computePlayable();
+  /**
+   * 联机名字 / 先手后手：交给 ui.js 的状态条直接用。
+   * 单机不设，状态条继续显示「你 / AI」；联机时用账号名或玩家1/玩家2。
+   */
+  if (session && state) {
+    const my = session.mySide === 1 ? 1 : 0;
+    const myName = (lanInfo && lanInfo.myName) || ('玩家' + (my + 1));
+    const peerName = session.peerName || ('玩家' + (2 - my));
+    view.playerNames = my === 0 ? [myName, peerName] : [peerName, myName];
+    view.playerTags = [
+      state.firstPlayer === 0 ? '先手' : '后手',
+      state.firstPlayer === 1 ? '先手' : '后手',
+    ];
+  } else {
+    view.playerNames = null;
+    view.playerTags = null;
+  }
   // 开局铺开：进度存在模块状态里（不是 CSS 的 animation-delay 排队），
   // 于是任何一次重绘都只是「照当前进度画一遍」已出现的行不重放，没轮到的行保持不可见。
   view.revealShown = boardReveal ? boardReveal.shown : null;

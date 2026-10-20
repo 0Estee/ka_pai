@@ -109,7 +109,7 @@ let session = null;
 let autoAdvancing = false;
 /** 联机房间信息（大厅显示用） */
 let lanInfo = {
-  roomName: '', port: 0, hostSide: 0, peerName: '', status: 'connected', gameReady: false,
+  roomName: '', port: 0, hostSide: 0, peerName: '', myName: '', discoverError: '', status: 'connected', gameReady: false,
   // 公网房间（Cloudflare）：房间号 + 给对面点的那条链接；局域网时 online 为 false
   online: false, code: '', joinUrl: '',
 };
