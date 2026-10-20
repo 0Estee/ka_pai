@@ -2929,3 +2929,47 @@ body {
 }
 :root[data-theme="light"] .home .hm-primary .hm-text { color: #f0d9ae; }
 :root[data-theme="light"] .home .hm-primary .hm-sub { color: #c9b18a; }
+
+/* 第二回收光：浅色模式的羊皮纸不再接近纯白；深色标题再压一档 */
+:root[data-theme="light"] {
+  --bg: #d7c19a;
+  --bg-2: #e2cfab;
+  --panel: #e6d2ac;
+  --panel-2: #d8c29b;
+  --panel-active: #cbb184;
+  --line: #947447;
+  --text: #2a1d12;
+  --dim: #5f4a2f;
+  --desc-text: #42301c;
+}
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(120% 80% at 50% -12%, rgba(255, 246, 226, .38), transparent 60%),
+    repeating-linear-gradient(94deg, rgba(90, 60, 25, .030) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #e4cfa9 0%, #d7bf96 62%, #cbb287 100%);
+}
+:root[data-theme="light"] .home-top,
+:root[data-theme="light"] .home-foot,
+:root[data-theme="light"] .home .hm-btn,
+:root[data-theme="light"] .screen-head,
+:root[data-theme="light"] .set-group,
+:root[data-theme="light"] .diff-row,
+:root[data-theme="light"] .room-row,
+:root[data-theme="light"] .rp-row,
+:root[data-theme="light"] .cloud-card,
+:root[data-theme="light"] .cloud-user,
+:root[data-theme="light"] .cloud-conflict,
+:root[data-theme="light"] .lobby-card {
+  background-image: linear-gradient(180deg, #ecdbb9 0%, #d9c298 100%);
+}
+:root[data-theme="light"] .home .hm-primary { background-image: linear-gradient(180deg, #5b3d22 0%, #34210f 58%, #26170c 100%); }
+
+/* 深色：再压一点点高光 */
+.home-logo { background-image: linear-gradient(180deg, #dcc59a 0%, #b8945a 48%, #74501f 100%); }
+.home .hm-primary { background: linear-gradient(180deg, #5b3d22 0%, #34210f 58%, #26170c 100%); }
+:root { --brass-hi: #d8c08f; }
+
+/* 单位卡上的「开战打向」也是深色桌面上的字，浅色主题不能跟着染黑 */
+.u-preview,
+:root[data-theme="light"] .u-preview,
+:root[data-theme="glass"] .u-preview { color: #c9b18a; }
