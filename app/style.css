@@ -1212,6 +1212,38 @@ html, body {
   animation: fx-claw-draw .62s ease-out forwards;
 }
 
+/* 受击前那道爪痕：从出手的那张牌扫到目标身上（.fx-claw 落点前的"源头"）。
+   位置 / 角度 / 粗细由 render.js 算好写成内联样式，这里只管观感与那一趟扫过去。
+   transform-origin 在左端：scaleX 从小到大地"往前推"，看起来就是爪子从出手者那边挠过来。 */
+.fx-rake {
+  position: absolute;
+  z-index: 7;
+  transform-origin: left center;
+  pointer-events: none;
+  animation: fx-rake-fly .17s cubic-bezier(.25, .7, .35, 1) forwards;
+}
+.fx-rake i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 999px;
+  /* 只在"指尖"那一段最亮，尾端整段都淡掉 —— 否则像一道光柱横穿棋盘，
+     而这应该是"一爪子挠过来"：看到的是划过的那一下，不是一条线。 */
+  background: linear-gradient(90deg,
+    rgba(255, 236, 206, 0) 0%,
+    rgba(255, 236, 206, .10) 46%,
+    rgba(255, 236, 206, .42) 76%,
+    rgba(255, 248, 235, .92) 94%,
+    rgba(255, 255, 255, 0) 100%);
+  filter: drop-shadow(0 0 4px rgba(255, 196, 120, .35));
+}
+@keyframes fx-rake-fly {
+  0%   { transform: rotate(var(--a, 0deg)) scaleX(.02); opacity: 0; }
+  22%  { opacity: .8; }
+  70%  { opacity: .55; }
+  100% { transform: rotate(var(--a, 0deg)) scaleX(1); opacity: 0; }
+}
+
 /* ══════════════════════════════════════════════════════════════
    放置交互（作者 2026-10）：选中牌 → 高亮可放区 → 点一个格子「选中落点」
    → 再点一次同一个格子才真的放下去。所以要有第三支颜色，

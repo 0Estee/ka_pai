@@ -626,6 +626,14 @@ function pumpCombatFx() {
   // 作者 2026-10 的第 3 条：血量变化和退场都要等动画演完 —— 所以这一刻
   // 不能画成 0 血（看着像「0 血还站着」），要画它倒下前的那一格血。
   if (!view.fxLastHp) view.fxLastHp = {};
+  /**
+   * 最近一条 lane-combat 的出手者 uid。
+   *
+   * 作者 2026-10：「动画没有源头」—— 爪印、掉字、退场都只画在**结果**上，
+   * 看不到是谁打的。日志里 lane-combat 记着 attackers，紧随其后的 damage /
+   * king-damage 都属于它，所以扫日志时把这一份带着走，画特效时从那张牌拉一道爪痕过来。
+   */
+  let attackers = [];
   for (const e of logs.slice(view.fxCursor)) {
     if (e && e.type === 'damage' && e.uid !== undefined
       && e.amount !== undefined && e.hp !== undefined) {
@@ -640,8 +648,12 @@ function pumpCombatFx() {
         hpWait: wait !== undefined ? wait : undefined,
       });
     }
+    if (e && e.type === 'lane-combat') attackers = (e.attackers || []).slice();
     const fx = fxOfLogEntry(e);
-    if (fx && view.fxQueue.length < 14) view.fxQueue.push(fx);   // 上限：别让大战役拖成幻灯片
+    if (fx && view.fxQueue.length < 14) {
+      fx.from = attackers.slice();   // 「这一下从哪来」——画源头用（见 render.js 的 spawnStrikeFx）
+      view.fxQueue.push(fx);         // 上限：别让大战役拖成幻灯片
+    }
   }
   view.fxCursor = logs.length;
   if (!view.fxTimer && view.fxQueue.length) stepCombatFx();

@@ -61,6 +61,7 @@ import './checks/40-cloud.mjs';
 import './checks/41-slot-side.mjs';
 import './checks/42-mp-names.mjs';
 import './checks/43-mp-lockstep.mjs';
+import './checks/44-combat-fx-source.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

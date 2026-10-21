@@ -69,6 +69,20 @@
       window.__newGame();
       window.__autoPlay();
       document.title = 'demo: ' + JSON.stringify(window.__replayDemo(0, Number(p.get('step') || 30)));
+    } else if (demo === 'fxprobe') {
+      // 真打一下（不是手摆特效）：报告爪痕起点 / 爪印大小 / 残影 data-uid
+      const info = window.__fxKillProbe(p.get('att') || 'W04', p.get('def') || 'E01');
+      const pre = document.createElement('pre');
+      pre.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;color:#000;font:10px/1.4 monospace;padding:8px;white-space:pre-wrap;margin:0';
+      pre.textContent = JSON.stringify(info, null, 1);
+      document.body.appendChild(pre);
+    } else if (demo === 'fxshow') {
+      // 把爪痕 / 爪印定格在第一帧（动画本身由浏览器播，截图抓不到），看它们落在哪、多大
+      window.__fxKillProbe(p.get('att') || 'W04', p.get('def') || 'E01');
+      const st = document.createElement('style');
+      st.textContent = '.fx-claw i{animation:none!important;opacity:1!important;transform:none!important}'
+        + '.fx-rake{animation:none!important;opacity:1!important;transform:rotate(var(--a,0deg)) scaleX(1)!important}';
+      document.head.appendChild(st);
     } else if (demo === 'nav') {      // 真实点击（不是 __go 跳屏）：这条路上曾经永远开不了 AI 局
       const hit = (act) => {
         const el = document.querySelector('[data-act="' + act + '"]');

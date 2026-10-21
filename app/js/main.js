@@ -953,6 +953,86 @@ window.__demoUnitTarget = () => {
  * 自检钩子：伪造一个联机会话，渲染大厅，看主机「开始对战」按钮到底能不能点。
  * 这个 bug 的表现就是「能进房间，但开不了局」——按钮一直是灰的。
  */
+
+/**
+ * 自检 / 截图：跑一次**真实的**战斗结算，把这一下的特效摊开报告。
+ *
+ * 看的是 #fx-layer 里真实建出来的节点，不是渲染字符串：
+ *   · rake   —— 爪痕在不在、起点的坐标是不是出手那张牌的中心（「动画的源头」）
+ *   · claw   —— 爪印在不在、落在谁身上、相对卡面放大了多少（伤害越大越大）
+ *   · ghost  —— 被打死的那张牌（残影）有没有 data-uid（没有就找不到它，爪印会丢）
+ *
+ * 用法：window.__fxKillProbe('W04', 'E01')   // 出手牌 / 受击牌
+ */
+/**
+ * 自检钩子：把「爪印大小」与「阵亡残影」两个纯函数暴露出去。
+ * 它们是特效能不能落在正确的地方、大小对不对的唯一判据，而 #fx-layer 的坐标
+ * 在 DOM 桩里量不出来（没有布局），所以这两条只能在纯函数层面守。
+ */
+window.__fxDebug = {
+  clawScale: (fx) => clawScaleOf(fx),
+  ghost: (st, g, alive) => ghostHTML(st, g, alive),
+};
+
+window.__fxKillProbe = (attCard, defCard) => {
+  const att = attCard || 'W04';
+  const def = defCard || 'E01';
+  window.__newGameFirst();
+  window.__pause(true);
+  window.__place(1, def, 'mountain', 'front');
+  window.__place(0, att, 'mountain', 'front');
+  window.__go('game');
+  for (let i = 0; i < 14 && state.phase !== 'COMBAT'; i++) window.__advance();
+  try { window.__advance(); } catch (e) { /* 演出由计时器接管 */ }
+
+  // 把这一路的演出**同步**推完：不等 820ms 的定时器，一条一条直接步进
+  for (let i = 0; i < 16 && (view.fxQueue || []).length; i++) {
+    clearTimeout(view.fxTimer);
+    view.fxTimer = null;
+    stepCombatFx();
+  }
+
+  const layer = typeof flightLayerEl === 'function' ? flightLayerEl() : null;
+  const kids = layer ? Array.prototype.slice.call(layer.children) : [];
+  const box = (el) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+  };
+  const rake = kids.filter((el) => el.className === 'fx-rake');
+  const claw = kids.filter((el) => el.className === 'fx-claw');
+  const ghost = document.querySelector('.unit.ghost');
+  const deadSlot = document.querySelector('.slot[data-lane="mountain"][data-side="1"][data-row="front"]');
+  const attacker = document.querySelector('.slot[data-lane="mountain"][data-side="0"][data-row="front"] .unit');
+  const aBox = box(attacker);
+  const tBox = box(deadSlot);
+  const rakeBox = box(rake[0]);
+  const clawBox = box(claw[0]);
+  return {
+    fx: view.fx ? { kind: view.fx.kind, amount: view.fx.amount, hp: view.fx.hp, from: (view.fx.from || []).slice() } : null,
+    rake: rake.length,
+    rakeStrokes: rake[0] ? rake[0].children.length : 0,
+    rakeBox,
+    // 爪痕左端到出手牌中心的距离：小于 6px 才算「真的从那张牌出发」
+    // 爪痕左端（= 起点）到出手牌中心的距离：小于 6px 才算「真的从那张牌出发」
+    rakeFromAttacker: rakeBox && aBox
+      ? Math.round(Math.hypot(rakeBox.x - (aBox.x + aBox.w / 2),
+        (rakeBox.y + rakeBox.h / 2) - (aBox.y + aBox.h / 2)))
+      : null,
+    claw: claw.length,
+    clawStrokes: claw[0] ? claw[0].children.length : 0,
+    clawDelay: claw[0] && claw[0].children[0] ? claw[0].children[0].style.animationDelay : '',
+    clawK: claw[0] ? claw[0].dataset.k : null,
+    clawDmg: claw[0] ? claw[0].dataset.dmg : null,
+    clawBox,
+    clawVsCard: clawBox && tBox ? Number((clawBox.w / tBox.w).toFixed(2)) : null,
+    ghostDrawn: !!ghost,
+    targetSlot: tBox,
+    attackerBox: aBox,
+    targetBox: tBox,
+  };
+};
+
 window.__demoLobby = (opts) => {
   // 两种调用：老检查传一个名字字符串（13-lan-lobby），截图钩子传选项对象
   const o = typeof opts === 'object' && opts !== null ? opts : { peer: opts };

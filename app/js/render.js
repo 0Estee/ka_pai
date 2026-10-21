@@ -811,6 +811,7 @@ const FX_PHASE_MS = 300;   // 阶段推进（.fx-phase）
 const FX_DRAW_MS = 300;    // 抽到的牌落进卡槽（.fx-draw）
 const FX_SPEND_MS = 260;   // 打出牌的原位退场残影（.fx-spend）
 const FX_CLAW_MS = 620;    // 受击爪印（.fx-claw，逐笔出现后整体淡出）
+const FX_RAKE_MS = 170;    // 受击前那道爪痕从出手者扫到目标（.fx-rake）
 const FX_CLAW_STEP_MS = 90; // 同一组抓痕里相邻两笔的间隔（越小抓得越快）
 const FX_DRAG_FLY_MS = 240; // 拖动失败：牌从当前位置飞回手牌的时长
 
@@ -988,14 +989,43 @@ function pickClawGroup() {
   return g;
 }
 
-/** 在某个单位的盒子上撒一层爪印。fx 是当前正在播的那条受击特效。 */
-function spawnClawFx(fx) {
+/**
+ * 爪印的**大小**跟着这一下的伤害走（作者 2026-10）。
+ *
+ * 以前不管打 1 点还是 8 点，都是同一块几乎盖满卡面的爪印 —— 于是"小刀划一下"
+ * 和"一记重击"看起来一样重。现在按伤害线性放大：1 点是浅浅一道，
+ * 6 点以上整张牌被抓烂；把它打死的那一下再大一档。
+ */
+function clawScaleOf(fx) {
+  const amount = Number(fx && fx.amount);
+  const dmg = Number.isFinite(amount) && amount > 0 ? amount : 1;
+  const kill = fx && fx.hp !== undefined && fx.hp <= 0;
+  return Math.max(0.62, Math.min(1.75, 0.56 + dmg * 0.12 + (kill ? 0.16 : 0)));
+}
+
+/**
+ * 在某个单位的盒子上撒一层爪印。fx 是当前正在播的那条受击特效。
+ *
+ * delayMs：等前者（.fx-rake 那道爪痕）扫到身上再落爪。
+ * **用 animation-delay 等，不用 setTimeout** —— 节点当场建好、当场能断言，
+ * 也不怕中途一次重绘把定时器漏掉（#fx-layer 不随 #stage 重绘，节点一直活着）。
+ */
+function spawnClawFx(fx, delayMs) {
+  const wait = Math.max(0, Number(delayMs) || 0);
   if (!canFlyDom()) return;
   const layer = flightLayerEl();
   if (!layer) return;
-  // 只认「单位挨打」：打国王走的是血条那条路（.sb-king.fx-hit），这里画不了。
-  const sel = '.unit[data-uid="' + fx.uid + '"]';
-  const rect = rectCenterOf(queryRect(sel));
+  /**
+   * 落点用**格子**而不是 .unit：
+   *  · 挨打的那张牌可能已经被引擎删掉了（致死的那一下），这时画在格子里的是
+   *    阵亡残影（.unit.ghost），而残影故意不带 data-uid（它不是真单位）；
+   *  · 格子（.slot[data-lane][data-side][data-row]）在阵亡前后都在，位置也对。
+   * 没有 lane / row 的（理论上不会有）才退回按 uid 找单位。
+   */
+  const slotSel = (fx.lane !== undefined && fx.side !== undefined && fx.row)
+    ? '.slot[data-lane="' + fx.lane + '"][data-side="' + fx.side + '"][data-row="' + fx.row + '"]'
+    : '';
+  const rect = rectCenterOf(queryRect(slotSel)) || rectCenterOf(queryRect('.unit[data-uid="' + fx.uid + '"]'));
   if (!rect || rect.w <= 1 || rect.h <= 1) return;
 
   const group = pickClawGroup();
@@ -1003,24 +1033,122 @@ function spawnClawFx(fx) {
   try {
     const box = document.createElement('div');
     box.className = 'fx-claw';
-    // 稍微放大一点、略偏左上，让爪子看起来是「从卡片外面抓进来」而不是正好贴在边内
-    const pad = Math.round(rect.w * 0.12);
-    box.style.left = Math.round(rect.x - rect.w / 2 - pad) + 'px';
-    box.style.top = Math.round(rect.y - rect.h / 2 - pad) + 'px';
-    box.style.width = Math.round(rect.w + pad * 2) + 'px';
-    box.style.height = Math.round(rect.h + pad * 2) + 'px';
+    // 以卡面中心为基准，按伤害放大 / 缩小：小伤害是卡面上的一道划痕，
+    // 大伤害会溢出到相邻格子（这正是"打得重"该有的样子）
+    const k = clawScaleOf(fx);
+    const pad = Math.round(rect.w * k * 0.08);
+    const w = Math.round(rect.w * k + pad * 2);
+    const h = Math.round(rect.h * k + pad * 2);
+    box.style.left = Math.round(rect.x - w / 2) + 'px';
+    box.style.top = Math.round(rect.y - h / 2) + 'px';
+    box.style.width = w + 'px';
+    box.style.height = h + 'px';
+    // 自检用：这一爪是按多大的伤害放的（.fx-claw 的放大倍数）
+    box.dataset.k = String(k);
+    box.dataset.dmg = String(fx.amount === undefined ? '' : fx.amount);
     let html = '';
     for (let k = 1; k <= strokes; k++) {
-      const delay = (k - 1) * FX_CLAW_STEP_MS;
+      const delay = wait + (k - 1) * FX_CLAW_STEP_MS;
       html += '<i style="background-image:url(\'img/claw-' + group + '-' + k + '.png\');'
         + 'animation-delay:' + delay + 'ms"></i>';
     }
     box.innerHTML = html;
-    // 整组活到最后一笔也演完：总时长 = 最后一笔的延迟 + 单笔时长，再留一点余量
-    const life = FX_CLAW_MS + (strokes - 1) * FX_CLAW_STEP_MS + 90;
+    // 整组活到最后一笔也演完：总时长 = 等待 + 最后一笔的延迟 + 单笔时长，再留一点余量
+    const life = wait + FX_CLAW_MS + (strokes - 1) * FX_CLAW_STEP_MS + 90;
     layer.appendChild(box);
     setTimeout(() => { try { box.remove(); } catch (e) { /* 已经没了 */ } }, life);
   } catch (e) { /* DOM 桩 */ }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   受击的「源头」（作者 2026-10）
+
+   要求：动画要有源头 —— 爪印、掉字、退场都只是**结果**，玩家看不到这一下是从
+   哪张牌打过来的。所以在爪印落下之前，先在 #fx-layer 里从出手的那张牌拉出
+   三道爪痕到目标身上（.fx-rake），到点了才落爪印。
+
+   起点怎么找（按可信度从高到低）：
+     1. 日志里最近一条 lane-combat 的 attackers（uid）—— 它还在场上就画它；
+     2. 对面半场同一路的前排 / 后排 —— 出手者本回合已经阵亡时；
+     3. 对面状态条 —— 锦囊 / 陷阱 / 持续伤害这类没有出手单位的伤害。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 落点：受击的**格子** / 挨打的国王。
+ * 用格子而不是单位，是为了"这一下把人打死"也能画（那时单位已经不在 state 里，
+ * 格子里画的是没有 data-uid 的阵亡残影 —— 和爪印同一套口径）。
+ */
+function strikeTargetRect(fx) {
+  if (fx.kingSide !== undefined) {
+    return rectCenterOf(queryRect('.sb-king[data-king="' + fx.kingSide + '"]'))
+      || rectCenterOf(queryRect('.statusbar.' + (fx.kingSide === 0 ? 'me' : 'foe')));
+  }
+  if (fx.lane !== undefined && fx.side !== undefined && fx.row) {
+    const bySlot = rectCenterOf(queryRect(
+      '.slot[data-lane="' + fx.lane + '"][data-side="' + fx.side + '"][data-row="' + fx.row + '"]'));
+    if (bySlot) return bySlot;
+  }
+  if (fx.uid === undefined) return null;
+  return rectCenterOf(queryRect('.unit[data-uid="' + fx.uid + '"]'));
+}
+
+/** 起点：出手的那张牌 */
+function strikeSourceRect(fx) {
+  for (const uid of fx.from || []) {
+    const c = rectCenterOf(queryRect('.unit[data-uid="' + uid + '"]'));
+    if (c) return c;
+  }
+  const foeSide = fx.side !== undefined ? 1 - fx.side
+    : (fx.kingSide !== undefined ? 1 - fx.kingSide : 1);
+  if (fx.lane) {
+    for (const row of ['front', 'back']) {
+      const c = rectCenterOf(queryRect(
+        '.slot[data-lane="' + fx.lane + '"][data-side="' + foeSide + '"][data-row="' + row + '"]'));
+      if (c) return c;
+    }
+  }
+  return rectCenterOf(queryRect('.statusbar.' + (foeSide === me() ? 'me' : 'foe')));
+}
+
+/** 一条爪痕的长度 / 角度 / 起点摊成元素样式；返回 0 表示这一下发不出源头（不画） */
+function spawnStrikeFx(fx) {
+  if (!canFlyDom() || !fx) return 0;
+  const layer = flightLayerEl();
+  if (!layer) return 0;
+  const to = strikeTargetRect(fx);
+  const from = strikeSourceRect(fx);
+  if (!to || !from) return 0;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (!(len > 8)) return 0;                       // 起点终点几乎重合：不画
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  /**
+   * 爪痕的粗细也跟着伤害走（和爪印同一把尺）：小伤害是一道细线，
+   * 重击是三道很宽的口子。这样"轻碰一下"和"被砍一刀"一眼能分开。
+   */
+  const k = clawScaleOf(fx);
+  const thick = Math.max(2, Math.round(2 + 1.8 * k));
+  try {
+    const el = document.createElement('div');
+    el.className = 'fx-rake';
+    el.style.left = Math.round(from.x) + 'px';
+    el.style.top = Math.round(from.y - thick * 1.25) + 'px';
+    el.style.width = Math.round(len) + 'px';
+    el.style.height = Math.round(thick * 2.5) + 'px';
+    el.style.setProperty('--a', angle.toFixed(1) + 'deg');
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      html += '<i style="top:' + Math.round(i * thick * 1.02) + 'px;height:' + thick + 'px"></i>';
+    }
+    el.innerHTML = html;
+    layer.appendChild(el);
+    const life = FX_RAKE_MS + 60;
+    setTimeout(() => { try { el.remove(); } catch (e) { /* 已经没了 */ } }, life);
+  } catch (e) {
+    return 0;
+  }
+  return FX_RAKE_MS;   // 爪印等到爪痕扫到目标身上再落
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1184,9 +1312,12 @@ function applyTransientFx(stage) {
   // 期间就算因为别的原因重绘几次也不会重复叠加。
   try {
     const fx = view && view.fx;
-    if (fx && fx.kind === 'hit' && fx.uid !== undefined && !fx.clawDone) {
+    if (fx && fx.kind === 'hit' && !fx.clawDone) {
       fx.clawDone = true;
-      spawnClawFx(fx);
+      // 先拉源头（从出手的那张牌扫过来），爪印等它扫到身上再落 —— 顺序反了就成了"凭空挨打"
+      const delay = spawnStrikeFx(fx);
+      // 爪印节点当场就建（自己带着 animation-delay 等爪痕扫到），不走 setTimeout
+      if (fx.uid !== undefined) spawnClawFx(fx, delay);
     }
   } catch (e) { /* DOM 桩 */ }
 

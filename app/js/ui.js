@@ -286,6 +286,13 @@ function slotHTML(state, view, lane, side, row) {
  * 退场要排在动画结束之后）—— 那时候按正常卡面画，别一上来就是半透明灰。
  * 灰色的那支留给真正开始消散的残影用。
  */
+/**
+ * ⚠ 残影**故意不带 data-uid**：它只是"这一路还没演完，先把牌继续画着"的替身，
+ * 在引擎里已经不存在了。带上 uid 会让「点场上单位看详情」点到一块残影 ——
+ * 点不出面板，而且测试里按 uid 收集的名单会混进死人。
+ * 爪印要落在它身上，走的是**格子**（.slot[data-lane][data-side][data-row]），
+ * 格子在阵亡前后都在（见 render.js 的 spawnClawFx）。
+ */
 function ghostHTML(state, g, alive) {
   const def = state.cardLib[g.cardId];
   // 还在等这一路演完（alive）时血量画「倒下前的那一格」——画 0 会像「0 血还站着」。
