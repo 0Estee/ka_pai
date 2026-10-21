@@ -16,7 +16,7 @@ param(
   [string]$JdkHome = 'C:\Program Files\Java\jdk-21',
   [string]$BuildToolsVersion = '34.0.0',
   [string]$Platform = 'android-34',
-  [string]$VersionName = '0.63.0',
+  [string]$VersionName = '0.65.0',
   [int]$VersionCode = 68,
   [int]$MinSdk = 24,
   [int]$TargetSdk = 34,
