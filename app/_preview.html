@@ -29,10 +29,27 @@
     //   ?demo=nav               用真实点击走完「开始游戏 → AI 对决 → 开始对战」
     //   ?demo=unitinfo          推到场上有单位，然后点开一个单位的详情面板
     const p = new URLSearchParams(location.search);
+    // 截图用：把入场动画与过渡全部关掉 —— --screenshot 是在 load 后马上抓，
+    // 带 0.5s 入场动画的菜单项那时还是透明的，截出来就是"这一屏什么都没有"。
+    if (p.get('noanim')) {
+      const st = document.createElement('style');
+      st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}';
+      document.head.appendChild(st);
+    }
     // 走 __setTheme 而不是直接改 dataset —— 否则设置页里的选中态会和实际配色对不上
     if (p.get('theme')) window.__setTheme(p.get('theme'));
     const demo = p.get('demo');
-    if (p.get('screen')) {
+    if (p.get('screen') === 'lobby') {
+      window.__demoLobby({
+        mode: p.get('mode') || 'host',
+        myName: p.get('me') || '张三',
+        peerName: p.get('peer') || '李四',
+        online: p.get('online') !== '0',
+        discoverError: p.get('warn') || '',
+        gameReady: p.get('ready') === '1',
+        code: p.get('code') || 'K7QM2P',
+      });
+    } else if (p.get('screen')) {
       window.__go(p.get('screen'));
     } else if (demo !== 'nav' && demo !== 'unitinfo') {
       window.__playTurns(Number(p.get('turn') || 4));
@@ -204,6 +221,42 @@
       const h = document.getElementById('stage').innerHTML;
       window.__probeOk = window.__screen() === 'replay' && h.includes('data-act="replay-toggle"');
       document.title = 'demo: screen=' + window.__screen() + ' 控制条=' + h.includes('data-act="replay-toggle"');
+    }
+    // 截图用：棋盘 / 手牌的入场是「data-in 从 0 翻成 1」驱动的，
+    // 而 --screenshot 在 load 后立刻抓，那时还是 data-in="0"（不可见）。
+    // 这里直接把标记翻到位，截出来才是玩家看到的中局画面。
+    if (p.get('reveal')) {
+      for (const el of document.querySelectorAll('[data-in]')) el.setAttribute('data-in', '1');
+    }
+    if (p.get('dump')) {
+      // 诊断：把这一屏每个子节点的盒子与计算样式摊在白底上，截图就能读
+      const dump = () => {
+        const rows = [];
+        for (const el of document.querySelectorAll(p.get('sel') || '.screen-head, .screen-body > *')) {
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          rows.push(el.tagName + '.' + (el.className || '-')
+            + ' [' + Math.round(r.x) + ',' + Math.round(r.y) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ']'
+            + ' op=' + cs.opacity + ' disp=' + cs.display + ' vis=' + cs.visibility
+            + ' bg=' + cs.backgroundColor + ' col=' + cs.color + ' fs=' + cs.fontSize + ' bl=' + cs.borderLeftWidth + ' bs=' + cs.boxShadow.slice(0, 40) + ' bgim=' + cs.backgroundImage.slice(0, 30)
+            + ' "' + (el.textContent || '').replace(/\s+/g, ' ').slice(0, 18) + '"');
+        }
+        // 命中测试：那一块像素上，最上面压着的到底是哪个节点
+        for (const [x, y] of p.get('hit') ? p.get('hit').split(';').map((t) => t.split(',').map(Number)) : [[14, 512], [14, 560], [30, 512]]) {
+          let el = document.elementFromPoint(x, y);
+          const chain = [];
+          for (let i = 0; el && i < 4; i++) { chain.push(el.tagName + '.' + (el.className || '-')); el = el.parentElement; }
+          const cs = document.elementFromPoint(x, y);
+          const g = cs ? getComputedStyle(cs) : null;
+          rows.push('@' + x + ',' + y + ' → ' + chain.join(' < ') + (g ? ' | bg=' + g.backgroundColor + ' op=' + g.opacity : ''));
+        }
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;color:#000;font:9px/1.35 monospace;padding:6px;white-space:pre-wrap;margin:0';
+        pre.textContent = rows.join('\n');
+        document.body.appendChild(pre);
+      };
+      if (p.get('dump') === 'now') dump();
+      else setTimeout(dump, 400);
     }
   </script>
 </body>

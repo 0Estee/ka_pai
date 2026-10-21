@@ -58,7 +58,9 @@ function enterLobby(mode) {
     },
     onStart: (st) => beginLanMatch(st),
     onAction: (action) => {
-      RP.recAction(recording, action);
+      // 收到 start 之前就到达的操作（高延迟下的抢跑）也会走到这里，
+      // 那时录制还没建好，别在这里炸掉整局。
+      if (recording) RP.recAction(recording, action);
       if (state && state.winner !== null) settleIfNeeded();
     },
   });
@@ -288,16 +290,24 @@ async function hostStartMatch() {
    * hello / faction 消息报过来（见 multiplayer.js）。拿不到就退回主机自己的。
    */
   const guestFaction = session.peerFaction || myFaction;
-  await session.beginGame({
-    seed,
-    // 联机固定主机（玩家1）先手、客人（玩家2）后手 —— 界面上的「玩家1（先手）」
-    // 与座位一致，不用再让玩家算「我这个座位是先手还是后手」。
-    firstPlayer: 0,
-    deck,
-    factions: [myFaction, guestFaction],
-    enhance,
-    mode: forgeMode ? 'forge' : 'normal',
-  });
+  try {
+    await session.beginGame({
+      seed,
+      // 联机固定主机（玩家1）先手、客人（玩家2）后手 —— 界面上的「玩家1（先手）」
+      // 与座位一致，不用再让玩家算「我这个座位是先手还是后手」。
+      firstPlayer: 0,
+      deck,
+      factions: [myFaction, guestFaction],
+      enhance,
+      mode: forgeMode ? 'forge' : 'normal',
+    });
+  } catch (err) {
+    // start 没发出去就**不要**开打：只会有一个人在这局里跑（见 multiplayer.js 的
+    // beginGame 注释）。留在大厅，让玩家重来一次。
+    lanInfo.gameReady = false;
+    view.hint = '开局失败：' + ((err && err.message) || '连不上房间服务，请重试');
+    refresh();
+  }
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

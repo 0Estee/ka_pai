@@ -16,6 +16,17 @@ import { LANES, ROWS } from '../../engine/src/constants.js';
 const HASH_EVERY = 8;
 /** 长轮询超时（毫秒） */
 const POLL_TIMEOUT = 20000;
+/**
+ * 长轮询请求的 fetch 超时 = 服务端挂起的时长 + 这点余量。
+ *
+ * 以前所有请求共用一个 12 秒上限，而长轮询要挂 20 秒 —— 于是一次空闲等待
+ * 必然被本地 abort 掉，客户端把「本来就没消息」当成断线：状态在
+ * connected / reconnecting 之间来回跳，连续 60 秒就会走到「连接已断开」，
+ * 会话直接停掉（**两张地图分别在不同网络下互通时最容易踩到**：
+ * 来回一趟几百毫秒，空转的次数比局域网多得多）。
+ * 所以轮询必须按自己的时长算，别用那个给普通请求准备的上限。
+ */
+const POLL_SLACK_MS = 8000;
 /** WebSocket 握手超时 —— 旧版服务端不会有 /ws，不能让界面干等 */
 const WS_OPEN_TIMEOUT_MS = 4000;
 /**
@@ -150,10 +161,11 @@ export function newRoomCode() {
  */
 const REQUEST_TIMEOUT_MS = 12000;
 
-function fetchWithTimeout(url, opts) {
+function fetchWithTimeout(url, opts, ms) {
+  const limit = Number(ms) > 0 ? Number(ms) : REQUEST_TIMEOUT_MS;
   try {
     if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-      return fetch(url, { ...(opts || {}), signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      return fetch(url, { ...(opts || {}), signal: AbortSignal.timeout(limit) });
     }
   } catch { /* 老环境没有 AbortSignal：退回不带超时 */ }
   return fetch(url, opts);
@@ -240,7 +252,12 @@ export class Transport {
    */
   async poll(timeout = POLL_TIMEOUT) {
     if (this.stopped) return { msgs: [], peerLeft: false };
-    const r = await fetchWithTimeout(this.url('/api/poll', { since: this.since, timeout }), { cache: 'no-store' });
+    // 服务端最多挂 timeout 毫秒，这边必须比它长，否则每次空闲等待都会被本地掐断
+    const r = await fetchWithTimeout(
+      this.url('/api/poll', { since: this.since, timeout }),
+      { cache: 'no-store' },
+      Math.min(timeout, POLL_TIMEOUT) + POLL_SLACK_MS,
+    );
     const data = await r.json();
     if (data && data.ok === false && data.error === 'peer-left') {
       return { msgs: [], peerLeft: true };
@@ -356,17 +373,54 @@ export class Session {
      */
     this.peerEnhance = null;
     this.step = 0;
+    /**
+     * 已经执行过的操作，按顺序。
+     *
+     * 用来做「补齐」：网络抖一下丢了中间一条 act，两端步数就会永久错开。
+     * 落后的一方发 {t:'need', from} 要，前面的一方照这份历史原样回放，
+     * 不用重建棋盘，也不用重开一局。
+     */
+    this.history = [];
+    /**
+     * start 之前收到的操作。
+     *
+     * 高延迟下「主机本地已经走了一步、start 还在路上」是常态（见 beginGame 的
+     * 注释）。这一类消息以前被直接丢掉（`if (!this.state) return false`），
+     * 客人的步数从此永远比主机少 —— 表现就是「双方都出不了牌」。
+     * 现在先攒着，start 一到就按原顺序补执行。
+     */
+    this.early = [];
+    /** 发送队列：保证多条消息**按顺序**到达服务端（对象里的 seq 按到达顺序分配） */
+    this.sendChain = null;
+    /** 正在向对端要缺失的操作（防抖，别连着发一堆 need） */
+    this.fixing = null;
     this.running = false;
     this.looping = false;
 
     this.conflict = null;
   }
 
-  /** 主机把开局参数广播出去 */
+  /**
+   * 主机把开局参数广播出去。
+   *
+   * ⚠ **顺序**：先发 start，**再**本地开局。
+   *
+   * 反过来（以前的写法：先 applyStart 再发 start）在公网上是必炸的：
+   * applyStart 会回调 onStart → 界面上屏 → tick() 排下第一拍自动阶段（260ms 后），
+   * 而那时 `transport.start()` 的那次 POST 还没回来，start 也就还没发出去 ——
+   * 于是第一条 `{k:'a'}` **抢在 start 前面**到达对端。对端还没有棋盘，
+   * 那条 act 被静默丢掉，两端的步数从此永远差一截：
+   * 表现就是「联机开局后双方都出不了牌」（客人等主机的推进，主机等客人的操作）。
+   *
+   * 局域网里 RTT 只有几毫秒，抢跑窗口小到几乎踩不中；跨网络（手机流量 / 异地）
+   * 一趟几百毫秒，**每次都踩中** —— 这就是「不同网络下必坏」的原因。
+   *
+   * 发送失败会抛出去：宁可留在大厅让玩家重试，也不要开一局只有一边在跑的棋。
+   */
   async beginGame({ seed, firstPlayer, deck, factions, enhance, mode }) {
-    this.applyStart({ seed, firstPlayer, deck, factions, enhance, mode });
     await this.transport.start();
     await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions, enhance, mode });
+    this.applyStart({ seed, firstPlayer, deck, factions, enhance, mode });
     this.onUpdate();
   }
 
@@ -394,7 +448,24 @@ export class Session {
     this.state.autoResolveChoices = false;
     this.started = true;
     this.step = 0;
+    this.history = [];
     this.onStart(this.state);
+    // start 之前抢跑到的操作：现在有棋盘了，按原顺序补执行（见构造函数的 early 说明）。
+    // 放在 onStart 之后，录制（回放）已经建好，这些操作才会被记进去。
+    if (this.early.length) {
+      const queued = this.early;
+      this.early = [];
+      for (const a of queued) {
+        try {
+          this.applyAction(a);
+        } catch {
+          break;   // 真的对不上：交给指纹检查去报冲突，别在这里硬撑
+        }
+        this.history.push(a);
+        this.step++;
+        this.onAction(a, false);
+      }
+    }
   }
 
   /** 本地要执行一个操作：先应用，再广播 */
@@ -409,12 +480,16 @@ export class Session {
       return false;
     }
     this.lastError = '';
+    const n = this.step;          // 这条操作在整局里的序号（0 起），随消息发给对端
+    this.history.push(action);
     this.step++;
     this.onAction(action, true);
     // 界面先更新：后面的广播再慢，也不该让对局停在「回合开始…」。
     this.onUpdate();
+    // 先发操作，再发指纹：反过来的话对端先看到「第 n 步的指纹」会以为丢了消息，
+    // 白白多要一轮补齐。
+    await this.broadcast({ t: 'act', a: action, n });
     await this.maybeHash();
-    await this.broadcast({ t: 'act', a: action });
     return true;
   }
 
@@ -444,12 +519,39 @@ export class Session {
    * 「联机开始后无法出牌」的另一半：广播慢，整个回合循环跟着停。
    */
   async broadcast(msg, quiet) {
-    const sending = this.transport.send(msg).catch(() => {
+    const sending = this.queueSend(msg).catch(() => {
       if (!quiet) this.setStatus('reconnecting');
     });
     try {
       await Promise.race([sending, sleep(BROADCAST_WAIT_MS)]);
     } catch { /* 忽略：状态由 onStatus 反映 */ }
+  }
+
+  /**
+   * 把一条消息排进发送队列。
+   *
+   * 服务端的 seq 是按**到达顺序**分配的，两条 POST 同时在路上就可能调换顺序 ——
+   * 对端按序执行，一调换就永久分叉。所以这里串成一条链：上一条落地了才发下一条。
+   * 链上某一条失败不能把后面的堵死（失败那条会被指纹检查兜住）。
+   */
+  queueSend(msg) {
+    const run = () => this.transport.send(msg);
+    const started = this.sendChain ? this.sendChain.then(run) : run();
+    this.sendChain = started.then(() => undefined, () => undefined);
+    return started.then(
+      (r) => r,
+      (err) => {
+        this.setStatus('reconnecting');
+        throw err;
+      },
+    );
+  }
+
+  /** 落后了：向对端要「我缺的那一段操作」 */
+  requestCatchUp() {
+    if (this.fixing) return;
+    this.fixing = setTimeout(() => { this.fixing = null; }, 3000);
+    this.queueSend({ t: 'need', from: this.step }).catch(() => {});
   }
 
   async maybeHash() {
@@ -488,8 +590,18 @@ export class Session {
         this.applyStart(msg);
         return true;
 
-      case 'act':
-        if (!this.state) return false;
+      case 'act': {
+        // 棋盘还没建好：先攒着，start 一到按原顺序补执行（见 early 的说明）
+        if (!this.state) {
+          if (this.early.length < 400) this.early.push(msg.a);
+          return false;
+        }
+        const n = typeof msg.n === 'number' ? msg.n : this.step;
+        if (n < this.step) return false;          // 重复（重连补发），忽略
+        if (n > this.step) {                      // 中间缺了几条：不硬执行，去要
+          this.requestCatchUp();
+          return false;
+        }
         try {
           this.applyAction(msg.a);
         } catch (err) {
@@ -498,12 +610,49 @@ export class Session {
           this.setStatus('closed');
           return false;
         }
+        this.history.push(msg.a);
         this.step++;
         this.onAction(msg.a, false);
         return true;
+      }
 
-      case 'hash':
-        if (msg.step === this.step && this.state) {
+      case 'need': {
+        // 对端缺了一段：把我这边第 from 步之后的原样发过去
+        if (!this.state) return false;
+        const from = Math.max(0, Number(msg.from) || 0);
+        this.queueSend({ t: 'give', from, list: this.history.slice(from, from + 400) }).catch(() => {});
+        return false;
+      }
+
+      case 'give': {
+        if (!this.state) return false;
+        const from = Math.max(0, Number(msg.from) || 0);
+        if (from !== this.step) return false;    // 不是我缺的那一段
+        let changed = false;
+        for (const a of (Array.isArray(msg.list) ? msg.list : [])) {
+          try {
+            this.applyAction(a);
+          } catch (err) {
+            this.conflict = `补齐第 ${this.step + 1} 步失败：${err.message}`;
+            this.setStatus('closed');
+            return changed;
+          }
+          this.history.push(a);
+          this.step++;
+          this.onAction(a, false);
+          changed = true;
+        }
+        return changed;
+      }
+
+      case 'hash': {
+        if (!this.state) return false;
+        // 步数不同就不比指纹：那条指纹属于另一格状态，比了只会误报「跑飞」
+        if (typeof msg.step === 'number' && msg.step > this.step) {
+          this.requestCatchUp();
+          return false;
+        }
+        if (msg.step === this.step) {
           const mine = stateHash(this.state);
           if (mine !== msg.h) {
             this.conflict = `与对手的进度不一致（第 ${msg.step} 步：${mine} vs ${msg.h}）`;
@@ -511,6 +660,7 @@ export class Session {
           }
         }
         return false;
+      }
 
       case 'bye':
         this.peerLeft = true;

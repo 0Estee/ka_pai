@@ -340,7 +340,7 @@ window.__go = (name) => {
   else if (name === 'admin') { screen = 'admin'; Cloud.loadAdminUsers(); refresh(); }
   else if (name === 'settings') goSettings();
   else if (name === 'replays') goReplays();
-  else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby') {
+  else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby' || name === 'forge') {
     screen = name;
     if (name === 'lanScan') { lanRooms = []; lanScanning = false; }
     refresh();
@@ -953,18 +953,34 @@ window.__demoUnitTarget = () => {
  * 自检钩子：伪造一个联机会话，渲染大厅，看主机「开始对战」按钮到底能不能点。
  * 这个 bug 的表现就是「能进房间，但开不了局」——按钮一直是灰的。
  */
-window.__demoLobby = (peerName) => {
+window.__demoLobby = (opts) => {
+  // 两种调用：老检查传一个名字字符串（13-lan-lobby），截图钩子传选项对象
+  const o = typeof opts === 'object' && opts !== null ? opts : { peer: opts };
   const real = session;
+  const online = o.online !== false;
+  const mode = o.mode === 'guest' ? 'guest' : 'host';
   session = {
-    isHost: true,
-    peerName: peerName === undefined ? '张三' : peerName,
+    isHost: mode === 'host',
+    mySide: mode === 'host' ? 0 : 1,
+    peerName: o.peer === undefined ? '张三' : String(o.peer),
+    peerForge: false,
     started: false,
     state: null,
+    submit: () => false,
     stop() {},
   };
   lanInfo = {
-    roomName: '测试房间', port: 8765, peerName: '', status: 'connected',
-    gameReady: false, localIp: '192.168.1.7',
+    roomName: o.roomName || '测试房间',
+    port: online ? (Number((globalThis.location || {}).port) || 0) : 8765,
+    peerName: '',
+    myName: o.me === undefined ? '张三' : String(o.me),
+    status: o.status || 'connected',
+    gameReady: !!o.gameReady,
+    discoverError: o.discoverError || '',
+    online,
+    code: o.code || 'K7QM2P',
+    joinUrl: o.joinUrl,
+    localIp: online ? '' : '192.168.1.7',
   };
   screen = 'lobby';
   refresh();

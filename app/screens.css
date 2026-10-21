@@ -3004,3 +3004,839 @@ body {
 
 /* 加入房间 / 输入房号的按钮，手机上占满一行更好点 */
 .lan-manual .rp-btn { width: 100%; min-height: 42px; margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════════
+   0.64 账本皮肤 —— 按作者参考图统一**所有**界面
+   ──────────────────────────────────────────────────────────
+   参考图（0.60.1 的首页）给出的语法只有五条，这一层把它落到每一屏：
+
+     1. 底是一张近黑的纸（#0b0908）。没有胡桃木、没有绒布、没有浮雕、
+        没有外发光 —— 那些都在 0.62.0 那层里，这一层整块盖掉。
+     2. 唯一的"实心块"是**主按钮**：整宽反白胶囊，深色字。
+        一屏只能有一个；其余一切都是字和线。
+     3. 标题、大数字用衬线（--font-title），说明文字用无衬线小一号。
+        层级靠字号与留白拉开，不靠颜色和框。
+     4. 分块不靠卡片框，靠一条 1px 头发丝线（--hair）+ 留白。
+        框多了就是"每块都想说话"，一屏就吵。
+     5. 金（--gold）只给三处：当下的那一行、货币数字、进度条；
+        不描边、不做渐变、不发光。
+
+   规则一律只读下面这几个语义变量，所以浅色 / 玻璃主题不用重写一遍。
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  /* 底色收到"一张黑纸"：原来的胡桃木 + 顶部暖光 + 绒布红光全部撤掉 */
+  --bg: #0b0908;
+  --bg-2: #100d0b;
+  --panel: #141110;
+  --panel-2: #1a1614;
+  --panel-active: #201a16;
+  --line: rgba(243, 236, 224, .10);
+  --text: #f3ece0;
+  --dim: #a2958a;
+  --desc-text: #c9bcaa;
+  --gold: #d8b26b;
+
+  /* 账本自己的语义层 */
+  --ink: var(--text);
+  --ink-dim: var(--dim);
+  --ink-faint: rgba(243, 236, 224, .42);
+  --hair: rgba(243, 236, 224, .11);
+  --row-bg: rgba(243, 236, 224, .035);
+  --row-bg-2: rgba(243, 236, 224, .075);
+  --pill-bg: #f2ead9;
+  --pill-ink: #14100c;
+  --field-bg: rgba(243, 236, 224, .04);
+  --danger: #d98d7e;
+  --ok: #9dbf90;
+}
+:root[data-theme="light"] {
+  --ink: #241f1a;
+  --ink-dim: #6d6350;
+  --ink-faint: rgba(36, 31, 26, .46);
+  --hair: rgba(36, 31, 26, .13);
+  --row-bg: rgba(36, 31, 26, .04);
+  --row-bg-2: rgba(36, 31, 26, .08);
+  --pill-bg: #241f1a;
+  --pill-ink: #f8f2e3;
+  --field-bg: rgba(255, 252, 244, .66);
+  --danger: #a8442f;
+  --ok: #4c7a3d;
+}
+:root[data-theme="glass"] {
+  --ink: #eef4fb;
+  --ink-dim: #a9bccd;
+  --ink-faint: rgba(238, 244, 251, .45);
+  --hair: rgba(238, 244, 251, .14);
+  --row-bg: rgba(238, 244, 251, .05);
+  --row-bg-2: rgba(238, 244, 251, .10);
+  --pill-bg: #eef4fb;
+  --pill-ink: #10161f;
+  --field-bg: rgba(238, 244, 251, .08);
+  --danger: #f0a396;
+  --ok: #a8d6a0;
+}
+
+/* 背景：一张纸，不是一张桌。三套主题都只留底色，纹理交给 --bg 自己。 */
+body,
+:root[data-theme="light"] body,
+:root[data-theme="glass"] body {
+  background: var(--bg);
+  background-image: none;
+}
+body::before, body::after { content: none; }
+
+/* ══════════════════════════════════════════════════════════
+   页头（首页）：版本 + 两种货币，只有一条底线
+   ══════════════════════════════════════════════════════════ */
+.home {
+  display: block;
+  padding: 0 22px 26px;
+  background: none;
+}
+.home::before { content: none; }
+.home-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 8px 0 0;
+  background: none;
+  border: 0;
+}
+.home-brand { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.home-mark { display: inline-flex; align-items: flex-end; gap: 3px; height: 16px; }
+.home-mark i {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ink);
+  opacity: .38;
+}
+.home-mark i:nth-child(1) { height: 7px; }
+.home-mark i:nth-child(2) { height: 11px; }
+.home-mark i:nth-child(3) { height: 16px; }
+.home-mark i:nth-child(4) { height: 10px; }
+.home-version { font-size: 11px; letter-spacing: .14em; color: var(--ink-faint); }
+.hud { display: flex; align-items: baseline; gap: 18px; }
+.hud-gold, .hud-dust {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: nowrap;
+}
+.hud-label { font-size: 11px; letter-spacing: .14em; color: var(--ink-faint); }
+.hud-gold b, .hud-dust b,
+:root[data-theme="light"] .hud-gold b,
+:root[data-theme="light"] .hud-dust b {
+  font-family: var(--font-title);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow: none;
+  letter-spacing: .02em;
+}
+
+/* ══════════════════════════════════════════════════════════
+   首页主体：一个名字、一句话、一个按钮
+   ══════════════════════════════════════════════════════════ */
+.home-hero { margin: 34px 0 0; padding: 0; background: none; border: 0; }
+/* 徽记与装饰线是 0.62.0 那层的浮雕语言，参考图里没有这层东西 */
+.home-emblem, .home-rule { display: none; }
+.home-logo {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: .01em;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  background: none;
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  text-shadow: none;
+}
+:root[data-theme="light"] .home-logo {
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  background-image: none;
+  text-shadow: none;
+}
+.home-kicker {
+  margin: 18px 0 0;
+  font-size: 15px;
+  letter-spacing: .06em;
+  color: var(--ink-dim);
+  text-shadow: none;
+}
+.home-lead {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ink-faint);
+}
+
+/* 主按钮：整宽反白胶囊，一屏只有它一个实心块 */
+.home .hm-btn.hm-primary,
+.home .hm-btn.hm-primary:active {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 62px;
+  margin: 28px 0 0;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--scr-pill);
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-size: 17px;
+  font-weight: 700;
+  text-align: left;
+  box-shadow: none;
+  transform: none;
+}
+.home .hm-btn.hm-primary::before,
+.home .hm-btn.hm-primary::after { content: none; display: none; }
+.home .hm-btn.hm-primary:active { opacity: .88; }
+.home .hm-btn.hm-primary .hm-text { color: var(--pill-ink); font-size: 17px; flex: 0 1 auto; }
+.home .hm-btn.hm-primary .hm-sub {
+  margin: 0;
+  max-width: 55%;
+  color: var(--pill-ink);
+  opacity: .58;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: right;
+}
+
+/* 其余入口：一块台账，行间只有一条头发丝线 */
+.home-menu {
+  display: block;
+  margin: 22px 0 0;
+  padding: 0 18px;
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  background: var(--row-bg);
+  box-shadow: none;
+}
+.home-menu .hm-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  box-shadow: none;
+}
+.home-menu .hm-btn::before { content: none; display: none; }
+.home-menu .hm-btn:active { background: none; opacity: .7; transform: none; }
+.home-menu .hm-btn .hm-text { flex: 1 1 auto; color: var(--ink); }
+.home-menu .hm-btn .hm-sub {
+  margin: 0;
+  max-width: 56%;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: right;
+}
+.home-menu .hm-btn + .hm-btn { border-top: 1px solid var(--hair); }
+.home-menu .hm-btn:active { background: var(--row-bg); }
+@media (hover: hover) {
+  .home .hm-primary:hover { opacity: .92; }
+  .home-menu .hm-btn:hover { background: var(--row-bg); }
+}
+
+/* 战绩：四列，标签小、数字大（衬线） */
+.home-foot { margin: 30px 0 0; padding: 0; background: none; border: 0; box-shadow: none; }
+.hf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.hf-stat { display: flex; flex-direction: column; gap: 7px; }
+.hf-stat span {
+  font-size: 11px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+.hf-stat b,
+:root[data-theme="light"] .hf-stat b {
+  font-family: var(--font-title);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow: none;
+}
+.hf-level { margin-top: 24px; }
+.hf-level-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.hud-lv-num { font-family: var(--font-title); font-size: 15px; color: var(--ink); }
+.hf-level-note { font-size: 11px; color: var(--ink-faint); }
+.hf-level-note b { color: var(--ink-dim); font-weight: 500; }
+.hud-lv-bar {
+  display: block;
+  height: 3px;
+  margin-top: 11px;
+  border-radius: 2px;
+  background: var(--hair);
+  overflow: hidden;
+  box-shadow: none;
+}
+.hud-lv-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--pill-bg);
+  box-shadow: none;
+}
+.hf-warn { margin-top: 14px; font-size: 11px; line-height: 1.6; color: var(--danger); }
+
+/* ══════════════════════════════════════════════════════════
+   二级页面：页头一条线，正文就是一张清单
+   ══════════════════════════════════════════════════════════ */
+.screen { display: flex; flex-direction: column; padding: 0 0 24px; background: none; }
+.screen::before { content: none; }
+.screen-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 10px 20px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  box-shadow: none;
+}
+.screen-head h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.btn-back, .btn-home {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow: none;
+}
+.btn-back:active, .btn-home:active { color: var(--ink); }
+.screen-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* ── 行：一条线，不描框 ────────────────────────────────── */
+.screen-body > .hm-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 58px;
+  margin: 0;
+  padding: 12px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  box-shadow: none;
+}
+.screen-body > .hm-btn:active { background: var(--row-bg); }
+.screen-body > .hm-btn .hm-text { flex: 1 1 auto; color: var(--ink); }
+.screen-body > .hm-btn .hm-sub {
+  margin: 0;
+  max-width: 54%;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: right;
+}
+/* 主按钮在正文里也是那张反白胶囊：它是这一屏唯一要做的事 */
+.screen-body > .hm-btn.hm-primary {
+  margin: 20px;
+  width: calc(100% - 40px);
+  min-height: 60px;
+  border: 0;
+  border-radius: var(--scr-pill);
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+.screen-body > .hm-btn.hm-primary .hm-text { color: var(--pill-ink); font-weight: 700; }
+.screen-body > .hm-btn.hm-primary .hm-sub { color: var(--pill-ink); opacity: .58; font-weight: 500; }
+.screen-body > .hm-btn.hm-primary:active { background: var(--pill-bg); opacity: .88; }
+.screen-body > .hm-btn:disabled { opacity: .38; }
+
+/* ── 说明文字 ──────────────────────────────────────────── */
+.set-tip, .forge-mode-tip {
+  padding: 12px 20px 6px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-faint);
+}
+.set-head {
+  padding: 24px 20px 10px;
+  font-size: 11px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+
+/* ── 设置 ──────────────────────────────────────────────── */
+.set-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+}
+.set-label { min-width: 0; flex: 1 1 auto; }
+.set-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.set-desc { margin-top: 5px; font-size: 12px; line-height: 1.6; color: var(--ink-faint); }
+
+/* 分段控件：一枚胶囊，选中的那格反白 */
+.seg {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-pill);
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+.seg-item {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 13px;
+  box-shadow: none;
+}
+.seg-item.on { background: var(--pill-bg); color: var(--pill-ink); font-weight: 600; }
+
+/* ── 难度 / 阵营 / 房间：同一种行 ──────────────────────── */
+.diff-list, .room-list { display: block; }
+.diff-row, .room-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 15px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  box-shadow: none;
+}
+.diff-row:active, .room-row:active { background: var(--row-bg); }
+.diff-row.on {
+  background: none;
+  box-shadow: inset 2px 0 0 var(--gold);
+}
+.diff-main { min-width: 0; flex: 1 1 auto; }
+.diff-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+.diff-row.on .diff-name { font-weight: 600; }
+.diff-tag { margin-top: 3px; font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
+.diff-cheat { margin-top: 4px; font-size: 11px; color: var(--ink-faint); }
+.fac-row .diff-tag { display: none; }
+.fac-row { min-height: 54px; }
+.diff-row::before, .diff-row::after { content: none; display: none; }
+.diff-go, .cloud-btn.primary {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 20px;
+  padding: 0;
+  min-height: 58px;
+  border: 0;
+  border-radius: var(--scr-pill);
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  box-shadow: none;
+}
+.diff-go:disabled { opacity: .38; }
+
+/* ── 输入框 ────────────────────────────────────────────── */
+.cloud-input, .rp-input, .lan-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--field-bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  box-shadow: none;
+}
+.cloud-input::placeholder, .rp-input::placeholder, .lan-input::placeholder { color: var(--ink-faint); }
+.cloud-input:focus, .rp-input:focus, .lan-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* ── 小按钮（次要动作）────────────────────────────────── */
+.cloud-btn, .rp-mini, .fc-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-pill);
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  box-shadow: none;
+}
+.cloud-btn:active, .rp-mini:active, .fc-btn:active { background: var(--row-bg); }
+.rp-mini.danger { color: var(--danger); }
+.cloud-btn.primary { border: 0; }
+
+/* ── 云存档 / 大厅：一块块，不框 ───────────────────────── */
+.cloud-card, .cloud-user, .cloud-conflict, .cloud-admin-card, .lobby-card {
+  margin: 0;
+  padding: 18px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.cloud-card-head, .cloud-user-name, .lobby-room {
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cloud-note, .cloud-admin-note {
+  padding: 12px 20px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+.cloud-ok { font-size: 12px; color: var(--ok); }
+.cloud-err, .lan-err, .rp-bad, .rp-err { font-size: 12px; line-height: 1.6; color: var(--danger); }
+.lobby-code {
+  display: block;
+  margin: 6px 0 2px;
+  font-family: var(--font-title);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  color: var(--ink);
+}
+.lobby-link, .lobby-url b { font-size: 12px; color: var(--ink-dim); word-break: break-all; }
+.lobby-url { margin-top: 10px; font-size: 12px; line-height: 1.7; color: var(--ink-faint); }
+.lobby-status { margin-top: 12px; font-size: 12px; color: var(--ink-faint); }
+.lobby-broke { margin: 0 20px 14px; font-size: 12px; line-height: 1.7; color: var(--danger); }
+
+/* ── 回放列表：一行一局，胜/负用小字，时间在最右 ───────── */
+.rp-row {
+  margin: 0;
+  padding: 16px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.rp-line1 { display: flex; align-items: baseline; gap: 10px; }
+.rp-res {
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rp-res.win { color: var(--gold); }
+.rp-res.lose { color: var(--ink-dim); }
+.rp-res.draw { color: var(--ink-dim); }
+.rp-date { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
+.rp-meta { margin-top: 4px; font-size: 12px; color: var(--ink-faint); }
+.rp-note { margin-top: 6px; font-size: 12px; line-height: 1.6; color: var(--ink-dim); }
+.rp-note-empty { color: var(--ink-faint); }
+.rp-ops { margin-top: 10px; display: flex; gap: 8px; }
+.rp-empty { padding: 28px 20px; font-size: 12px; color: var(--ink-faint); }
+
+/* ── 强化工坊：一张表 ──────────────────────────────────── */
+.forge-wallet {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--hair);
+}
+.forge-group { margin: 0; padding: 0; border: 0; background: none; }
+.forge-group-head {
+  padding: 18px 20px 8px;
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--ink-faint);
+}
+.gi-card, .forge-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 13px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.gi-name, .fc-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+.gi-meta, .fc-meta { font-size: 11px; color: var(--ink-faint); }
+.forge-hint, .forge-seg { margin: 0; padding: 12px 20px; }
+
+/* ══════════════════════════════════════════════════════════
+   对局屏：黑桌面 + 唯一亮的东西是牌
+   ══════════════════════════════════════════════════════════ */
+.topbar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--hair);
+  box-shadow: none;
+}
+.topbar .turn {
+  font-family: var(--font-title);
+  font-size: 14px;
+  color: var(--ink);
+  text-shadow: none;
+}
+.topbar .deck, .topbar .pile { color: var(--ink-faint); }
+.btn-menu, .btn-end, .btn-brew, .btn-sac {
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-pill);
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  box-shadow: none;
+}
+.statusbar {
+  background: var(--bg-2);
+  border: 0;
+  border-top: 1px solid var(--hair);
+  box-shadow: none;
+}
+.statusbar.me { border-left: 2px solid rgba(130, 166, 192, .55); }
+.statusbar.foe { border-left: 2px solid rgba(196, 128, 122, .55); }
+.statusbar.active { background: var(--panel-active); }
+.sb-side b { color: var(--ink); }
+.sb-role { color: var(--ink-faint); }
+.sb-king { color: var(--ink-dim); }
+.board-wrap {
+  background: var(--bg);
+  background-image: none;
+  border: 1px solid var(--hair);
+  box-shadow: none;
+}
+.lane-name, .row-label { color: var(--ink-faint); letter-spacing: .1em; }
+.slot {
+  border: 1px solid rgba(243, 236, 224, .09);
+  border-radius: 10px;
+  background: rgba(243, 236, 224, .018);
+  box-shadow: none;
+}
+.slot.row-front { background: rgba(243, 236, 224, .035); }
+.slot.mine { border-color: rgba(130, 166, 192, .30); }
+.slot.foe { border-color: rgba(196, 128, 122, .30); }
+.slot.trap {
+  border-style: dashed;
+  border-color: rgba(243, 236, 224, .12);
+  background: rgba(243, 236, 224, .015);
+}
+.trap-mark { color: var(--ink-faint); }
+.hand-wrap { background: var(--bg); border-top: 1px solid var(--hair); box-shadow: none; }
+.hint {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.phasebar {
+  background: var(--bg);
+  border-top: 1px solid var(--hair);
+  box-shadow: none;
+}
+.phase-name { font-family: var(--font-title); color: var(--ink); letter-spacing: .04em; }
+.phase-status { color: var(--ink-faint); }
+.pip { background: rgba(243, 236, 224, .12); }
+.pip.on { background: var(--gold); }
+
+/* 主题切换时这些地方以前会被另一层写死成深色，统一交回变量 */
+:root[data-theme="light"] .home-top,
+:root[data-theme="light"] .home-foot,
+:root[data-theme="light"] .home .hm-btn,
+:root[data-theme="light"] .set-group,
+:root[data-theme="light"] .diff-row,
+:root[data-theme="light"] .room-row,
+:root[data-theme="light"] .rp-row,
+:root[data-theme="light"] .cloud-card,
+:root[data-theme="light"] .cloud-user,
+:root[data-theme="light"] .cloud-conflict,
+:root[data-theme="light"] .lobby-card,
+:root[data-theme="light"] .screen-head,
+:root[data-theme="glass"] .home-top,
+:root[data-theme="glass"] .home-foot,
+:root[data-theme="glass"] .home .hm-btn,
+:root[data-theme="glass"] .set-group,
+:root[data-theme="glass"] .diff-row,
+:root[data-theme="glass"] .room-row,
+:root[data-theme="glass"] .rp-row,
+:root[data-theme="glass"] .cloud-card,
+:root[data-theme="glass"] .cloud-user,
+:root[data-theme="glass"] .cloud-conflict,
+:root[data-theme="glass"] .lobby-card,
+:root[data-theme="glass"] .screen-head {
+  background: none;
+  border-color: var(--hair);
+  box-shadow: none;
+}
+
+/* ── 联机 / 回放 / 云存档里的小按钮与提示条：同样是"字和线"，不再是一块块 ── */
+.rp-btn, .lan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-pill);
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  box-shadow: none;
+}
+.rp-btn:active, .lan-btn:active { background: var(--row-bg); }
+.rp-btn:disabled, .lan-btn:disabled { opacity: .35; }
+.rp-btn.rp-btn-play, .lan-btn.primary {
+  border: 0;
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-weight: 600;
+}
+.lan-manual .rp-btn { width: 100%; }
+.lan-manual { padding: 18px 20px; border-top: 1px solid var(--hair); }
+.lan-manual p, .lan-manual div { font-size: 12px; line-height: 1.7; color: var(--ink-faint); }
+
+/* 提示条：一行字 + 一条竖线，不套框 */
+.cloud-note, .cloud-ok, .cloud-err, .cloud-conflict, .lan-err, .rp-err, .set-warn {
+  margin: 0;
+  padding: 12px 20px 12px 18px;
+  border: 0;
+  border-left: 2px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  color: var(--ink-dim);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.cloud-err, .lan-err, .rp-err, .warning { border-left-color: var(--danger); color: var(--danger); }
+.cloud-ok { border-left-color: var(--ok); color: var(--ink-dim); }
+
+/* 棋盘格子：灰线，不染木色 */
+.slot.mine, .slot.foe { border-color: rgba(243, 236, 224, .10); }
+.slot.row-front { background: rgba(243, 236, 224, .045); }
+.slot.mine.row-front { border-color: rgba(243, 236, 224, .13); }
+.slot.legal { border-color: var(--gold); background: rgba(216, 178, 107, .08); box-shadow: none; }
+.slot.picked { border-color: var(--pill-bg); box-shadow: none; }
+
+/* ── 收口：三层历史样式叠在一起，主按钮与"选中态"这两处必须盖死 ──────
+   主按钮：0.62 那层给浅色 / 玻璃主题各写了一份带 :root[data-theme] 的
+   高特异性渐变（(0,4,0)），普通类选择器压不住，所以这里用 !important
+   把它钉成"反白胶囊 + 深字"——一屏只有一个实心块，这条不能输。
+   选中态：只留"名字变金"这一个信号，左边那条竖线（以及任何伪元素）
+   一律撤掉，否则一屏会同时亮起七八行。 */
+:root .home .hm-btn.hm-primary,
+:root .home .hm-btn.hm-primary:active,
+:root[data-theme="light"] .home .hm-btn.hm-primary,
+:root[data-theme="glass"] .home .hm-btn.hm-primary {
+  background: var(--pill-bg) !important;
+  background-image: none !important;
+  color: var(--pill-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+:root .home .hm-btn.hm-primary .hm-text,
+:root[data-theme="light"] .home .hm-btn.hm-primary .hm-text,
+:root[data-theme="glass"] .home .hm-btn.hm-primary .hm-text { color: var(--pill-ink) !important; }
+:root .home .hm-btn.hm-primary .hm-sub,
+:root[data-theme="light"] .home .hm-btn.hm-primary .hm-sub,
+:root[data-theme="glass"] .home .hm-btn.hm-primary .hm-sub { color: var(--pill-ink) !important; opacity: .58; }
+
+.screen-body > .hm-btn.hm-primary,
+.diff-go,
+.cloud-btn.primary,
+.rp-btn.rp-btn-play {
+  background: var(--pill-bg) !important;
+  background-image: none !important;
+  color: var(--pill-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.screen-body > .hm-btn.hm-primary .hm-text,
+.diff-go, .cloud-btn.primary, .rp-btn.rp-btn-play { color: var(--pill-ink) !important; }
+.screen-body > .hm-btn.hm-primary .hm-sub { color: var(--pill-ink) !important; opacity: .58; }
+
+.diff-row, .diff-row * { border-left: 0 !important; }
+.diff-row::before, .diff-row::after,
+.diff-row *::before, .diff-row *::after { content: none !important; display: none !important; }
+.diff-row { box-shadow: none !important; }
+.diff-row.on { box-shadow: none !important; background: none !important; }
+.diff-row.on .diff-name { color: var(--gold); font-weight: 600; }
+.diff-row.on .diff-tag { color: var(--ink-faint); }

@@ -138,6 +138,18 @@ export function softCheck(name, fn) {
   }
 }
 
+/** 异步版 check：串行 await，用于要跑真实 Promise 链的检查（联机锁步之类） */
+export async function acheck(name, fn) {
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+  } catch (err) {
+    failures.push({ name, message: err.message });
+    console.log(`  ✗ ${name}`);
+    console.log(`      ${err.message.split('\n')[0]}`);
+  }
+}
+
 export function check(name, fn) {
   try {
     fn();

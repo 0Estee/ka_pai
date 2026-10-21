@@ -10,6 +10,7 @@
 app/dist/
 android/build/
 shots/
+.shots/
 
 #  工具的工作目录（脚本自己会用）
 .verify-apk/
