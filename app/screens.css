@@ -3840,3 +3840,362 @@ body::before, body::after { content: none; }
 .diff-row.on { box-shadow: none !important; background: none !important; }
 .diff-row.on .diff-name { color: var(--gold); font-weight: 600; }
 .diff-row.on .diff-tag { color: var(--ink-faint); }
+
+
+/* ══════════════════════════════════════════════════════════
+   0.66 手牌 / 靶场 / 阵营介绍（作者 2026-10-22）
+   ──────────────────────────────────────────────────────────
+   第 3 条「手牌样式没有跟随全局样式设计」：手牌还停在 0.62 那套
+   「胡桃木渐变 + 金边 + 内发光 + 金色费用球」里，和 0.64 定下的账本皮肤
+   （一张近黑的纸、1px 头发丝线、衬线标题、金只给当下那一行）是两套语言。
+   这一层把 .card 整块重画成纸：平面底色 + 1px 线，唯一的金留给「选中的那张」。
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 手牌区：一条线，不是一块木头 ──────────────────────── */
+.hand-wrap {
+  background: none;
+  background-image: none;
+  border-top: 1px solid var(--hair);
+  box-shadow: none;
+}
+.hand { gap: 7px; padding: 9px 12px 8px; }
+.hand-empty { color: var(--ink-faint); }
+
+.card {
+  flex: 0 0 82px;
+  padding: 6px 6px 7px;
+  border: 1px solid var(--card-edge);
+  border-radius: 3px;
+  background: var(--card-surface);
+  background-image: none;
+  box-shadow: none;
+  overflow: visible;
+  /* 手牌高度是定死的（126px），内容要铺满这张纸，不能挤在顶上留一片空白 */
+  justify-content: space-between;
+  transition: transform .12s, border-color .12s, background-color .12s;
+}
+/* 卡面（纸）与线的深浅：比 hair 重一档 —— 手牌是场上的「实体」，
+   用 0.035 的底 + 0.11 的线几乎看不见，试卡时连有几张牌都数不清。 */
+:root {
+  --card-surface: rgba(243, 236, 224, .075);
+  --card-edge: rgba(243, 236, 224, .20);
+}
+:root[data-theme="light"] {
+  --card-surface: #fffcf3;
+  --card-edge: rgba(36, 31, 26, .22);
+}
+:root[data-theme="glass"] {
+  --card-surface: rgba(238, 244, 251, .10);
+  --card-edge: rgba(238, 244, 251, .24);
+}
+
+/* 0.62 的内框与顶部反光：账本里没有这两样东西 */
+.card::before, .card::after { content: none; display: none; }
+.card.is-unit { background: var(--card-surface); }
+/* 锦囊是一张薄一点的纸：同一个底，线暗一档 */
+.card.is-spell, .card.is-item {
+  background: var(--card-surface);
+  background-image: none;
+  border-color: var(--hair);
+}
+/* 能出 / 不能出：靠线的明暗，不靠颜色 */
+.card.playable { border-color: var(--ink-faint); }
+.card.unplayable, .card.unafford { opacity: .36; filter: none; }
+/* 选中＝当下那一张：这里才允许出现金 */
+.card.selected {
+  transform: translateY(-7px);
+  border-color: var(--gold);
+  background: var(--row-bg-2);
+  box-shadow: none;
+  z-index: 5;
+}
+.card.playable:active { transform: translateY(-2px); }
+.card.selected:active { transform: translateY(-5px); }
+
+/* 费用：一个衬线数字，没有金球 */
+.c-cost {
+  position: absolute;
+  top: 5px;
+  left: 7px;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  background-image: none;
+  box-shadow: none;
+  color: var(--ink);
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  display: block;
+}
+.c-cost-mod { font-style: normal; font-size: 9px; color: var(--ink-faint); }
+
+.c-name {
+  margin: 14px 0 0;
+  font-family: var(--font-title);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: .01em;
+  text-align: center;
+  color: var(--ink);
+  text-shadow: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-stats {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--hair);
+  font-size: 11px;
+  font-family: var(--font-title);
+  text-shadow: none;
+}
+.c-stats span:first-child, .c-stats span:last-child { color: var(--ink-dim); }
+.c-stats span::before { content: none; display: none; }
+.c-kw {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--ink-faint);
+}
+.c-desc {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--ink-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 超能力 / 原料角标：一条线框的小字，不发光。
+   ⚠ 必须带 .card 前缀：style.css 里那条是 .card .c-sp（0,2,0），
+   只写 .c-sp 会被它压住，角标就还是金底黑字。 */
+.card .c-sp, .card .c-raw {
+  top: 4px;
+  right: 5px;
+  padding: 0 3px;
+  border: 1px solid var(--hair);
+  border-radius: 2px;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 8px;
+  line-height: 12px;
+}
+.card.is-superpower {
+  border-color: var(--ink-faint);
+  box-shadow: none;
+}
+
+/* ── 伤害原因（飘字下面那一行小字） ────────────────────── */
+.fx-why {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 9px;
+  line-height: 1.2;
+  letter-spacing: .02em;
+  color: var(--ink-dim);
+  text-shadow: none;
+}
+
+/* ── 单位详情里的「最近受伤」 ──────────────────────────── */
+.ui-hits { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--hair); }
+.ui-hits ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ui-hits li {
+  padding: 2px 8px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.ui-hits li b { margin-right: 4px; font-weight: 600; color: var(--ink); }
+
+/* ── 阵营介绍（点难度页上的「介绍」展开） ──────────────── */
+.fac-item { border-bottom: 1px solid var(--hair); }
+.fac-item .diff-row { border-bottom: 0; }
+.fac-line { display: flex; align-items: stretch; }
+.fac-more {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: 16px;
+  padding: 0 10px;
+  min-height: 28px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fac-more.on { border-color: var(--gold); color: var(--gold); }
+.fac-intro { padding: 0 20px 16px; }
+.fac-intro-lead {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.fac-intro-line { margin: 0 0 6px; font-size: 12px; line-height: 1.75; color: var(--ink-dim); }
+.fac-intro-line:last-child { margin-bottom: 0; }
+.fac-intro-cards {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--hair);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+
+/* ── 靶场：工具条 + 加牌面板 ──────────────────────────── */
+.topbar-sb { border-bottom: 0; }
+.sb-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px 9px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--bg);
+}
+.sb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sb-row::-webkit-scrollbar { display: none; }
+.sb-brand {
+  flex: 0 0 auto;
+  padding-right: 2px;
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+.sb-chip {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 24px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sb-chip:active { background: var(--row-bg); color: var(--ink); }
+.sb-chip.on { border-color: var(--gold); color: var(--gold); }
+
+.sb-pick {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.sb-pick-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--hair);
+  font-family: var(--font-title);
+  font-size: 15px;
+  color: var(--ink);
+}
+.sb-pick-body { flex: 1 1 auto; overflow-y: auto; padding: 4px 0 40px; }
+.sb-pick-group { padding-bottom: 10px; }
+.sb-pick-head {
+  padding: 12px 16px 8px;
+  border-top: 1px solid var(--hair);
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+.sb-pick-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+  padding: 0 12px;
+}
+.sb-pick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 1px solid var(--hair);
+  border-radius: 3px;
+  background: var(--row-bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.sb-pick-card i { font-style: normal; font-size: 10px; color: var(--ink-faint); }
+.sb-pick-card.is-unit { background: var(--row-bg-2); }
+.sb-pick-card:active { border-color: var(--gold); }
+
+/* ══════════════════════════════════════════════════════════
+   0.66 状态条：一行字 + 一条线（浅色主题原来是一条深色块）
+   ──────────────────────────────────────────────────────────
+   0.62 那层给 .sb-role / .sb-king 上了深棕色底、给 .pip 上了蓝白渐变，
+   0.64 又用 var(--panel-active) 画了「当前行动方」——而 --panel-active 只有深色值，
+   于是**浅色主题**下这条状态条就是一整块深色底 + 深棕字，几乎读不出来。
+   这一层把它收回账本语法：底色只比纸亮一档，其余全靠墨色。
+   ══════════════════════════════════════════════════════════ */
+.statusbar { background: none; }
+.statusbar.me, .statusbar.foe { border-left-width: 2px; }
+.statusbar.active { background: var(--row-bg-2); }
+.statusbar .sb-side b,
+.statusbar .sb-king,
+.statusbar .sb-mana { color: var(--ink) !important; }
+.statusbar.me .sb-king { color: var(--ink) !important; }
+.statusbar .sb-hand { color: var(--ink-faint) !important; }
+.statusbar .sb-role {
+  padding: 0 6px;
+  border: 1px solid var(--hair) !important;
+  border-radius: 999px;
+  background: none !important;
+  color: var(--ink-faint) !important;
+}
+.statusbar .sb-king {
+  border: 1px solid var(--hair);
+  border-radius: 3px;
+  background: none;
+}
+.statusbar .sb-king.targetable {
+  border-color: var(--gold);
+  background: none;
+  color: var(--gold) !important;
+}
+.statusbar .pip {
+  border: 0;
+  background: var(--hair);
+  box-shadow: none;
+}
+.statusbar .pip.on { background: var(--ink-dim); box-shadow: none; }

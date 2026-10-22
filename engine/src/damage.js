@@ -174,7 +174,7 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
     if (doll && doll.voodooTurn !== state.turn) {
       doll.voodooTurn = state.turn;
       log(state, { type: 'voodoo-redirect', side: target.side, uid: doll.uid, amount: finalAmount });
-      dealDamage(state, source, { kind: 'king', side: 1 - target.side }, finalAmount, { ...opts, noRedirect: true });
+      dealDamage(state, source, { kind: 'king', side: 1 - target.side }, finalAmount, { ...opts, noRedirect: true, reason: opts.reason || '巫毒娃娃转移' });
       return 0;
     }
     /**
@@ -197,7 +197,7 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
     const guard = opts.noRedirect ? null : findKingGuard(state, target.side);
     if (guard && kingAmount > 0) {
       log(state, { type: 'king-guard', side: target.side, uid: guard.uid, amount: kingAmount });
-      dealDamage(state, source, { kind: 'unit', unit: guard }, kingAmount, { ...opts, noRedirect: true });
+      dealDamage(state, source, { kind: 'unit', unit: guard }, kingAmount, { ...opts, noRedirect: true, reason: opts.reason || '神使替伤' });
       return 0;
     }
     /**
@@ -226,7 +226,11 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
     // 国王生命也可能被强化出小数（国王本身不会被强化，但伤害量可能是小数值），
     // 统一过 fixNum，别在状态条上露出 15.299999999999999
     p.kingHp = fixNum(p.kingHp - kingAmount);
-    log(state, { type: 'king-damage', side: target.side, amount: kingAmount, hp: p.kingHp, source: source ? source.uid : null });
+    log(state, {
+      type: 'king-damage', side: target.side, amount: kingAmount, hp: p.kingHp,
+      source: source ? source.uid : null,
+      reason: damageReason(state, source, opts),
+    });
 
     // 「造成伤害:」异能**包括对国王造成伤害**（作者确认，规则书 §1 已同步修订）。
     // 「淬毒」现在**也能挂到国王身上**（作者 2026-10 要求）；「疾病」仍然不触发（国王不是单位）。
@@ -244,7 +248,12 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
     unit.hp = fixNum(unit.hp - finalAmount);
     unit.lastDamageSource = source ? source.uid : null;
     // 带上位置：界面要按格子放「掉字」单位被打死之后就已经不在棋盘上了，光有 uid 找不到格子。
-  log(state, { type: 'damage', uid: unit.uid, amount: finalAmount, hp: unit.hp, source: source ? source.uid : null, lane: unit.lane, side: unit.side, row: unit.row });
+  log(state, {
+      type: 'damage', uid: unit.uid, amount: finalAmount, hp: unit.hp,
+      source: source ? source.uid : null, lane: unit.lane, side: unit.side, row: unit.row,
+      // 受伤原因（界面/战报都要写明，见 damageReason）
+      reason: damageReason(state, source, opts),
+    });
 
     // ── 荆棘：按「最终伤害」对来源反弹（裁决 B6）
     //    虚拟来源（带词条的锦囊）不在棋盘上，反弹它没有意义，直接跳过 ——
@@ -254,6 +263,7 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
       log(state, { type: 'thorns', uid: unit.uid, x: thorns.x, source: source.uid });
       dealDamage(state, unit, { kind: 'unit', unit: source }, thorns.x, {
         noThorns: true, noCrit: true, noKeywords: true,
+        reason: '荆棘反弹（' + ((state.cardLib[unit.cardId] || {}).name || '单位') + '）',
       });
     }
 
@@ -544,6 +554,22 @@ function findKingGuard(state, side) {
     if (!best || u.hp < best.hp || (u.hp === best.hp && u.uid < best.uid)) best = u;
   }
   return best;
+}
+
+/**
+ * 「这次伤害是谁打的 / 为什么」（作者 2026-10-22：每次卡牌受伤都要写明原因）。
+ *
+ * 优先级：调用点显式给的 opts.reason > 来源单位 / 虚拟来源的名字 > 兜底文案。
+ * 兜底那一档真的会出现：环境伤害、标记结算（中毒 / 灼烧）都没有来源，
+ * 它们各自的调用点会显式传 reason，所以这里的兜底只防遗漏。
+ */
+function damageReason(state, source, opts) {
+  if (opts && opts.reason) return String(opts.reason);
+  if (source) {
+    const name = source.name || ((state.cardLib || {})[source.cardId] || {}).name || '';
+    if (name) return source.virtual ? name : name + ' 攻击';
+  }
+  return '未知来源';
 }
 
 let _damageDepth = 0;

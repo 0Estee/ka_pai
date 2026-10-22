@@ -136,6 +136,15 @@ function computePlayable() {
     ? (rq.options || []).filter((o) => o.lane && o.row)
     : [];
   if (state.winner !== null) return;
+  /**
+   * 靶场（作者 2026-10-22）：手里的**每一张**都能出。
+   * 引擎那边 playCard 也不再校验阶段 / 费用 / 落点，所以这里不做任何过滤 ——
+   * 少画一个高亮就会让人以为「这张牌不能试」。
+   */
+  if (state.sandbox === true) {
+    for (const hc of state.players[me()].hand) view.playableIids.push(hc.iid);
+    return;
+  }
   if (G.getActor(state) !== me()) return;
   for (const play of G.getLegalPlays(state, me())) {
     const def = state.cardLib[play.cardId];
@@ -194,7 +203,8 @@ function toggleBrewPick(iid) {
 
 function selectCard(iid) {
   if (view.busy || state.winner !== null) return;
-  if (G.getActor(state) !== me()) return;
+  // 靶场：不看「现在轮到谁」—— 自动阶段（回合开始 / 开战）里也想试牌
+  if (state.sandbox !== true && G.getActor(state) !== me()) return;
   clearTimeout(autoAdvanceTimer);
 
   if (view.selectedIid === iid) {
@@ -207,6 +217,48 @@ function selectCard(iid) {
   if (!hc) return;
   const def = state.cardLib[hc.cardId];
   const p = state.players[me()];
+
+  /**
+   * 靶场（作者 2026-10-22）：不校验费用 / 落点 / 阶段。
+   *   · 单位牌 —— 两家所有空格都点得动，点哪边就放到哪边
+   *   · 锦囊牌 —— 任何单位 / 国王 / 线路都能指定
+   */
+  if (state.sandbox === true) {
+    view.selectedIid = iid;
+    view.pickedSlot = null;
+    view.legalSummonCells = [];
+    view.legalUnitTargets = [];
+    view.legalLanes = [];
+    view.legalKingTargets = [];
+    view.pickOpen = false;
+    if (def.type === 'unit') {
+      const slots = [];
+      for (const lane of LANES) {
+        for (const side of [0, 1]) {
+          for (const row of ROWS) {
+            if (!state.board[lane].units[side][row]) slots.push({ lane, row, side });
+          }
+        }
+      }
+      view.legalSlots = slots;
+      view.hint = `点任意空格放下「${def.name}」（点对面那一侧＝放到对面）`;
+    } else {
+      view.legalSlots = [];
+      for (const lane of LANES) {
+        for (const side of [0, 1]) {
+          for (const row of ROWS) {
+            const u = state.board[lane].units[side][row];
+            if (u) view.legalUnitTargets.push(u.uid);
+          }
+        }
+      }
+      view.legalLanes = LANES.slice();
+      view.legalKingTargets = [0, 1];
+      view.hint = `点任意格子 / 单位 / 国王，把「${def.name}」打过去`;
+    }
+    refresh();
+    return;
+  }
 
   // 炼金原料不能直接打出（引擎会拒绝），点它就是「选中/取消选中，准备炼药」。
   if (G.isRawMaterial(def)) {
@@ -412,6 +464,29 @@ function handleSlotClick(slotEl) {
   }
 
   if (view.selectedIid === null) return;
+
+  /**
+   * 靶场（作者 2026-10-22）：**点哪个格子就作用在哪个格子**。
+   *   · 单位牌 → 放到那一格（点对面那一侧＝放到对面，placeSide 走引擎的 sandbox 分支）
+   *   · 锦囊牌 → 那一格有单位就打它，没有就按线路指定
+   * 不做「再点一次确认」：靶场是试卡，误放的代价只是按一下「清空场地」。
+   */
+  if (state.sandbox === true) {
+    const lane = slotEl.dataset.lane;
+    const row = slotEl.dataset.row;
+    const side = Number(slotEl.dataset.side);
+    const hc = state.players[me()].hand.find((c) => c.iid === view.selectedIid);
+    const def = hc && state.cardLib[hc.cardId];
+    if (!def) { clearSelection(); refresh(); return; }
+    if (def.type === 'unit') {
+      commitPlay(view.selectedIid, { lane, row, placeSide: side });
+      return;
+    }
+    const occupant = state.board[lane].units[side][row];
+    commitPlay(view.selectedIid, occupant ? { targetUid: occupant.uid, lane } : { lane });
+    return;
+  }
+
   if (Number(slotEl.dataset.side) !== me()) return;
 
   const lane = slotEl.dataset.lane;
@@ -602,6 +677,24 @@ function handleUnitClick(uid) {
 
   const clicked = M.findUnit(state, uid);
 
+  /**
+   * 靶场（作者 2026-10-22）：选着牌点一个单位
+   *   · 锦囊 → 直接把它当目标打过去（敌我都行，试验牌就是这么用的）
+   *   · 单位牌 → 这一格已经有人了，提示先清空（不静默吞掉这一下）
+   */
+  if (state.sandbox === true && view.selectedIid !== null && clicked) {
+    const hc = state.players[me()].hand.find((c) => c.iid === view.selectedIid);
+    const def = hc && state.cardLib[hc.cardId];
+    if (!def) { clearSelection(); refresh(); return; }
+    if (def.type === 'unit') {
+      view.hint = '这一格已经有单位了：先「清空场地」，或者改用锦囊打到它身上';
+      refresh();
+      return;
+    }
+    commitPlay(view.selectedIid, { targetUid: clicked.uid, lane: clicked.lane });
+    return;
+  }
+
   /** 献祭模式（恶魔阵营）：点谁谁被献祭  只认自己的单位 */
   if (view.sacMode) {
     if (!clicked || clicked.side !== me()) {
@@ -646,6 +739,11 @@ function handleUnitClick(uid) {
 function handleKingClick(side) {
   if (view.busy || state.winner !== null) return;
   if (view.selectedIid === null) return;
+  // 靶场：两边的国王都能被指定（比如「对一个敌方目标造成伤害」想打谁的国王都行）
+  if (state.sandbox === true) {
+    commitPlay(view.selectedIid, { targetKing: true, targetKingSide: side });
+    return;
+  }
   if (!view.legalKingTargets.includes(side)) {
     view.hint = '这张牌不能指定国王';
     refresh();
@@ -718,6 +816,21 @@ function forgePickSkill(skillId) {
   commitForge(r.profile, `${pick.name} 精通：获得「${skill ? skill.name : skillId}」（−${r.cost} 星尘）`);
 }
 
+/**
+ * 靶场：轮到下一个阵营并立刻补发它的全部超能力（作者 2026-10-22「可以切换阵营」）。
+ * 换过去的旧牌**留在手里** —— 试卡时经常要「拿两家的牌对撞」，收走反而碍事。
+ */
+function sandboxCycleFaction(side) {
+  const keys = Object.keys(G.FACTIONS);
+  const p = state.players[side];
+  const at = keys.indexOf(p.faction);
+  const next = keys[(at + 1) % keys.length];
+  G.sandboxSetFaction(state, side, next);
+  G.sandboxRefillMana(state, side);
+  view.hint = `${side === me() ? '我方' : '对方'}阵营换成「${(G.FACTIONS[next] || {}).name || next}」`;
+  refresh();
+}
+
 function handleAction(act, el) {
   const id = el && el.dataset ? el.dataset.id : undefined;
 
@@ -744,6 +857,68 @@ function handleAction(act, el) {
     return;
   }
   if (act === 'start-ai') { startNewGame(); return; }
+  // ── 靶场（作者 2026-10-22）：试卡的沙盒，进来就是一局随便摆的对局
+  if (act === 'start-sandbox') { playMode = 'normal'; startSandboxGame(); return; }
+  // 阵营行右边的「介绍」：展开这一段说明（再点一次收起）
+  if (act === 'faction-info') { toggleFactionInfo(el.dataset.key); return; }
+  if (act === 'sb-side') {
+    // 切换控制方：只换视角与输入归属，两边仍是同一局
+    setSandboxSide(1 - me());
+    if (view) view.humanSide = me();
+    if (state) state.humanSide = me();
+    clearSelection();
+    view.hint = `现在是${me() === 0 ? '玩家1' : '玩家2'}在打：点手牌，再点场上任意格子`;
+    refresh();
+    return;
+  }
+  if (act === 'sb-faction-mine') { sandboxCycleFaction(me()); return; }
+  if (act === 'sb-faction-foe') { sandboxCycleFaction(foe()); return; }
+  if (act === 'sb-difficulty') {
+    // 难度只影响「AI 行动」打开时对面那一侧的水平
+    const keys = DIFFICULTIES.map((d) => d.key);
+    const at = keys.indexOf(difficulty);
+    setDifficulty(keys[(at + 1) % keys.length]);
+    view.hint = '人机难度：' + difficultyByKey(difficulty).name + '（打开「AI 行动」后才生效）';
+    refresh();
+    return;
+  }
+  if (act === 'sb-ai') {
+    view.sandboxAI = !view.sandboxAI;
+    view.hint = view.sandboxAI ? 'AI 行动：轮到对面时它会自己出牌' : 'AI 待机：对面上什么都不做';
+    refresh();
+    if (view.sandboxAI) tick();
+    return;
+  }
+  if (act === 'sb-add') {
+    view.pickOpen = !view.pickOpen;
+    clearSelection();
+    refresh();
+    return;
+  }
+  if (act === 'sb-pick-close') { view.pickOpen = false; refresh(); return; }
+  if (act === 'sb-give') {
+    G.sandboxAddCard(state, me(), el.dataset.id);
+    refresh();
+    return;
+  }
+  if (act === 'sb-refill') {
+    const got = G.sandboxGrantFaction(state, me());
+    G.sandboxRefillMana(state, me());
+    G.sandboxRefillMana(state, foe());
+    view.hint = got.length ? `补发了 ${got.length} 张本阵营超能力` : '本阵营的超能力已经全在手里了';
+    refresh();
+    return;
+  }
+  if (act === 'sb-clear') {
+    G.sandboxClearBoard(state);
+    resetCombatFx();
+    clearSelection();
+    view.deadUnits = [];
+    view.hint = '场地已清空';
+    refresh();
+    return;
+  }
+  if (act === 'sb-reset') { newSandboxGame(); refresh(); return; }
   if (act === 'open-replays') { goReplays(); return; }
   if (act === 'open-settings') { goSettings(); return; }
 
@@ -857,7 +1032,19 @@ function handleAction(act, el) {
   // ── 对局内
   // 联机时不能再「重开一局」—— 那会让两端跑不同的对局，直接退出房间更安全
   // 回放是只读的：重开会把 screen 拉回对局、把正在看的这条回放踢掉（作者 2026-10-05）
-  if (act === 'restart') { if (screen === 'replay') return; if (session) { quitRoom(); return; } startNewGame(); return; }
+  if (act === 'restart') {
+    if (screen === 'replay') return;
+    // 靶场：重置靶场（不回首页、不结算）
+    if (state && state.sandbox === true) { newSandboxGame(); refresh(); return; }
+    /**
+     * 联机（作者 2026-10-22 第 2 条）：以前这里直接退房间，因为「两端各开各的」会跑飞。
+     * 现在重开也走开局那条路：房主重新算一份开局参数广播出去，两边一起重建对局，
+     * 所以重开是安全的，而且对手那侧也会一起重开。客人只能「请求重开」，由房主执行。
+     */
+    if (session) { requestLanRestart(); return; }
+    startNewGame();
+    return;
+  }
   if (act === 'menu') { toggleMenu(); return; }
   if (act === 'close-menu') { toggleMenu(false); return; }
   if (act === 'close-info') { view.infoUid = null; refresh(); return; }

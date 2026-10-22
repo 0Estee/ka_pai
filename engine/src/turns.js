@@ -218,7 +218,7 @@ function resolveMarks(state) {
         M.log(state, { type: 'poison-tick', uid: unit.uid, x: mark.x, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
         // 「无视任何机制」但「无敌」仍然生效（裁决 B7）
         M.dealDamage(state, null, { kind: 'unit', unit }, mark.x, {
-          ignoreMechanisms: true, noKeywords: true,
+          ignoreMechanisms: true, noKeywords: true, reason: '中毒',
         });
       } else if (mark.type === 'disease') {
         M.log(state, { type: 'disease-tick', uid: unit.uid, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
@@ -226,7 +226,7 @@ function resolveMarks(state) {
       } else if (mark.type === 'burn') {
         M.log(state, { type: 'burn-tick', uid: unit.uid, x: mark.x, cardId: unit.cardId, name: (state.cardLib[unit.cardId] || {}).name || unit.cardId });
         // 普通伤害：无敌/减伤照常生效，但不重复触发「造成伤害:」
-        M.dealDamage(state, null, { kind: 'unit', unit }, mark.x, { noKeywords: true });
+        M.dealDamage(state, null, { kind: 'unit', unit }, mark.x, { noKeywords: true, reason: '灼烧' });
       }
     }
     // 淬毒/疾病导致的死亡之后再做轻灵检查
@@ -241,7 +241,7 @@ function resolveMarks(state) {
       if (mark.type !== 'poison') continue;
       M.log(state, { type: 'poison-tick', kingSide: p.side, x: mark.x });
       M.dealDamage(state, null, { kind: 'king', side: p.side }, mark.x, {
-        ignoreMechanisms: true, noKeywords: true,
+        ignoreMechanisms: true, noKeywords: true, reason: '国王中毒',
       });
     }
   }
@@ -261,6 +261,17 @@ function resolveByTurnLimit(state) {
 
 export function checkGameOver(state) {
   if (state.winner !== null) return true;
+  /**
+   * 靶场（作者 2026-10-22）：这里**不判胜负**。
+   *
+   * 试卡的时候打死国王是常事（要试「这一下打过去够不够斩杀」），
+   * 一旦判了终局，界面就会弹结算浮层、牌也出不去了，只能重开一局。
+   * 所以靶场里国王血量到 0 就停在 0，对局继续，想收场直接按「重置」。
+   */
+  if (state.sandbox === true) {
+    for (const p of state.players) if (p.kingHp < 0) p.kingHp = 0;
+    return false;
+  }
   const [a, b] = state.players;
   if (a.kingHp <= 0 && b.kingHp <= 0) {
     state.winner = 'draw';

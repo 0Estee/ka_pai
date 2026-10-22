@@ -57,6 +57,18 @@ function enterLobby(mode) {
       refresh();
     },
     onStart: (st) => beginLanMatch(st),
+    /**
+     * 对手按了「重新开局」（作者 2026-10-22 第 2 条）。
+     *
+     * 只有房主会收到。这里直接重开、不等确认 —— 重开这件事双方都不亏
+     * （谁也没赢没输，金币也不结算），而多一次「是否同意」的来回只会让人干等。
+     * 房主自己按「重新开局」走的是 requestLanRestart 的主机分支。
+     */
+    onRestartRequest: () => {
+      if (!session || !session.isHost) return;
+      showBanner('对手请求重开', 1600, '按同样的阵营与难度重开一局');
+      hostStartMatch(true);
+    },
     onAction: (action) => {
       // 收到 start 之前就到达的操作（高延迟下的抢跑）也会走到这里，
       // 那时录制还没建好，别在这里炸掉整局。
@@ -253,7 +265,7 @@ function scanLanRooms() {
 }
 
 /** 主机点「开始对战」：生成开局参数并广播 */
-async function hostStartMatch() {
+async function hostStartMatch(restart) {
   if (!session || !session.isHost) return;
   // 联机需要金币 > 0（作者裁决：联机没有保底，归零后只能去打 AI 赚回来）。
   // 这里再挡一道，因为按钮的 disabled 只在渲染时生效，挡不住别处调用。
@@ -300,6 +312,7 @@ async function hostStartMatch() {
       factions: [myFaction, guestFaction],
       enhance,
       mode: forgeMode ? 'forge' : 'normal',
+      restart: !!restart,
     });
   } catch (err) {
     // start 没发出去就**不要**开打：只会有一个人在这局里跑（见 multiplayer.js 的
@@ -308,6 +321,27 @@ async function hostStartMatch() {
     view.hint = '开局失败：' + ((err && err.message) || '连不上房间服务，请重试');
     refresh();
   }
+}
+
+/**
+ * 「重新开局」（作者 2026-10-22 第 2 条）。
+ *
+ *   房主：直接重开 —— 和进房后按「开始对战」走同一条路（重新算种子 / 牌库 / 阵营，
+ *         重新广播 start），所以两端会一起重建对局，锁步不会跑飞。
+ *   客人：只能发 restart-req，由房主真正执行。重开必须只有一个地方算参数，
+ *         两边各算一份一定会分叉（历史上「联机重开」出问题就是各开各的）。
+ */
+async function requestLanRestart() {
+  if (!session) return;
+  if (session.isHost) {
+    showBanner('重新开局', 1400, '两边一起重建这一局');
+    await hostStartMatch(true);
+    return;
+  }
+  try {
+    await session.transport.send({ t: 'restart-req' });
+  } catch { /* 断线时忽略：房间本来就要重连 */ }
+  showBanner('已请求重开', 1600, '等房主按一下「重新开局」');
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

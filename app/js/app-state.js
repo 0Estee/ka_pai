@@ -25,12 +25,30 @@ const HUMAN = 0;
 const AI = 1;
 
 /**
+ * 靶场里「现在我控制哪一方」（作者 2026-10-22「切换到对面」）。
+ *
+ * 只影响界面与输入的归属，不动引擎状态：换边只是把 handHTML / 状态条 /
+ * 可点格子换成另一侧的视角，两边仍然是同一局。
+ */
+let sandboxSide = 0;
+function setSandboxSide(side) {
+  sandboxSide = Number(side) === 1 ? 1 : 0;
+}
+
+/** 这一局是不是靶场（试卡用的沙盒，见 engine/src/sandbox.js） */
+function sandboxOn() {
+  return !!(state && state.sandbox === true);
+}
+
+/**
  * 本地玩家是哪一方。
- * 单机固定是 0 号；联机时客人是 1 号 —— 所以**所有**「我这方」的判断
- * 都必须走这里，不能再直接写 HUMAN。
+ * 单机固定是 0 号；联机时客人是 1 号；靶场跟着「控制方」走 ——
+ * 所以**所有**「我这方」的判断都必须走这里，不能再直接写 HUMAN。
  */
 function me() {
-  return session ? session.mySide : HUMAN;
+  if (session) return session.mySide;
+  if (state && state.sandbox === true) return sandboxSide;
+  return HUMAN;
 }
 /** 对手是哪一方 */
 function foe() {
@@ -144,7 +162,7 @@ let recordingFactions = [];
 let recordingEnhance = null;
 
 export {
-  AI, me, foe, foeName, canAnswerChoice,
+  AI, me, foe, foeName, canAnswerChoice, sandboxOn, sandboxSide, setSandboxSide,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle, setProfile,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,

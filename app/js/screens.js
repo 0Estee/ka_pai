@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.65.0';
+export const APP_VERSION = '0.66.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -82,6 +82,10 @@ export function playMenuHTML({ difficulty, lanSupported, profile }) {
       <span class="hm-text">联机对决</span>
       <span class="hm-sub">公网房间号，或同一 Wi-Fi 下两台设备</span>
     </button>
+    <button class="hm-btn" data-act="start-sandbox">
+      <span class="hm-text">靶场</span>
+      <span class="hm-sub">试卡用：任意摆牌、超能力全发、换边换阵营</span>
+    </button>
     ${lanSupported ? '' : '<div class="set-tip">当前环境不支持联机（需要在手机 App 里运行，或从线上地址打开）</div>'}
     <div class="set-tip">普通模式：双方都用卡面原值，强化与精通不生效。</div>
   `);
@@ -115,7 +119,7 @@ export function forgeMenuHTML({ difficulty, lanSupported, profile }) {
   `);
 }
 
-export function difficultyHTML({ current, difficulties, faction, factions, mode }) {
+export function difficultyHTML({ current, difficulties, faction, factions, mode, openFaction = '' }) {
   const cur = difficulties.find((d) => d.key === current) || difficulties[0] || { name: '' };
   // 选中那行不再额外挂一个 ✓：选中态已经由 .diff-row.on 的金边 + 高一档底色说全了，
   // 再补一个勾是同一条信息的第二个信号（CSS 里 .diff-check 的样式上轮也撤了，
@@ -142,15 +146,34 @@ export function difficultyHTML({ current, difficulties, faction, factions, mode 
   // 阵营（作者 2026-10-03）：对局开始前自选，本局可用该阵营的超能力。
   const facList = factions && factions.length ? factions : [];
   const curFac = facList.find((f) => f.key === faction) || facList[0] || null;
+  /**
+   * 阵营行：点一下就是「选它」，长按 / 点右边的「介绍」展开说明（作者 2026-10-22 第 4 条）。
+   *
+   * 展开的是**这一段文字**，不是弹窗：手机上弹窗一大块会盖住整个难度页，
+   * 而作者要的是「边看边选」。展开状态存在 main.js 的 view.facOpen 里，
+   * 换一个阵营只换高亮，不会把已经展开的那一段收起来。
+   */
   const facRows = facList.map((f) => {
     const on = curFac && f.key === curFac.key;
+    const open = f.key === openFaction;
     return `
-      <button class="diff-row fac-row ${on ? 'on' : ''}" data-act="set-faction" data-key="${f.key}">
-        <div class="diff-main">
-          <div class="diff-name">${esc(f.name)}</div>
-          <div class="diff-tag">${esc(f.tagline || '')}</div>
+      <div class="fac-item${open ? ' open' : ''}">
+        <div class="fac-line">
+          <button class="diff-row fac-row ${on ? 'on' : ''}" data-act="set-faction" data-key="${f.key}">
+            <div class="diff-main">
+              <div class="diff-name">${esc(f.name)}</div>
+              <div class="diff-tag">${esc(f.tagline || '')}</div>
+            </div>
+          </button>
+          <button class="fac-more${open ? ' on' : ''}" data-act="faction-info" data-key="${f.key}"
+            aria-label="${esc(f.name)}的介绍">${open ? '收起' : '介绍'}</button>
         </div>
-      </button>`;
+        ${open ? `<div class="fac-intro">
+          ${(f.intro || []).length ? '' : `<p class="fac-intro-lead">${esc(f.tagline || '')}</p>`}
+          ${(f.intro || []).map((line) => `<p class="fac-intro-line">${esc(line)}</p>`).join('')}
+          ${(f.cards || []).length ? `<p class="fac-intro-cards">超能力 ${f.cards.length} 张：${esc(f.cards.join(' · '))}</p>` : ''}
+        </div>` : ''}
+      </div>`;
   }).join('');
   const facBlock = facRows ? `
     <div class="set-head">阵营（本局超能力）</div>

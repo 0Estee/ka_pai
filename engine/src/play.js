@@ -145,17 +145,28 @@ export function canPlaceUnit(state, side, probe, lane, row, opts = {}) {
  * @param {object} opts               { lane, row, targetUid }
  */
 export function playCard(state, side, iid, opts = {}) {
-  if (isOver(state)) throw new Error('对局已结束');
+  /**
+   * 靶场（作者 2026-10-22）：试卡的地方，**不守对局规矩**。
+   *
+   * 放行的只有「什么时候能出」这一层：阶段、费用、归属、锦囊锁全部跳过 ——
+   * 卡牌本身的效果仍然走同一条结算链（execActions / 触发队列 / 伤害管线），
+   * 所以靶场里看到的效果就是实战效果，不会出现「靶场能过、实战不行」。
+   * 另外多一个 opts.placeSide：靶场允许把牌放到**对面**的格子上。
+   */
+  const sandbox = state.sandbox === true;
+  if (!sandbox) {
+    if (isOver(state)) throw new Error('对局已结束');
   if (state.pending) throw new Error('存在待处理的交互请求，请先 resolveChoice');
 
-  const actor = getActor(state);
-  if (actor !== side) throw new Error(`现在是「${state.phase}」阶段，应由${roleName(state, actor)}行动`);
+    const actor = getActor(state);
+    if (actor !== side) throw new Error(`现在是「${state.phase}」阶段，应由${roleName(state, actor)}行动`);
+  }
 
   const allowedType = PHASE_ALLOWED_CARD_TYPE[state.phase];
   const p = state.players[side];
   const idx = p.hand.findIndex((c) => c.iid === iid);
   // 炼金：原料只能通过炼药消耗，当普通锦囊打出会立刻退回去（作者 2026-10-07 规格）
-  if (idx >= 0 && isRawMaterial(state.cardLib[p.hand[idx].cardId])) throw new Error('原料牌只能用炼药消耗，不能直接打出');
+  if (!sandbox && idx >= 0 && isRawMaterial(state.cardLib[p.hand[idx].cardId])) throw new Error('原料牌只能用炼药消耗，不能直接打出');
   // 解禁：国王挂着许可时，超能力锦囊可以在自己的单位回合打出（只对超能力锦囊放宽）
   const unlockedSpell = idx >= 0 && alchemyUnlock(state, side) && (state.cardLib[p.hand[idx].cardId] || {}).faction === 'alchemy';
   if (idx < 0) throw new Error(`手牌中没有 iid=${iid}`);
@@ -164,11 +175,12 @@ export function playCard(state, side, iid, opts = {}) {
   const def = state.cardLib[handCard.cardId];
   if (!def) throw new Error(`卡牌库缺少卡牌定义: ${handCard.cardId}`);
   // 陷阱是例外：作者口径「单位回合或锦囊回合都能打出」，所以不受阶段类型限制
-  if (def.type !== allowedType && !isTrapCard(def) && !unlockedSpell) throw new Error(`本阶段只能打出「${allowedType}」，不能打出「${def.type}」`);
+  if (!sandbox && def.type !== allowedType && !isTrapCard(def) && !unlockedSpell) throw new Error(`本阶段只能打出「${allowedType}」，不能打出「${def.type}」`);
   // 「无法使用锦囊牌」的硬拦截（与 getLegalPlays 同步：界面不会给按钮，直接调 API 也拦住）
-  if (def.type === CARD_TYPE.SPELL && spellLocked(state, side)) throw new Error('本回合无法使用锦囊牌');
-  const cost = costOf(state, handCard);
-  if (cost > p.mana) throw new Error(`费用不足：需要 ${cost}，剩余 ${p.mana}`);
+  if (!sandbox && def.type === CARD_TYPE.SPELL && spellLocked(state, side)) throw new Error('本回合无法使用锦囊牌');
+  // 靶场不收费（作者要的是「点一下就看到效果」，不是「先攒够费用」）
+  const cost = sandbox ? 0 : costOf(state, handCard);
+  if (!sandbox && cost > p.mana) throw new Error(`费用不足：需要 ${cost}，剩余 ${p.mana}`);
 
   //  陷阱（作者 2026-10 口径）：陷阱不是「打出卡牌」，而是**埋伏**进陷阱格里。
   //    所以这里要在 `cardsPlayed++` 与「在手牌中」被动之前拦下来：
@@ -205,6 +217,8 @@ export function playCard(state, side, iid, opts = {}) {
     chosenTargetUid: opts.targetUid ?? null,
     // 目标指定为「国王」（用于"敌方单位或国王"这类复合选择器）
     chosenTargetIsKing: opts.targetKing === true,
+    // 靶场允许指定「哪一边的国王」（真对局里不传，行为不变）
+    chosenTargetKingSide: opts.targetKingSide === undefined ? undefined : (Number(opts.targetKingSide) ? 1 : 0),
     api: apiFor(state),
   };
 
@@ -212,20 +226,31 @@ export function playCard(state, side, iid, opts = {}) {
     const { lane, row } = opts;
     if (!lane || !row) throw new Error('放置单位必须指定 lane 与 row');
 
+    /**
+     * 靶场：落点归**点的那一方**（opts.placeSide），并且不看地形 / 占位规则 ——
+     * 作者要的是「点哪个格子就放到哪个格子」，别的限制都由「清空」按钮解决。
+     * 真对局里 placeSide 永远等于 side（playCard 的调用方不会传）。
+     */
+    const placeSide = sandbox && opts.placeSide !== undefined ? (Number(opts.placeSide) ? 1 : 0) : side;
     const probe = probeFromDef(def);
     // 地形限制（水生 / 两栖 / 轻灵）与占位限制都要过
-    const legalTerrain = canPlaceInLane(probe, lane);
+    const legalTerrain = sandbox || canPlaceInLane(probe, lane);
     const fuse = hasKw(probe, 'fuse');
-    const occupant = state.board[lane].units[side][row];
-    const legalSlot = legalTerrain && canPlaceUnit(state, side, probe, lane, row, { allowFuse: fuse });
+    const occupant = state.board[lane].units[placeSide][row];
+    // 靶场里唯一的规矩：格子已经被占住了就先拦一下（不然会凭空顶掉一张牌）
+    const legalSlot = sandbox
+      ? !occupant
+      : (legalTerrain && canPlaceUnit(state, side, probe, lane, row, { allowFuse: fuse }));
     if (!legalSlot) {
       // 回滚，避免出现「付了费但没落地」的坏状态
       p.hand.splice(idx, 0, handCard);
       p.mana += cost;
       state.stats.cardsPlayed--;
-      throw new Error(legalTerrain
-        ? `无法将「${def.name}」放置在 ${LANE_NAME[lane]}-${row}（该位置已被占用或线路已满）`
-        : `无法将「${def.name}」放置在 ${LANE_NAME[lane]}（地形限制）`);
+      throw new Error(sandbox
+        ? `这一格已经有单位了，先清空再放「${def.name}」`
+        : (legalTerrain
+          ? `无法将「${def.name}」放置在 ${LANE_NAME[lane]}-${row}（该位置已被占用或线路已满）`
+          : `无法将「${def.name}」放置在 ${LANE_NAME[lane]}（地形限制）`));
     }
     // 「融合进化」：先把被顶掉的友方单位「消失」（不触发任何被消灭效果）
     // fusedAway 会作为 onPlay 的 payload 传下去 —— 卡牌可以写
@@ -234,14 +259,14 @@ export function playCard(state, side, iid, opts = {}) {
     if (fusedAway) {
       M.vanishUnit(state, occupant, `fuse-by-${def.id}`);
     }
-    const unit = instantiateUnit(state, def, side, lane, row);
+    const unit = instantiateUnit(state, def, placeSide, lane, row);
     applyHandStatDelta(state, unit, handCard);
     // 这张牌打出来时，手牌上挂着多少**费用修正**。僵尸换代时要继承它再加 1
     // （见 amounts.js 的 `{ sourceCostDelta: true, plus: 1 }`）。
     unit.paidCostDelta = handCard.costDelta || 0;
-    state.board[lane].units[side][row] = unit;
+    state.board[lane].units[placeSide][row] = unit;
     ctx.source = unit;
-    M.log(state, { type: 'deploy', uid: unit.uid, cardId: def.id, name: def.name, side, lane, row, fused: fusedAway });
+    M.log(state, { type: 'deploy', uid: unit.uid, cardId: def.id, name: def.name, side: placeSide, lane, row, fused: fusedAway });
     M.queueTrigger(state, unit, 'onPlay', { fused: fusedAway, lane });
     // 「进入一条线:」异能 —— 打出也算「进入」这条线路（与移动同一个触发）
     M.queueTrigger(state, unit, 'onEnterLane', { from: null, lane });

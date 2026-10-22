@@ -179,6 +179,8 @@ export function* execAction(state, ctx, action) {
           noWatchers: !!action.noWatchers || !!ctx.noWatchersForDamage,
           // 「受到伤害:」异能自己造成的伤害不再触发「受到伤害:」，防无限递归
           noDamagedTrigger: !!action.noDamagedTrigger || !!ctx.noDamagedTriggerForDamage,
+          // 受伤原因（作者 2026-10-22：每次卡牌受伤都写明是谁 / 哪张牌）
+          reason: ctx.card && ctx.card.name ? '「' + ctx.card.name + '」' : (action.reason || '效果伤害'),
         });
         // 「视为攻击」（卡牌「橄榄球」：锦囊带「溅射1」）——
         // 锦囊本身不进行攻击，所以溅射要靠这个开关显式打开：
@@ -191,7 +193,7 @@ export function* execAction(state, ctx, action) {
             for (const adj of ADJACENT_LANES[t.unit.lane]) {
               for (const e of laneUnits(state, adj, foeSide)) {
                 if (e.removed) continue;
-                dealDamage(state, ctx.source, { kind: 'unit', unit: e }, splash.x, { noCap: true });
+                dealDamage(state, ctx.source, { kind: 'unit', unit: e }, splash.x, { noCap: true, reason: '溅射（' + ((ctx.card && ctx.card.name) || '效果') + '）' });
               }
             }
           }

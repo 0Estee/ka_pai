@@ -62,6 +62,8 @@ import './checks/41-slot-side.mjs';
 import './checks/42-mp-names.mjs';
 import './checks/43-mp-lockstep.mjs';
 import './checks/44-combat-fx-source.mjs';
+import './checks/45-sandbox.mjs';
+import './checks/46-lan-restart-sandbox-ui.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

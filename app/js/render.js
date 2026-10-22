@@ -75,6 +75,64 @@ function setTheme(theme) {
   refresh();
 }
 
+/**
+ * 阵营介绍（作者 2026-10-22 第 4 条：点阵营要能看到这个阵营是干什么的）。
+ *
+ * 写的是**怎么玩**，不是宣传语：两句话分别回答「这套牌靠什么赢」和
+ * 「关键牌是哪几张」。牌名不写死在这儿 —— 由 factionOptions() 从卡池里现取，
+ * 作者加了新牌这里不用改，介绍里的名单自动跟着变。
+ */
+const FACTION_INTRO = {
+  demon: [
+    '靠**自己的命**换伤害：献祭队友、让国王掉血，换来一次很重的打击。',
+    '献祭类异能（死神、鲜血祭典）是核心，恶魔虚影每次献祭都会长大。',
+  ],
+  god: [
+    '让队友站住：无敌、祝福、回血，把场面拖到自己能反打的回合。',
+    '圣经 / 庇佑给的是「本回合无敌」，用完这一回合就没有了，要掐准时机。',
+  ],
+  sword: [
+    '一套连招打到底：给一个单位堆攻击、穿透、额外攻击，然后一波带走。',
+    '连斩 ↔ 回刃 会互相召唤，用得越多费用越高；终式·万剑归宗按场上人数结算。',
+  ],
+  music: [
+    '不追求单点爆发，而是把全场敌人的身材一点点削下去。',
+    '降噪耳机是常驻光环，和弦在手牌里也能响应锦囊，越拖越强。',
+  ],
+  science: [
+    '攒费用、滚科技：费用上限一路抬高，锦囊还能再放一次。',
+    '反应堆提供持续费用，克隆重复上一张锦囊，博士负责抽牌。',
+  ],
+  divine: [
+    '守国王：把伤害从国王身上挪走，再把敌人的攻击力永久清零。',
+    '神使替伤、祈祷减伤是防线，诅咒 / 神罚直接把对方的攻击力抹掉。',
+  ],
+  alchemy: [
+    '炼药：每抽到原料就攒一份料，两张以上的料能凑出药水与令牌。',
+    '原料牌自己不能打出去，先在手里选两张点「炼药」；组合越好出的牌越强。',
+  ],
+  inferno: [
+    '越烧越旺：狂热、双重打击、溅射，让伤害同时铺到好几条线上。',
+    '活火山同时打所有敌人和国王，怒火 / 余温是配套的小牌。',
+  ],
+  frost: [
+    '冻住敌人的下一次攻击，再对「被冻结的目标」追加伤害。',
+    '冰轮·旋舞铺冻结，寒星·追负责收尾；雪人靠对面被冻住长大。',
+  ],
+  sin: [
+    '捕猎与掠夺：抢对手的手牌、按生命值点名消灭，用生命换生命。',
+    '色欲让队友攻击时顺带烧国王，暴食点掉血最少的那个，恶意偷牌。',
+  ],
+  party: [
+    '把节奏搅乱：随机令牌、所有单位额外攻击、直接跳到下个回合。',
+    '小丑是全场变速开关，爆炸水果蛋糕是硬解，杂技演员靠挨打抽牌。',
+  ],
+  flame: [
+    '炎帝：超能力会塞给你异火（令牌锦囊），用异火换场面优势。',
+    '异火堆越用越少，用完会武装佛怒火莲；灼烧与封印是这里的控制手段。',
+  ],
+};
+
 /** 阵营界面选项：引擎的 FACTIONS + 一句人话说明（策划口径，写在这里以免污染引擎） */
 const FACTION_TAGLINE = {
   demon: '献祭自己的单位换取力量：更疼的伤害、更高的攻击力',
@@ -92,11 +150,34 @@ const FACTION_TAGLINE = {
 };
 
 function factionOptions() {
-  return Object.keys(FACTIONS).map((key) => ({
-    key,
-    name: FACTIONS[key].name || key,
-    tagline: FACTION_TAGLINE[key] || '',
-  }));
+  return Object.keys(FACTIONS).map((key) => {
+    // 这个阵营的**超能力牌名**（令牌也列出来，但标个「令」，因为很多阵营靠令牌运转）
+    const cards = Object.keys(TEST_CARD_LIB)
+      .filter((id) => {
+        const c = TEST_CARD_LIB[id];
+        return c && c.faction === key && !c.legacy;
+      })
+      .map((id) => TEST_CARD_LIB[id].name + (TEST_CARD_LIB[id].token ? '（令）' : ''));
+    return {
+      key,
+      name: FACTIONS[key].name || key,
+      tagline: FACTION_TAGLINE[key] || '',
+      // 介绍正文里用 **…** 标重点：界面上不认 markdown，这里直接去掉星号
+      intro: (FACTION_INTRO[key] || []).map((line) => line.replace(/\*\*/g, '')),
+      cards,
+    };
+  });
+}
+
+/**
+ * 难度页上「展开着介绍」的那个阵营（作者 2026-10-22 第 4 条）。
+ *
+ * 只是界面上的一段展开状态，不进存档：下次进来重新展开一下就行。
+ */
+let factionOpen = '';
+function toggleFactionInfo(key) {
+  factionOpen = factionOpen === key ? '' : (key || '');
+  refresh();
 }
 
 /**
@@ -251,7 +332,7 @@ function fillMenuLog() {
   const laneRow = (e) => T((LANE_LABEL[e.lane] || e.lane) + '-' + (e.row === 'front' ? '前排' : '后排'));
 
   const lines = state.log
-    .filter((e) => ['deploy', 'cast', 'destroy', 'king-damage', 'turn-start', 'game-over', 'nimble-drown', 'poison-tick', 'disease-tick'].includes(e.type))
+    .filter((e) => ['deploy', 'cast', 'destroy', 'damage', 'king-damage', 'turn-start', 'game-over', 'nimble-drown', 'poison-tick', 'disease-tick'].includes(e.type))
     .slice(-220)
     .map((e) => {
       // 联机时对手是真人，别叫他「AI」
@@ -266,7 +347,16 @@ function fillMenuLog() {
           const why = REASON_LABEL[e.reason];
           return '<div class="' + cls + '">' + W(who) + ' ' + A('的') + ' ' + T(card) + ' ' + A('被消灭') + (why ? ' ' + A('（' + why + '）') : '') + '</div>';
         }
-        case 'king-damage': return '<div class="lg lg-king">' + W(e.side === me() ? '你的国王' : 'AI 的国王') + ' ' + A('受到') + ' ' + T(e.amount + ' 点伤害') + ' ' + A('，剩余') + ' ' + T(String(e.hp)) + '</div>';
+        /**
+         * 单位挨的每一下都要写明**原因**（作者 2026-10-22）：谁打的 / 哪张牌 / 什么结算。
+         * 日志里只有 uid（牌可能已经死了），所以位置用 lane + row 说，
+         * 不硬去棋盘上找那张牌 —— 找不到就会写成「某一个单位」，反而更糊涂。
+         */
+        case 'damage': return '<div class="' + cls + '">'
+          + A('受伤') + ' ' + T('−' + e.amount) + ' '
+          + A('（' + laneRow(e) + '，' + T(e.reason || '未知来源') + '）')
+          + '</div>';
+        case 'king-damage': return '<div class="lg lg-king">' + W(e.side === me() ? '你的国王' : (foeName() + ' 的国王')) + ' ' + A('受到') + ' ' + T(e.amount + ' 点伤害') + ' ' + A('（') + T(e.reason || '未知来源') + A('）') + A('，剩余') + ' ' + T(String(e.hp)) + '</div>';
         case 'nimble-drown': return '<div class="' + cls + '">' + T(card) + ' ' + A('在水路失去两栖被消灭') + '</div>';
         case 'poison-tick': return '<div class="' + cls + '">' + (e.kingSide !== undefined ? W(e.kingSide === me() ? '你的国王' : 'AI 的国王') + ' ' : (card ? T(card) + ' ' : '')) + A('中毒结算') + ' ' + T(e.x + ' 点') + '</div>';
         case 'disease-tick': return '<div class="' + cls + '">' + (card ? T(card) + ' ' : '') + A('疾病发作被消灭') + '</div>';
@@ -1549,6 +1639,8 @@ function renderScreen(stage) {
       difficulties: DIFFICULTIES,
       faction: myFaction,
       factions: factionOptions(),
+      // 点过「介绍」的那个阵营：那一段说明就在它下面展开
+      openFaction: factionOpen,
       mode: playMode,
     });
     applyScreenFx(stage);

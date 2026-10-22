@@ -53,6 +53,12 @@ export {
 // 视图与调试
 export { viewFor, renderBoard } from './view.js';
 
+// 靶场（作者 2026-10-22）：试卡用的沙盒操作
+export {
+  sandboxEnable, sandboxFactionCards, sandboxGrantFaction, sandboxSetFaction,
+  sandboxAddCard, sandboxRefillMana, sandboxClearBoard,
+} from './sandbox.js';
+
 // 阵营与超能力（作者 2026-10-03）
 export { FACTIONS } from './factions.js';
 // 炼金阵营（作者 2026-10-07）：炼药 + 原料堆

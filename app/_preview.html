@@ -33,7 +33,10 @@
     // 带 0.5s 入场动画的菜单项那时还是透明的，截出来就是"这一屏什么都没有"。
     if (p.get('noanim')) {
       const st = document.createElement('style');
-      st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}';
+      // 一并把特效层藏掉：飞行/爪印那些克隆节点是靠动画自己退场的，
+      // 关掉动画后它们会永远停在原地，截图里就变成「一张牌糊在顶栏上」。
+      st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}'
+        + '#fx-layer{display:none!important}';
       document.head.appendChild(st);
     }
     // 走 __setTheme 而不是直接改 dataset —— 否则设置页里的选中态会和实际配色对不上
@@ -51,6 +54,97 @@
       });
     } else if (p.get('screen')) {
       window.__go(p.get('screen'));
+    } else if (demo === 'sandbox') {
+      // 靶场：开一局并把指定的牌摆上去（place=side,cardId,lane,row;…）
+      const place = (p.get('place') || '').split(';').filter(Boolean).map((x) => {
+        const [side, id, lane, row] = x.split(',');
+        return [Number(side), id, lane, row];
+      });
+      const sbRet = window.__sandbox({ place, side: Number(p.get('side') || 0), foeFaction: p.get('foeFaction') || '' });
+      document.title = 'demo: ' + JSON.stringify(sbRet);
+      // 卡牌飞行（deploy → 落点）会把格子先藏起来、等动画结束再露出。
+      // 截图是一次性的（而且 noanim 把动画关了，animationend 不会来），
+      // 这里直接把飞行清掉，格子立刻显示 —— 这只是截图时的手法，不是产品行为。
+      if (window.__clearFlights) window.__clearFlights();
+      window.__revealAll();
+      if (p.get('report')) {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#fff;color:#000;font:10px/1.4 monospace;padding:6px;white-space:pre-wrap;margin:0';
+        pre.textContent = JSON.stringify(sbRet, null, 1);
+        document.body.appendChild(pre);
+      }
+    } else if (demo === 'sbclick') {
+      /**
+       * 靶场点击链路自检（真实 DOM 点击，不是直接调引擎）：
+       *   1. 开局并把手牌换成一张确定的单位牌
+       *   2. 点这张手牌 → 点**对面**前排的格子
+       *   3. 报告：对面格子里有没有牌、选中的那张牌还在不在手里
+       */
+      window.__sandbox();
+      // 直接把「回合开始」这个自动阶段推过去：截图是一次性的，等不了 setTimeout。
+      // 真实玩家等的那 260ms 就是这一步，推进完 busy 也就该是 false 了。
+      window.__advance();
+      window.__view().busy = false;
+      window.__revealAll();
+      const stage = document.getElementById('stage');
+      // 要挑一张**单位**牌（.is-unit）：锦囊点格子是「打过去」，不会在格子里留牌
+      const cardEl = stage.querySelector('.hand .card.is-unit');
+      if (cardEl) cardEl.click();
+      const selected = document.querySelector('.card.selected');
+      const foeSlot = document.querySelector('.board-row.r-foe-front .slot[data-side="1"]');
+      if (foeSlot) foeSlot.click();
+      const st = window.__game();
+      const placed = st && st.board.mountain.units[1].front;
+      window.__probeOk = !!(selected && placed);
+      const report = [
+        '第一张手牌：' + (cardEl ? (cardEl.textContent || '').replace(/\s+/g, ' ').slice(0, 20) : '没找到'),
+        '选中态：' + !!selected + '（selectedIid=' + (window.__view().selectedIid) + '）',
+        '点对面山地前排 → ' + (placed ? '放下 ' + placed.name : '没放上'),
+        '我方手牌：' + (st ? st.players[0].hand.length : '-'),
+        '提示行：' + (window.__view().hint || ''),
+      ].join('\n');
+      document.title = 'demo: ' + report.replace(/\n/g, ' | ');
+      if (window.__clearFlights) window.__clearFlights();
+      window.__revealAll();
+      if (!p.get('silent')) {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;color:#000;font:11px/1.6 monospace;padding:10px;white-space:pre-wrap;margin:0';
+        pre.textContent = report;
+        document.body.appendChild(pre);
+      }
+    } else if (demo === 'sbdamage') {
+      /**
+       * 靶场里真打一下，停在「命中」那一帧：
+       * 看的就是格子上的掉字 + 下面那行原因（作者 2026-10-22 第 1 条最后一句）。
+       */
+      window.__sandbox({
+        place: [
+          [0, p.get('att') || 'U50', 'mountain', 'front'],
+          [1, p.get('def') || 'U51', 'mountain', 'front'],
+        ],
+      });
+      window.__clearFlights();
+      window.__revealAll();             // 棋盘先铺开，不然命中那一帧的格子是隐形的
+      const st0 = window.__game();
+      for (let i = 0; i < 12 && st0.phase !== 'COMBAT'; i++) window.__advance();
+      window.__advance();               // 开战：把伤害结算出来
+      for (let i = 0; i < 24; i++) {
+        const v = window.__view();
+        if (v.fx && v.fx.kind === 'hit') break;
+        window.__stepFx();
+      }
+      window.__clearFlights();
+      document.title = 'demo: fx=' + JSON.stringify(window.__view().fx || null);
+    } else if (demo === 'sbpick') {
+      // 靶场「加牌」面板：整个卡池按阵营分组
+      window.__sandbox();
+      window.__advance();
+      window.__view().busy = false;
+      window.__nav('sb-add', {});
+      window.__revealAll();
+    } else if (demo === 'factioninfo') {
+      // 难度页：展开某个阵营的介绍
+      window.__showFaction(p.get('fac') || 'demon');
     } else if (demo !== 'nav' && demo !== 'unitinfo') {
       window.__playTurns(Number(p.get('turn') || 4));
     }
@@ -240,6 +334,9 @@
     // 而 --screenshot 在 load 后立刻抓，那时还是 data-in="0"（不可见）。
     // 这里直接把标记翻到位，截出来才是玩家看到的中局画面。
     if (p.get('reveal')) {
+      // 先让 view 也认为「已经铺完了」，否则紧接着的任何一次重绘都会把行重新
+      // 渲染成 data-in="0"（截图就变成「只剩一行」的怪画面）。
+      window.__revealAll();
       for (const el of document.querySelectorAll('[data-in]')) el.setAttribute('data-in', '1');
     }
     if (p.get('dump')) {

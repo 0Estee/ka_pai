@@ -417,14 +417,21 @@ export class Session {
    *
    * 发送失败会抛出去：宁可留在大厅让玩家重试，也不要开一局只有一边在跑的棋。
    */
-  async beginGame({ seed, firstPlayer, deck, factions, enhance, mode }) {
+  async beginGame({ seed, firstPlayer, deck, factions, enhance, mode, restart }) {
     await this.transport.start();
-    await this.transport.send({ t: 'start', seed, firstPlayer, deck, factions, enhance, mode });
+    /**
+     * restart=true 是「重新开局」（作者 2026-10-22 第 2 条）：对端已经开过一局，
+     * 所以 start 上多一个 r:1 标记 —— 收到方要靠它允许「第二次 start」，
+     * 否则 applyStart 会被「已经开过局」那道闸挡掉，客人那边永远停在上一局。
+     */
+    await this.transport.send({ t: 'start', r: restart ? 1 : 0, seed, firstPlayer, deck, factions, enhance, mode });
     this.applyStart({ seed, firstPlayer, deck, factions, enhance, mode });
     this.onUpdate();
   }
 
   applyStart({ seed, firstPlayer, deck, factions, enhance, mode }) {
+    // 重开时 early 里攒的是**上一局**抢跑的操作，直接丢掉（应用上去只会报非法）
+    if (this.started) this.early = [];
     // 模式以主机为谁：'forge' = 强化模式（读双方增量），其余一律普通模式。
     // 客人通过 URL 进房时本地 playMode 是默认值，必须用广播过来的这一份。
     this.mode = mode === 'forge' ? 'forge' : 'normal';
@@ -586,9 +593,19 @@ export class Session {
         return true;
 
       case 'start':
-        if (this.started) return false;   // 主机不会收到自己的 start
+        // 主机不会收到自己的 start。已经开过局时只接受「重开」的那一份（r:1）
+        if (this.started && msg.r !== 1) return false;
         this.applyStart(msg);
         return true;
+
+      case 'restart-req':
+        /**
+         * 客人按了「重新开局」：重开要重新算一份开局参数（种子 / 牌库 / 阵营），
+         * 只能由房主算并广播，所以客人这边只发请求，真正重开在房主那侧执行。
+         */
+        if (!this.isHost) return false;
+        if (typeof this.onRestartRequest === 'function') this.onRestartRequest();
+        return false;
 
       case 'act': {
         // 棋盘还没建好：先攒着，start 一到按原顺序补执行（见 early 的说明）

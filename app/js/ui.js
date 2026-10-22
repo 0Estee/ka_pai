@@ -193,6 +193,21 @@ function unitInfoHTML(state, unit, view) {
     ? `<div class="ui-line">开战打向：<b>${target ? esc(target.name) : '国王'}</b> ${atk} 点</div>`
     : '<div class="ui-line ui-dim">攻击力为 0，开战不会造成伤害</div>';
 
+  /**
+   * 这张牌最近挨的几下 + **原因**（作者 2026-10-22：每次卡牌受伤都写明原因）。
+   *
+   * 数据直接读对局日志里带 uid 的 damage 条目：引擎写伤害时已经把原因
+   * （交战 / 锦囊名 / 中毒 / 荆棘…）一起写了进去，所以这里不用再反推一遍，
+   * 也不会出现「界面说的和实际结算的不一样」。
+   */
+  const hits = [];
+  for (const e of state.log || []) {
+    if (e.type !== 'damage' || e.uid !== unit.uid) continue;
+    hits.push({ amount: e.amount, reason: e.reason || '未知来源' });
+  }
+  const hitRows = hits.slice(-4).reverse()
+    .map((h) => `<li><b>−${h.amount}</b>${esc(h.reason)}</li>`).join('');
+
   return `
     <div class="unit-info">
       <div class="ui-backdrop" data-act="close-info"></div>
@@ -210,6 +225,7 @@ function unitInfoHTML(state, unit, view) {
         ${effect ? `<div class="ui-effect"><span class="ui-label">卡面</span>${esc(effect)}</div>`
           : '<div class="ui-effect ui-dim">这张牌没有额外效果</div>'}
         ${strike}
+        ${hitRows ? `<div class="ui-hits"><span class="ui-label">最近受伤</span><ul>${hitRows}</ul></div>` : ''}
         <button class="ui-close" data-act="close-info">关闭</button>
       </div>
     </div>`;
@@ -264,7 +280,13 @@ function slotHTML(state, view, lane, side, row) {
   const lunge = !!(laneHot && unit && (fx.uids || []).includes(unit.uid));
   const fxClasses = [lunge ? 'fx-lunge' : '', here ? 'fx-hit' : ''].filter(Boolean);
   const fxRest = (fx && fx.animateFloat === false) ? ' fx-float-rest' : '';
-  const fxHTML = (here && fx.text) ? `<span class="fx-float${fxRest}">${fx.text}</span>` : '';
+  /**
+   * 飘字下面挂一行「为什么」（作者 2026-10-22：每次卡牌受伤都写明原因）。
+   * 原因由引擎写进日志（见 engine/src/damage.js 的 damageReason）：
+   * 「火炮 交战」「毒镖」「中毒」「荆棘反弹（刺猬）」……没写就不画这一行。
+   */
+  const why = here && fx.reason ? `<i class="fx-why">${esc(fx.reason)}</i>` : '';
+  const fxHTML = (here && fx.text) ? `<span class="fx-float${fxRest}">${fx.text}${why}</span>` : '';
   // 「单位被消灭」要等它所在线路的动画演完才结算（作者 2026-10 要求）。
   // 引擎是瞬间把整场算完的，阵亡单位早就从 state 里删掉了，这里用一块「残影」
   // 把它继续画在该格子里，直到这一路没有待播的特效为止（见 game-flow.js 的 pumpCombatFx）。
@@ -317,11 +339,14 @@ function statusBarHTML(state, side, view) {
    * 敌方视角下看不见我埋陷阱花掉的那笔钱（作者 2026-10 口径）：
    * 自己的条显示**真值**（不然自己都不知道还剩多少费），对面那条显示 visibleMana。
    */
-  const shownMana = isMe ? p.mana : visibleMana(state, side);
+  // 靶场：费用不参与结算（playCard 里 cost 直接按 0 算），所以画成 ∞，
+  // 也不画能量珠 —— 99 颗珠子既没意义又会把状态条挤爆。
+  const sandboxMana = state.sandbox === true;
+  const shownMana = sandboxMana ? '∞' : (isMe ? p.mana : visibleMana(state, side));
   // 直接问引擎谁是当前行动者，不要在这里重算一遍先后手逻辑
   const active = G.getActor(state) === side;
 
-  const manaPips = Array.from({ length: Math.max(p.manaCap, 0) }, (_, i) => {
+  const manaPips = sandboxMana ? '' : Array.from({ length: Math.max(p.manaCap, 0) }, (_, i) => {
     const cls = i < p.mana ? 'pip on' : 'pip';
     return `<i class="${cls}"></i>`;
   }).join('');
@@ -332,9 +357,74 @@ function statusBarHTML(state, side, view) {
   return `
     <div class="statusbar ${isMe ? 'me' : 'foe'} ${active ? 'active' : ''}">
       <span class="sb-side"><b>${esc(view.playerNames ? view.playerNames[side] : (isMe ? '你' : 'AI'))}</b><i class="sb-role">${esc(view.playerTags ? view.playerTags[side] : (isFirst ? '先手' : '后手'))}</i></span>
-      <span class="sb-king ${kingTargetable ? 'targetable' : ''}${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side) ? ' fx-hit' : ''}" data-king="${side}" title="${kingTargetable ? '点击：把国王指定为目标' : '国王生命'}">♥ ${p.kingHp}</span>${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side && view.fx.text) ? '<span class="fx-float fx-float-king' + (view.fx.animateFloat === false ? ' fx-float-rest' : '') + '">' + view.fx.text + '</span>' : ''}
-      <span class="sb-mana" title="费用">◈ ${shownMana}/${p.manaCap}<span class="pips">${manaPips}</span></span>
+      <span class="sb-king ${kingTargetable ? 'targetable' : ''}${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side) ? ' fx-hit' : ''}" data-king="${side}" title="${kingTargetable ? '点击：把国王指定为目标' : '国王生命'}">♥ ${p.kingHp}</span>${(view.fx && view.fx.kind === 'hit' && view.fx.kingSide === side && view.fx.text) ? '<span class="fx-float fx-float-king' + (view.fx.animateFloat === false ? ' fx-float-rest' : '') + '">' + view.fx.text + (view.fx.reason ? '<i class="fx-why">' + esc(view.fx.reason) + '</i>' : '') + '</span>' : ''}
+      <span class="sb-mana" title="费用">${sandboxMana ? '◈ ∞' : `◈ ${shownMana}/${p.manaCap}<span class="pips">${manaPips}</span>`}</span>
       <span class="sb-hand" title="手牌">手牌 ${p.hand.length}</span>
+    </div>`;
+}
+
+/**
+ * 靶场工具条（作者 2026-10-22）。
+ *
+ * 放的是「试卡时一直要动的那几个开关」：控制哪一方、两边阵营、AI 难度与待机、
+ * 加任意一张牌、清空场地、重置。都做成一行一颗的小胶囊 —— 靶场是工具，不是界面。
+ */
+function sandboxBarHTML(state, view) {
+  const mine = state.players[view.humanSide];
+  const foeP = state.players[1 - view.humanSide];
+  const fname = (k) => (k && (G.FACTIONS[k] || {}).name) || '未选';
+  return `
+  <div class="sb-bar">
+    <div class="sb-row">
+      <span class="sb-brand">靶场</span>
+      <button class="sb-chip" data-act="sb-side">控制 ${view.humanSide === 0 ? '玩家1' : '玩家2'}</button>
+      <button class="sb-chip" data-act="sb-faction-mine">我方 ${esc(fname(mine.faction))}</button>
+      <button class="sb-chip" data-act="sb-faction-foe">对方 ${esc(fname(foeP.faction))}</button>
+      <button class="sb-chip" data-act="sb-difficulty">难度 ${esc(view.sandboxDifficulty || '普通')}</button>
+      <button class="sb-chip${view.sandboxAI ? ' on' : ''}" data-act="sb-ai">AI ${view.sandboxAI ? '行动' : '待机'}</button>
+    </div>
+    <div class="sb-row">
+      <button class="sb-chip" data-act="sb-add">加牌</button>
+      <button class="sb-chip" data-act="sb-refill">发满超能力</button>
+      <button class="sb-chip" data-act="sb-clear">清空场地</button>
+      <button class="sb-chip" data-act="sb-reset">重置靶场</button>
+    </div>
+  </div>`;
+}
+
+/**
+ * 「加牌」面板：整个卡池按阵营分组，点一张就进手牌。
+ *
+ * 为什么不做搜索框：手机上一边打字一边选牌很别扭，而且卡池已经按阵营分好组
+ * （每组最多十几张），滚两下就能找到。工坊用的是同一套「分组 + 点选」逻辑。
+ */
+function sandboxPickerHTML(state, view) {
+  const groups = new Map();
+  for (const id of Object.keys(state.cardLib || {})) {
+    const c = state.cardLib[id];
+    if (!c || c.legacy) continue;
+    const key = c.faction || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const label = (k) => (k ? (G.FACTIONS[k] || {}).name || k : '中立');
+  const order = [...Object.keys(G.FACTIONS), ''].filter((k) => groups.has(k));
+  const blocks = order.map((k) => {
+    const cards = groups.get(k).slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh'));
+    return `
+      <div class="sb-pick-group">
+        <div class="sb-pick-head">${esc(label(k))}</div>
+        <div class="sb-pick-cards">
+          ${cards.map((c) => `<button class="sb-pick-card${c.type === 'unit' ? ' is-unit' : ''}"
+            data-act="sb-give" data-id="${esc(c.id)}">${esc(c.name)}<i>${c.cost}${c.type === 'unit' ? ' · ' + c.atk + '/' + c.hp : ''}</i></button>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="sb-pick">
+      <div class="sb-pick-top"><b>加一张牌到手牌</b><button class="sb-chip" data-act="sb-pick-close">关闭</button></div>
+      <div class="sb-pick-body">${blocks}</div>
     </div>`;
 }
 
@@ -473,7 +563,9 @@ export function render(root, state, view) {
       : (view.playerNames && actor !== null
         ? `${view.playerNames[actor]} 行动中`
         : (actor === view.humanSide ? '轮到你了' : 'AI 行动中')));
-  const canAct = !view.busy && actor === view.humanSide && !state.winner;
+  /** 靶场：随时都能出牌、随时都能按「结束阶段」（引擎那边也不再校验阶段） */
+  const sandbox = state.sandbox === true;
+  const canAct = sandbox ? !view.busy : (!view.busy && actor === view.humanSide && !state.winner);
 
   /**
    * 恶魔阵营的「献祭」按钮（作者 2026-10-03）：出现在结束阶段左边。
@@ -498,13 +590,14 @@ export function render(root, state, view) {
   const brewBtn = canBrew ? '<button class="btn-brew" data-act="brew">炼药</button>' : '';
 
   root.innerHTML = `
-    <div class="topbar">
-      <span class="turn">第 ${state.turn} 回合</span>
+    <div class="topbar${sandbox ? ' topbar-sb' : ''}">
+      <span class="turn">${sandbox ? '靶场 · ' : ''}第 ${state.turn} 回合</span>
       <span class="deck-left">牌库 ${state.deck.length}</span>
       ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
       ${myP && myP.faction === 'flame' ? `<span class="raw-left">异火 ${G.flamePileOf(state, view.humanSide).length}</span>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
+    ${sandbox ? sandboxBarHTML(state, view) + (view.pickOpen ? sandboxPickerHTML(state, view) : '') : ''}
 
     ${statusBarHTML(state, foeSide, view)}
     <div class="board-wrap">${laneHead}${boardHTML}</div>

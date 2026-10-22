@@ -34,7 +34,7 @@ import {
   beginDragChip, moveDragChip, endDragChip, flyDragChipBack,
 } from './render.js';
 import {
-  startNewGame, applyLocalAction, advanceGame, tick, settleIfNeeded,
+  startNewGame, startSandboxGame, applyLocalAction, advanceGame, tick, settleIfNeeded,
 } from './game-flow.js';
 import {
   clearSelection, selectCard, resolvePlayerChoice,
@@ -285,6 +285,75 @@ boot();
 window.__game = () => state;
 /** 建一局并跳到对局屏幕（构建门禁/自动化测试用）。**和真实开局一样是随机先手**。 */
 window.__newGame = () => { startNewGame(); return state; };
+
+/**
+ * 靶场调试入口（截图 / 自检用）：开局并可选地摆几张牌。
+ *   __sandbox()                       —— 只开局
+ *   __sandbox({ place: [[side, cardId, lane, row], …] })  —— 顺便摆牌
+ * 返回一句摘要，_preview.html 的 ?demo=sandbox 会把它写进 title。
+ */
+/** 截图 / 自检：直接打开难度页并把某个阵营的介绍展开 */
+window.__showFaction = (key) => {
+  screen = 'difficulty';
+  toggleFactionInfo(key || 'demon');
+  return { screen, open: key || 'demon' };
+};
+
+window.__sandbox = (opts) => {
+  playMode = 'normal';
+  startSandboxGame();
+  const cfg = opts || {};
+  const runs = [];
+  for (const [side, cardId, lane, row] of (cfg.place || [])) {
+    runs.push({ side, cardId, lane, row, ...window.__sbPlay(side, cardId, { lane, row, placeSide: side }) });
+  }
+  if (cfg.side !== undefined) {
+    setSandboxSide(cfg.side);
+    if (view) view.humanSide = me();
+    if (state) state.humanSide = me();
+    refresh();
+  }
+  if (cfg.foeFaction && state) { G.sandboxSetFaction(state, 1, cfg.foeFaction); refresh(); }
+  return {
+    sandbox: !!(state && state.sandbox),
+    hand: state ? state.players[me()].hand.length : 0,
+    runs,
+  };
+};
+
+/** 战斗演出：同步步进一帧（自检 / 截图用，不等 820ms 的定时器） */
+window.__stepFx = () => {
+  if (!view) return null;
+  clearTimeout(view.fxTimer);
+  view.fxTimer = null;
+  stepCombatFx();
+  return view.fx;
+};
+
+/** 靶场：清空场地（自检用；界面上的「清空场地」走同一个引擎函数） */
+window.__sandboxClearBoard = () => {
+  if (!state || !state.sandbox) return false;
+  G.sandboxClearBoard(state);
+  resetCombatFx();
+  refresh();
+  return true;
+};
+
+/** 靶场：把一张牌加进手牌并立刻按给定的落点/目标打出去（调试用） */
+window.__sbPlay = (side, cardId, opts) => {
+  if (!state || !state.sandbox) return { ok: false, err: '不在靶场里' };
+  const hc = G.sandboxAddCard(state, side, cardId);
+  if (!hc) return { ok: false, err: '加不进手牌' };
+  try {
+    G.playCard(state, side, hc.iid, opts || {});
+  } catch (err) {
+    return { ok: false, err: err.message };
+  }
+  pumpCombatFx();
+  refresh();
+  const last = (state.log || []).slice(-1)[0];
+  return { ok: true, last: last && last.type, reason: last && last.reason };
+};
 
 /**
  * 自检用：建一局，并把**先手固定为 0 号**。
@@ -1103,9 +1172,40 @@ window.__demoLanStart = (opts = {}) => {
   session = {
     isHost: mySide === 0, mySide, started: true, step: 0, lastError: '',
     peerName: opts.peerName === undefined ? '对手' : String(opts.peerName),
+    /** 假会话收到的消息（自检用：确认「重新开局」真的广播了 start / restart-req） */
+    sent: [],
+    transport: {
+      send(msg) { this.owner.sent.push(msg); return Promise.resolve(true); },
+      start() { return Promise.resolve(true); },
+    },
     // 真 Session 会本地应用 + 广播；这里只要本地那一半
     submit(a) { applyLocalAction(a); this.step++; return true; },
+    /**
+     * 「重新开局」（自检用）：真 Session.beginGame 是「先广播 start，再本地开局」，
+     * 这里照同样的顺序走一遍，于是 __nav('restart') 这条链路能被真的走通。
+     */
+    beginGame(p) {
+      this.sent.push({ t: 'start', r: p.restart ? 1 : 0, seed: p.seed });
+      const st = G.createGame({
+        seed: p.seed,
+        firstPlayer: p.firstPlayer,
+        deck: p.deck,
+        cardLib: TEST_CARD_LIB,
+        factions: p.factions,
+        enhance: p.enhance || null,
+      });
+      G.startGame(st);
+      st.autoResolveChoices = false;
+      recordingSeed = p.seed;
+      recordingDeck = p.deck;
+      recordingFactions = p.factions;
+      recordingEnhance = p.enhance || null;
+      this.step = 0;
+      beginLanMatch(st);
+      return Promise.resolve(true);
+    },
   };
+  session.transport.owner = session;
   if (opts.leak !== false) autoAdvancing = true;   // 上一局没退干净
   paused = false;                                  // 真实开局时界面不是暂停态
   const seed = opts.seed === undefined ? 2024 : opts.seed;

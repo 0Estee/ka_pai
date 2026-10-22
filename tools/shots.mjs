@@ -28,6 +28,8 @@ const SHOTS = [
   { id: 'admin', q: 'screen=admin' },
   { id: 'replays', q: 'demo=replays&n=4' },
   { id: 'game', q: 'turn=4&reveal=1' },
+  { id: 'sandbox', q: 'demo=sandbox&place=0,U11,mountain,front;1,U21,mountain,front;0,U07,plainL,back' },
+  { id: 'factioninfo', q: 'demo=factioninfo&fac=demon' },
   { id: 'forge', q: 'screen=forge' },
   { id: 'replay', q: 'demo=replay&step=20&reveal=1' },
 ];

@@ -270,6 +270,8 @@ export function applyAttackBatch(state, lane, attackers) {
     if (ev.target.kind === 'unit' && ev.target.unit.removed) continue;
     M.dealDamage(state, ev.source, ev.target, ev.amount, {
       deferDeath: true,
+      // 受伤原因：写明是哪一张牌打出的这一下（交战 / 反击都走这里）
+      reason: ((ev.source && (ev.source.name || ((state.cardLib || {})[ev.source.cardId] || {}).name)) || '单位') + ' 交战',
       // 「必中」的伤害不可被免疫（连无敌也挡不住）
       unpreventable: !!ev.unpreventable,
     });

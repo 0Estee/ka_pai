@@ -42,6 +42,72 @@ function startNewGame() {
 }
 
 // ══════════════════════════════════════════════════════════
+// 靶场（作者 2026-10-22）
+// ══════════════════════════════════════════════════════════
+
+/**
+ * 进靶场：开局就是一副「随便摆」的沙盒。
+ *
+ * 和真对局的区别只有三条，都写在引擎侧（engine/src/sandbox.js + playCard 的 sandbox 分支）：
+ *   · 出牌不花费用、不看阶段、不看敌我（任意格子都能放）
+ *   · 双方开局就把本阵营的全部超能力拿到手
+ *   · 国王被打死不判负，对局继续
+ * 界面上另有：换阵营 / 换难度 / 换控制方（切换到对面）/ 加任意一张牌 / 清空场地。
+ */
+function startSandboxGame() {
+  screen = 'game';
+  startBoardReveal();
+  newSandboxGame();
+  view.hint = '靶场：先点一张手牌，再点场上任意格子（点对面格子＝放在对面）。';
+  refresh();
+}
+
+function newSandboxGame() {
+  clearTimeout(bannerTimer);
+  resetTurnLoop();
+
+  const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+  // 靶场把整副卡池都给出来：加牌面板要能拿到任何一张牌
+  const deck = buildTestDeck(1000, seed);
+  // 对面的阵营默认取「下一个」：一眼能看出两边不同，随时可以在靶场里换
+  const keys = Object.keys(G.FACTIONS);
+  const myIdx = Math.max(0, keys.indexOf(myFaction));
+  const foeFaction = keys[(myIdx + 1) % keys.length];
+  state = G.createGame({
+    seed,
+    firstPlayer: 0,
+    deck,
+    cardLib: TEST_CARD_LIB,
+    factions: [myFaction, foeFaction],
+    enhance: null,
+  });
+  G.sandboxEnable(state);
+  G.startGame(state);
+  state.autoResolveChoices = true;
+  // 引擎要问人的那一侧跟着「我现在控制谁」走（换边时由 play-input.js 再同步一次）
+  state.humanSide = me();
+  installAiTargetPicker(state);
+  // 「开局讲阵营超能力所有技能全发」：双方各自把本阵营的全部超能力发进手牌
+  G.sandboxGrantFaction(state, 0);
+  G.sandboxGrantFaction(state, 1);
+  G.sandboxRefillMana(state, 0);
+  G.sandboxRefillMana(state, 1);
+
+  resetCombatFx();
+  resetCardFlights();
+  // 靶场不入回放、不结算金币（见 settleIfNeeded 的沙盒分支）
+  recording = null;
+  state.choiceLog = null;
+
+  view = makeView();
+  // AI 默认待机：摆好的局面不该被程序立刻打散
+  view.sandboxAI = false;
+  view.pickOpen = false;
+  fillMenuLog();
+  tick();
+}
+
+// ══════════════════════════════════════════════════════════
 // 建局
 // ══════════════════════════════════════════════════════════
 
@@ -278,6 +344,22 @@ function tick() {
   }
 
 
+  /**
+   * 靶场（作者 2026-10-22）：
+   *   · 「没有合法出牌就自动结束阶段」不适用 —— 靶场里牌随时都能出，人正在摆局；
+   *   · 对面那一侧只有显式打开「AI 行动」才自己出牌，否则停在原地让人慢慢试。
+   * 自动阶段（回合开始 / 开战 / 结算）**照常推进**，不然开战永远不结算。
+   */
+  if (state.sandbox === true) {
+    const sbActor = G.getActor(state);
+    if (sbActor !== null && (sbActor === me() || !view.sandboxAI)) {
+      view.busy = false;
+      view.busyText = '';
+      refresh();
+      return;
+    }
+  }
+
   const actor = G.getActor(state);
 
   // ── 自动阶段（回合开始 / 开战 / 回合结束）
@@ -402,6 +484,8 @@ function tick() {
  * tick() 会反复跑到这里，所以幂等很重要。
  */
 function settleIfNeeded() {
+  // 靶场是试卡用的：不发金币、不进回放、不留战绩（作者 2026-10-22）
+  if (state && state.sandbox === true) return;
   if (!recording || recording.settled) return;
 
   const record = RP.finishRecording(recording, state);
@@ -482,7 +566,7 @@ function summarizeLog(from) {
 }
 
 export {
-  startNewGame, newGame, doAction, applyLocalAction, advanceGame,
+  startNewGame, startSandboxGame, newGame, newSandboxGame, doAction, applyLocalAction, advanceGame,
   tick, settleIfNeeded, summarizeLog, resetTurnLoop,
 };
 /**
@@ -596,10 +680,12 @@ function fxOfLogEntry(e) {
         // hpBefore 是这一下**之前**的血量：日志只记了扣完的 hp，所以加回去。
         amount: e.amount, hp: e.hp,
         hpBefore: (e.hp !== undefined && e.amount !== undefined) ? fixNum(e.hp + e.amount) : undefined,
+        // 「这一下是谁打的 / 为什么」（作者 2026-10-22）：飘字下面那一行小字
+        reason: e.reason,
         text: (e.hp !== undefined && e.hp <= 0) ? '消灭' : '-' + e.amount,
       };
     case 'king-damage':
-      return { kind: 'hit', kingSide: e.side, text: '-' + e.amount };
+      return { kind: 'hit', kingSide: e.side, reason: e.reason, text: '-' + e.amount };
     case 'crit':
       return { kind: 'hit', uid: e.uid, text: '暴击 +' + e.x };
     case 'thorns':

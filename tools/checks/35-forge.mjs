@@ -299,6 +299,12 @@ check('数值干净：强化/伤害/治疗不会留下浮点尾巴', () => {
   const isClean = (v) => typeof v === 'number' && Number.isFinite(v) && Math.round(v * 100) / 100 === v;
   const st = api.__game();
   if (!st) throw new Error('没有对局');
+  /**
+   * 先把山地前排清空：上一条用例在「这一局手牌里恰好有这张牌」时会在同一格摆一张，
+   * 那是**种子随机**的（手牌来自洗过的牌库），于是本用例会偶发地撞上
+   * 「该位置已被占用」。这跟「浮点尾巴」完全无关，属于用例之间的串味。
+   */
+  st.board.mountain.units[0].front = null;
   // 直接构造一个强化过的单位（走和玩家完全相同的 instantiateUnit 路径）
   const placed = api.__place(0, unitId, 'mountain', 'front');
   if (!placed) throw new Error('摆不上单位');
