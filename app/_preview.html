@@ -142,6 +142,13 @@
       window.__view().busy = false;
       window.__nav('sb-add', {});
       window.__revealAll();
+    } else if (demo === 'factionclick') {
+      // 点「阵营」那一行（不是右侧的「介绍」按钮）：介绍要自己摊开
+      window.__go('difficulty');
+      const want = p.get('fac') || 'sword';
+      const row = document.querySelector('.fac-row[data-key="' + want + '"]');
+      if (row) row.click();
+      document.title = 'demo: intro=' + !!document.querySelector('.fac-intro');
     } else if (demo === 'factioninfo') {
       // 难度页：展开某个阵营的介绍
       window.__showFaction(p.get('fac') || 'demon');

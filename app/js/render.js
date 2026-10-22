@@ -180,6 +180,14 @@ function toggleFactionInfo(key) {
   refresh();
 }
 
+/** 点阵营那一行 = 选它 + **把它的介绍展开**（作者 2026-10-22 第 4 条原话：「点击阵营出现对应阵营的介绍」） */
+function showFactionInfo(key) {
+  if (screen !== 'difficulty') return;   // 联机大厅也有阵营行，但那边不展示介绍
+  if (factionOpen === key) return;       // 已经摊开着就不用再刷一遍
+  factionOpen = key || '';
+  refresh();
+}
+
 /**
  * 选择本局阵营。和难度不同，**不写进设置**：它是「这一局」的选择。
  */

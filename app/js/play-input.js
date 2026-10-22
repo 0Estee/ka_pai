@@ -850,6 +850,8 @@ function handleAction(act, el) {
   if (act === 'set-difficulty') { setDifficulty(el.dataset.key); return; }
   if (act === 'set-faction') {
     setFaction(el.dataset.key);
+    // 点阵营这一下同时把它的介绍摊开（作者 2026-10-22 第 4 条）
+    showFactionInfo(el.dataset.key);
     // 联机大厅里换阵营要告诉对手：主机开局按两边各自的阵营建局（作者 2026-10-05）
     if (session) {
       try { session.transport.send({ t: 'faction', key: myFaction }); } catch { /* 断线时忽略，重连后 hello 会再报一次 */ }
