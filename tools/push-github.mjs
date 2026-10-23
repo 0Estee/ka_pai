@@ -170,7 +170,20 @@ async function main() {
     body: JSON.stringify({ base_tree: treeSha, tree }),
   });
 
-  const message = '0.61.0: 账号、云存档与管理后台\n\n- Users Durable Object：注册/登录/改密、存档冲突、管理员列表/重置/删号\n- 首页/设置云存档入口，账户页与管理页\n- 文档、门禁与版本号 0.61.0 (versionCode 65)';
+  /**
+   * 提交信息按**当前版本号**自动生成。
+   *
+   * 以前这里写死成 0.61.0 那一轮的文案，于是 0.62 之后的每一次提交
+   * 在 GitHub 上都叫「0.61.0: 账号、云存档与管理后台」—— 谁看了都以为推错了版本。
+   * 想写别的就在命令行给一句：node tools/push-github.mjs "0.68.0: 观战视角"
+   */
+  const verSrc = fs.readFileSync(path.join(ROOT, 'app', 'js', 'screens.js'), 'utf8');
+  const verHit = verSrc.match(/APP_VERSION\s*=\s*'([^']+)'/);
+  const version = verHit ? verHit[1] : 'unknown';
+  const title = process.argv[2] || (version + '：见 docs/发行说明-' + version + '.md');
+  const message = title + '\n\n- 改动 ' + changed.length + ' 个文件：'
+    + changed.slice(0, 12).map((x) => x.rel).join(', ')
+    + (changed.length > 12 ? ' 等' : '');
   const newCommit = await api('/git/commits', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
