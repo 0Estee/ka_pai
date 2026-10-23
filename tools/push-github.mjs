@@ -82,6 +82,8 @@ const SKIP_EXT = new Set(['.apk', '.idsig', '.log', '.zip', '.tar', '.gz', '.xz'
 /** 只提交这些位置；其余（生成物、密钥、APK）一律不碰 */
 const ROOTS = [
   'app', 'engine', 'cloudflare/src', 'cloudflare/test', 'docs', 'tools', 'data', 'android/app',
+  // android/test 是桌面可跑的 Java 测试（观战那条链路就是靠它验的）
+  'android/test',
   'README.md', 'package.json', '.gitignore', '.gitattributes',
   'cloudflare/package.json', 'cloudflare/package-lock.json', 'cloudflare/wrangler.toml',
 ];
