@@ -1,28 +1,46 @@
-# 在容器里构建 APK：现在卡在哪一步
+# 在容器里构建 APK（0.68.0 起可行）
 
-> 这份文件是 0.65.0 这轮实测出来的，写给下次接手的人看：
-> **不需要再从头试一遍**，缺的就一样东西。
+> 这份文件 0.65.0 时写的是「卡在 aapt2」；0.68.0 这轮找到可行解，**在容器里真的构建出来了**。
+> 下面是结论 + 复现步骤，别再从头试。
 
 ## 一句话
 
-`bash tools/build-apk.sh` 在手机容器里现在只卡在 **`aapt2`** 上。JDK 已经不是问题了。
+用 **Debian/Ubuntu 源里的 `aapt2 2.19`（arm64）+ `android-34` 的 android.jar**，其余工具照旧。
+一条命令：`bash tools/build-apk-container.sh`（它把下面这些环境变量固定住了）。
 
 ```
-=== [0] 检查工具链 ===
-  ERR 找不到 aapt2: .toolchain/sdk/build-tools/36.0.0/aapt2
+✅ APK 构建成功
+   dist/ka-pai-0.68.0.apk   545.9 KB   versionCode 73 / versionName 0.68.0
 ```
 
-## 已经解决的部分
+## 为什么以前不行，现在行
 
-| 件 | 状态 |
+| 结论 | 说明 |
 |---|---|
-| `javac` / `java` / `keytool` | ✅ 这轮装好了：Temurin JDK 21（aarch64 glibc） |
-| `android.jar` | ✅ `.toolchain/sdk/platforms/android-34/android.jar` |
-| `d8` / `apksigner` | ✅ `.toolchain/sdk/build-tools/36.0.0/`（都是 jar，有 JDK 就能跑） |
-| `zipalign` | ✅ 可用 Ubuntu 的 arm64 包：`apt-get download zipalign && dpkg -x …` |
-| `aapt2` | ❌ **缺** |
+| Google 的 build-tools 只有 **x86_64** 的 `aapt2` | 本机 aarch64，跑起来报 `cannot execute`；容器里没 qemu/box64 |
+| Ubuntu ports 里**没有** `aapt2` 这个包名 | 但 `aapt` 包里带了它：`usr/lib/android-sdk/build-tools/debian/aapt2` |
+| 它认不了 **android-36** 的 jar | 报 `RES_TABLE_TYPE_TYPE entry offsets overlap actual entry data` |
+| 它**认 android-34** 的 jar | 本工程本来就用 `PLATFORM=android-34`，正好对上 |
+| 它是动态链接的 | 要一起解出 `libaapt2.so.0` 等库并设 `LD_LIBRARY_PATH` |
 
-JDK 的装法（不需要 root，也别放进仓库）：
+## 一次性准备（不需要 root）
+
+```bash
+mkdir -p /root/tmp/apt1 && cd /root/tmp/apt1
+apt-get download aapt zipalign zip unzip \
+  libprotobuf32t64=3.21.12-8.2build1 \
+  android-libaapt android-libandroidfw android-libbase android-libbacktrace \
+  android-libcutils android-liblog android-libutils android-libziparchive libzopfli1
+for d in *.deb; do dpkg -x "$d" root; done
+```
+
+⚠ 两个坑：
+
+* `libprotobuf32t64` 必须**钉版本** `3.21.12-8.2build1`（noble/main）。
+  镜像索引里 noble-updates 的 `3.21.12-8.2ubuntu0.3` 实际返回 404。
+* 容器里**没有** `curl` / `wget`，所以用 `apt-get download`（它有网）或 python3 的 urllib。
+
+JDK 21（aarch64 glibc）解在 `/root/tmp/jdk-21.0.12.1+1`（0.65.0 那轮就装好了）：
 
 ```bash
 python3 - <<'PY'
@@ -31,39 +49,49 @@ urllib.request.urlretrieve(
   'https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/linux/'
   'OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.12.1_1.tar.gz', '/root/tmp/jdk.tar.gz')
 PY
-cd /root/tmp && tar xzf jdk.tar.gz         # → /root/tmp/jdk-21.0.12.1+1
+cd /root/tmp && tar xzf jdk.tar.gz
 ```
 
-## 为什么 aapt2 拿不到（三条路都试过了）
-
-1. **官方 build-tools（`build-tools_r34-linux.zip` 等）只有 x86_64 的 `aapt2`** ——
-   本机是 aarch64，跑起来是 `cannot execute: required file not found`（缺 64 位 x86 加载器）。
-   容器里也没有 qemu / box64。
-2. **Ubuntu arm64 源里没有 `aapt2`**：`apt-cache search aapt` 只有 `aapt`（v1）和
-   `android-libaapt`；`android-sdk-build-tools` 是 2.9KB 的元包。
-3. **Termux 的 `aapt` 包（aarch64）跑不了**：它是 Bionic 二进制，要靠
-   `/system/bin/linker64` 加载，而 proot 容器里看不到 `/system`。
-
-## 有 aapt2 之后的完整命令
+## 构建
 
 ```bash
-JDK=/root/tmp/jdk-21.0.12.1+1
 cd /sdcard/ka_pai
-JAVA_HOME=$JDK PATH=$JDK/bin:$PATH \
-  AAPT2=/path/to/aapt2 ZIPALIGN=/path/to/zipalign \
-  bash tools/build-apk.sh            # → dist/ka-pai-0.65.0.apk
+bash tools/build-apk-container.sh              # 完整（含网页门禁：build-web / check-bundle / smoke）
+bash tools/build-apk-container.sh --skip-web   # 门禁已经跑过，只重打包
 ```
 
-（`build-apk.sh` 会用 `AAPT2=` / `ZIPALIGN=` 覆盖默认路径，这是它本来就支持的。）
+它做的事就是把这几件事交给 `tools/build-apk.sh`：
 
-## 还没验的那条路：改用 aapt（v1）
+```bash
+export JAVA_HOME=/root/tmp/jdk-21.0.12.1+1
+export PATH="$JAVA_HOME/bin:/opt/node-v22.23.2-linux-arm64/bin:/root/tmp/apt1/root/usr/bin:$PATH"
+export LD_LIBRARY_PATH=/root/tmp/apt1/root/usr/lib/aarch64-linux-gnu/android:/root/tmp/apt1/root/usr/lib/aarch64-linux-gnu:/root/tmp/apt1/root/usr/lib
+export AAPT2=/root/tmp/apt1/root/usr/lib/android-sdk/build-tools/debian/aapt2
+export ZIPALIGN=/root/tmp/apt1/root/usr/lib/android-sdk/build-tools/debian/zipalign
+```
 
-Ubuntu 的 `aapt` 是 arm64 + glibc，能跑。aapt v1 用一条 `aapt package` 同时完成
-compile + link，所以理论上能把第 4 步换掉。但：
+`d8` / `apksigner` 用仓库自带的 `.toolchain/sdk/build-tools/36.0.0/`（都是 jar，有 JDK 就能跑），
+`zip` / `unzip` 用上面解出来的 Debian 版。
 
-* v1 不支持 aapt2 的 `--auto-add-overlay` / 资源命名空间那套；
-* 资源表格式和老版本一致（`android-34` 的 `android.jar` 得用对应版本的 aapt）；
-* 换完必须重新验一遍「装得上、资源解析正确」，不能只看构建成功。
+## 构建完自查
 
-结论：**能用电脑打就在电脑上打**（`tools/build-apk.ps1`，工具链脚本也在那儿）；
-真要在容器里打，先解决 aapt2。
+```bash
+python3 - <<'PY'
+import zipfile
+z = zipfile.ZipFile('dist/ka-pai-0.68.0.apk')
+n = z.namelist()
+for k in ['AndroidManifest.xml', 'classes.dex', 'resources.arsc', 'assets/index.html']:
+    print('OK ' if k in n else 'MISSING ', k)
+print('modules', len([x for x in n if x.startswith('assets/dist/modules/')]))
+print('arsc stored?', z.getinfo('resources.arsc').compress_type == 0)   # targetSdk>=30 必须 Stored
+PY
+```
+
+## 手机上装
+
+```bash
+adb install -r dist/ka-pai-0.68.0.apk
+```
+
+签名用的是 `android/keystore.jks`（已存在就复用，**别换** —— 换了密钥覆盖安装会失败）。
+签出来的 APK 用 v2 + v3 方案签名（minSdk 24，v1/JAR 签名不需要，`apksigner` 也会自动跳过）。

@@ -136,12 +136,13 @@ function beginLanMatch(st) {
    */
   if (session && session.isWatcher) {
     resetTurnLoop();
+    // 视角从「玩家1 在下面」开始；顶栏的「视角」按钮随时能翻到玩家2那一侧
+    setWatchSide(0);
     state = st;
     view = makeView();
     view.watcher = true;
     // isReplay 是"只读"的既有语义：不出牌、不弹结算面板、菜单里不给重开/认输
     view.isReplay = true;
-    view.watchReveal = false;
     view.playerNames = ['玩家1', '玩家2'];
     view.playerTags = [
       st.firstPlayer === 0 ? '先手' : '后手',

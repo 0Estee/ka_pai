@@ -238,16 +238,18 @@ function selectCard(iid) {
     view.legalKingTargets = [];
     view.pickOpen = false;
     if (def.type === 'unit') {
+      /**
+       * 落点**包括已经有单位的格子**（作者 2026-10-23 第 3 条）：放上去就把旧的顶掉。
+       * 以前这里只收空格，想在同一个坑位换一张牌必须先「清空场地」。
+       */
       const slots = [];
       for (const lane of LANES) {
         for (const side of [0, 1]) {
-          for (const row of ROWS) {
-            if (!state.board[lane].units[side][row]) slots.push({ lane, row, side });
-          }
+          for (const row of ROWS) slots.push({ lane, row, side });
         }
       }
       view.legalSlots = slots;
-      view.hint = `点任意空格放下「${def.name}」（点对面那一侧＝放到对面）`;
+      view.hint = `点任意格子放下「${def.name}」（点对面那一侧＝放到对面，格子里有牌就顶掉）`;
     } else {
       view.legalSlots = [];
       for (const lane of LANES) {
@@ -485,6 +487,21 @@ function handleSlotClick(slotEl) {
     const hc = state.players[me()].hand.find((c) => c.iid === view.selectedIid);
     const def = hc && state.cardLib[hc.cardId];
     if (!def) { clearSelection(); refresh(); return; }
+    /**
+     * 陷阱格（作者 2026-10-23 第 3 条）：中间那行格子没有 data-row / data-side
+     * —— 点它就是「埋伏在**这一条线路**」。
+     * 以前没有这一支：格子里的 dataset.row 是 undefined，单位牌会被塞进
+     * `units[0][undefined]`，场上凭空多出一个点不到、画不出来的单位。
+     */
+    if (!row) {
+      if (G.isTrapCard(def)) {
+        commitPlay(view.selectedIid, { lane });
+        return;
+      }
+      view.hint = '陷阱格只放陷阱牌：单位放前排 / 后排的格子';
+      refresh();
+      return;
+    }
     if (def.type === 'unit') {
       commitPlay(view.selectedIid, { lane, row, placeSide: side });
       return;
@@ -554,12 +571,15 @@ function laneNameOf(lane) {
 function canDragCard(iid) {
   if (!state || !view) return false;
   if (view.busy || state.winner !== null) return false;
-  if (G.getActor(state) !== me()) return false;
+  // 靶场：和点牌一样不看阶段（自动阶段里也要能拖）
+  if (state.sandbox !== true && G.getActor(state) !== me()) return false;
   const hc = state.players[me()].hand.find((c) => c.iid === iid);
   if (!hc) return false;
   const def = state.cardLib[hc.cardId];
   if (!def || def.type !== 'unit') return false;
   if (G.isRawMaterial(def)) return false;
+  // 靶场不花费用（引擎里 cost 直接按 0 算，见 play.js）
+  if (state.sandbox === true) return true;
   return G.costOf(state, hc) <= state.players[me()].mana;
 }
 
@@ -609,15 +629,22 @@ function applyDragHit(hit) {
   if (view.dragIid === null) return;
   let seen = null;
   if (hit && hit.lane && LANES.indexOf(hit.lane) >= 0 && hit.row) {
+    /**
+     * 靶场（作者 2026-10-23 第 3 条）：拖到**对面**那一侧也算合法（点格子同理），
+     * 所以这里按「点了哪一侧」判，而不是「是不是我这一侧」。
+     */
+    const hitSide = Number(hit.side);
+    const match = view.legalSlots.some((s) => s.lane === hit.lane && s.row === hit.row
+      && (state.sandbox !== true || s.side === undefined || s.side === hitSide));
     seen = {
-      side: Number(hit.side),
+      side: hitSide,
       lane: hit.lane,
       row: hit.row,
-      legal: Number(hit.side) === me()
-        && view.legalSlots.some((s) => s.lane === hit.lane && s.row === hit.row),
+      legal: state.sandbox === true ? match : (hitSide === me() && match),
     };
   }
-  const next = seen && seen.legal ? { lane: seen.lane, row: seen.row } : null;
+  // dragOver 带上 side：松手时靶场要靠它决定「放到哪一侧」
+  const next = seen && seen.legal ? { side: seen.side, lane: seen.lane, row: seen.row } : null;
   const prev = view.dragOver;
   const changed = (!!prev !== !!next)
     || (prev && next && (prev.lane !== next.lane || prev.row !== next.row));
@@ -630,6 +657,8 @@ function applyDragHit(hit) {
 function dragFailHint() {
   const seen = view.dragSeen;
   if (!seen) return '没拖到格子上，牌已飞回手牌';
+  // 靶场两边都能放，所以失败只会是「压到了陷阱格 / 没压到前排后排」
+  if (state.sandbox === true) return '这一格放不了单位：拖到前排 / 后排的格子上';
   if (seen.side !== me()) return '只能放在自己这一侧的格子';
   return '这个格子放不下（已经有单位了）';
 }
@@ -644,7 +673,10 @@ function endCardDrag() {
   if (over && view.selectedIid === iid) {
     view.pickedSlot = null;
     view.dragSeen = null;
-    const ok = commitPlay(iid, { lane: over.lane, row: over.row });
+    const opts = { lane: over.lane, row: over.row };
+    // 靶场：拖到对面那一侧＝放到对面（和点格子一条规则，见 play.js 的 placeSide）
+    if (state.sandbox === true && over.side !== undefined) opts.placeSide = over.side;
+    const ok = commitPlay(iid, opts);
     return { placed: !!ok, iid };
   }
   // 没落在合法格子：保留选中状态，让玩家可以直接再点格子，或者重新拖。
@@ -695,7 +727,13 @@ function handleUnitClick(uid) {
     const def = hc && state.cardLib[hc.cardId];
     if (!def) { clearSelection(); refresh(); return; }
     if (def.type === 'unit') {
-      view.hint = '这一格已经有单位了：先「清空场地」，或者改用锦囊打到它身上';
+      /**
+       * 靶场里点一个有人的格子＝把旧的顶掉（作者 2026-10-23 第 3 条「任意格子都能放」）。
+       * 以前这里只提示「先清空场地」，试卡时换个坑位要清掉整块棋盘。
+       */
+      const old = clicked.name || (state.cardLib[clicked.cardId] || {}).name || '这张牌';
+      commitPlay(view.selectedIid, { lane: clicked.lane, row: clicked.row, placeSide: clicked.side });
+      view.hint = `「${old}」被顶下来了（靶场里任意格子都能放）`;
       refresh();
       return;
     }
@@ -834,9 +872,13 @@ function sandboxCycleFaction(side) {
   const p = state.players[side];
   const at = keys.indexOf(p.faction);
   const next = keys[(at + 1) % keys.length];
-  G.sandboxSetFaction(state, side, next);
+  const r = G.sandboxSetFaction(state, side, next);
   G.sandboxRefillMana(state, side);
-  view.hint = `${side === me() ? '我方' : '对方'}阵营换成「${(G.FACTIONS[next] || {}).name || next}」`;
+  const name = (G.FACTIONS[next] || {}).name || next;
+  const removed = (r && r.removed ? r.removed.length : 0);
+  const added = (r && r.added ? r.added.length : 0);
+  view.hint = `${side === me() ? '我方' : '对方'}阵营换成「${name}」`
+    + `：发 ${added} 张` + (removed ? `，收走上一个阵营的 ${removed} 张` : '');
   refresh();
 }
 
@@ -869,7 +911,15 @@ function handleAction(act, el) {
   }
   if (act === 'start-ai') { startNewGame(); return; }
   // ── 靶场（作者 2026-10-22）：试卡的沙盒，进来就是一局随便摆的对局
-  if (act === 'start-sandbox') { playMode = 'normal'; startSandboxGame(); return; }
+  /**
+   * 靶场入口有两个：普通模式菜单和**强化模式菜单**（作者 2026-10-23 第 1 条）。
+   * 从哪个菜单进来就决定这一局读不读强化 / 精通 —— 和「强化 AI 对决」同一个口径。
+   */
+  if (act === 'start-sandbox') {
+    playMode = screen === 'forgeMenu' ? 'forge' : 'normal';
+    startSandboxGame();
+    return;
+  }
   // 阵营行右边的「介绍」：展开这一段说明（再点一次收起）
   if (act === 'faction-info') { toggleFactionInfo(el.dataset.key); return; }
   if (act === 'sb-side') {
@@ -980,9 +1030,20 @@ function handleAction(act, el) {
   if (act === 'watch-join') { lanManualError = ''; screen = 'watchJoin'; refresh(); return; }
   if (act === 'watch-enter') { watchByInput(); return; }
   if (act === 'watch-exit') { quitRoom(); return; }
-  if (act === 'watch-reveal') {
+  /**
+   * 观战切换视角（作者 2026-10-23 第 5 条）。
+   *
+   * 只翻界面：把哪一方摆到下面。观战者没有座位，切视角不动引擎状态、
+   * 不动回合推进 —— 它仍然只是照抄收到的操作。
+   */
+  if (act === 'watch-side') {
     if (!view) return;
-    view.watchReveal = !view.watchReveal;
+    setWatchSide(1 - watchSideOf());
+    // 直接读 watchSide，不走 me()：me() 只在 session 是观战时才看 watchSide，
+    // 而自检里（__watchView）根本没有 session —— 那会让视角切不动。
+    view.humanSide = watchSideOf();
+    view.hint = `现在按「${(view.playerNames || [])[view.humanSide] || '玩家'}」的视角看`;
+    clearSelection();
     refresh();
     return;
   }

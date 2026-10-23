@@ -89,6 +89,93 @@ check('靶场不判胜负：国王被打到 0 也继续', () => {
   if (st.winner !== before) throw new Error('靶场判了胜负：' + st.winner);
 });
 
+check('任意格子都能放：格子里已经有单位时直接顶掉（作者 2026-10-23 第 3 条）', () => {
+  api.__sandbox();
+  const st = api.__game();
+  const units = Object.keys(st.cardLib).filter((id) => {
+    const c = st.cardLib[id];
+    return c.type === 'unit' && !c.legacy && !c.faction && !c.token;
+  });
+  const first = api.__sbPlay(0, units[0], { lane: 'mountain', row: 'front', placeSide: 0 });
+  if (!first.ok) throw new Error('先摆一张失败：' + first.err);
+  const oldUnit = st.board.mountain.units[0].front;
+  if (!oldUnit) throw new Error('第一张没落在格子里');
+  const second = api.__sbPlay(0, units[1], { lane: 'mountain', row: 'front', placeSide: 0 });
+  if (!second.ok) throw new Error('往有人的格子放牌被挡住了：' + second.err);
+  const now = st.board.mountain.units[0].front;
+  if (!now || now.cardId !== units[1]) throw new Error('新牌没有顶到这一格上');
+  if (now.uid === oldUnit.uid) throw new Error('格子里的还是原来那张牌');
+  // 顶掉的那张是真的离场了，而且**不算被打死**（不该给对面送击杀、也不该触发死亡效果）
+  const dead = (st.log || []).some((e) => e.uid === oldUnit.uid && (e.type === 'unit-died' || e.type === 'death'));
+  if (dead) throw new Error('顶掉被记成了一次死亡：靶场里顶牌不该触发被消灭效果');
+});
+
+check('换阵营：上一个阵营的牌会被从手里收走，只剩新阵营那一整套（第 2 条）', () => {
+  api.__sandbox();
+  const st = api.__game();
+  const p = st.players[0];
+  const oldFaction = p.faction;
+  const oldCards = p.hand.filter((hc) => (st.cardLib[hc.cardId] || {}).faction === oldFaction);
+  if (!oldCards.length) throw new Error('开局手里没有本阵营的牌，这条测不到');
+  // 阵营名单和 engine/src/factions.js 的 FACTIONS 一致（搬过来，免得测试依赖内部变量）
+  const FACTION_KEYS = ['demon', 'god', 'sword', 'music', 'science', 'divine',
+    'alchemy', 'inferno', 'frost', 'sin', 'party', 'flame'];
+  const next = FACTION_KEYS.find((k) => k !== oldFaction
+    && Object.keys(st.cardLib).some((id) => (st.cardLib[id] || {}).faction === k));
+  if (!next) throw new Error('找不到另一个有超能力的阵营');
+  const r = api.__sbFaction(0, next);
+  if (!r.ok) throw new Error('换阵营失败：' + JSON.stringify(r));
+  if (r.removed < oldCards.length) throw new Error('旧阵营的牌没有全部收走：报告收走 ' + r.removed + '，实际有 ' + oldCards.length);
+  const leftOver = st.players[0].hand.filter((hc) => (st.cardLib[hc.cardId] || {}).faction === oldFaction);
+  if (leftOver.length) throw new Error('换阵营之后手里还留着上一个阵营的 ' + leftOver.length + ' 张牌');
+  const want = Object.keys(st.cardLib).filter((id) => {
+    const c = st.cardLib[id];
+    return c && c.faction === next && !c.token && !c.legacy;
+  });
+  const have = st.players[0].hand.filter((hc) => (st.cardLib[hc.cardId] || {}).faction === next).map((hc) => hc.cardId);
+  for (const id of want) {
+    if (have.indexOf(id) < 0) throw new Error('新阵营的超能力 ' + id + ' 没有发下来');
+  }
+});
+
+check('陷阱格上放单位会被挡住，不会凭空造出一个挂在 undefined 上的单位（第 3 条）', () => {
+  api.__sandbox();
+  const st = api.__game();
+  const unitId = Object.keys(st.cardLib).find((id) => {
+    const c = st.cardLib[id];
+    return c.type === 'unit' && !c.legacy && !c.faction && !c.token;
+  });
+  // 陷阱格的点击没有 row（见 ui.js 的 trapSlotHTML），以前会落到 units[0][undefined]
+  const r = api.__sbPlay(0, unitId, { lane: 'mountain' });
+  if (r.ok) throw new Error('陷阱格上居然放下了单位');
+  if (st.board.mountain.units[0].undefined) throw new Error('造出了一个挂在 undefined 上的单位（它会画不出来也点不到）');
+});
+
+check('强化模式也有靶场，并且这一局真的读强化 / 精通（作者 2026-10-23 第 1 条）', () => {
+  const screens = fsx.readFileSync(pathx.join(ROOT, 'app', 'js', 'screens.js'), 'utf8');
+  const start = screens.indexOf('export function forgeMenuHTML');
+  const end = screens.indexOf('export function difficultyHTML');
+  const body = screens.slice(start, end);
+  if (start < 0 || !body.includes('data-act="start-sandbox"')) {
+    throw new Error('强化模式菜单里没有靶场入口');
+  }
+  api.__sandbox();
+  const plain = api.__game().enhance;
+  const plainCount = plain ? plain.reduce((n, t) => n + Object.keys(t || {}).length, 0) : 0;
+  if (plainCount) throw new Error('普通模式的靶场不该读强化 / 精通：' + JSON.stringify(plain));
+  // 难度调到最高：AI 那一侧的牌会被大面积强化，能一眼看出「这一局读不读强化」
+  api.__nav('set-difficulty', { key: 'nightmare' });
+  api.__sandbox({ mode: 'forge' });
+  const forgeState = api.__game();
+  if (!Array.isArray(forgeState.enhance) || forgeState.enhance.length !== 2) {
+    throw new Error('强化模式的靶场没有带上强化表（enhance=' + JSON.stringify(forgeState.enhance) + '）');
+  }
+  const forgeCount = forgeState.enhance.reduce((n, t) => n + Object.keys(t || {}).length, 0);
+  if (!forgeCount) throw new Error('强化模式的靶场里一张强化的牌都没有 —— 这一局没读强化 / 精通');
+  api.__sandbox();
+  api.__nav('set-difficulty', { key: 'normal' });
+});
+
 check('清空场地：格子全空，手牌与国王血量不动', () => {
   const st = api.__game();
   const handBefore = st.players[0].hand.length;

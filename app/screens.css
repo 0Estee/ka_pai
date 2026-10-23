@@ -4252,24 +4252,11 @@ body::before, body::after { content: none; }
   color: var(--gold);
 }
 
-/* 观战者的手牌区：不公开时就是一行字 */
-.hand-watch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 30px 0;
-  font-size: 12.5px;
-  letter-spacing: .02em;
-  color: var(--ink-faint);
-}
-.hand-watch span { font-size: 11px; color: var(--ink-faint); }
-/* 观战者就算打开了「公开手牌」也只是看：牌不响应任何点击 */
-.hand-wrap.watch .card { pointer-events: none; }
+/* 观战者的手牌区（作者 2026-10-23 第 4 条）：整个不画。
+   以前这里是一行「手牌不公开」加双方张数，现在连这块地方都不留 ——
+   张数在状态条上（手牌 N），棋盘可以往下多占一点。 */
 
-/* 顶栏那颗「公开手牌」 */
+/* 顶栏那颗「视角」按钮（观战者切换看哪一边） */
 .btn-watch {
   min-height: 24px;
   padding: 0 10px;
@@ -4282,4 +4269,5 @@ body::before, body::after { content: none; }
   line-height: 22px;
   cursor: pointer;
 }
-.btn-watch.on { border-color: var(--gold); color: var(--gold); }
+/* 观战者没有手牌区，棋盘往下让出的那一截不留给空气 —— 五行格子各长一点 */
+.hand-wrap:empty { display: none; }

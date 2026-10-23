@@ -59,14 +59,41 @@ export function sandboxGrantFaction(state, side) {
   return added;
 }
 
-/** 换阵营：记下来 + 立刻补发该阵营的全部超能力 */
+/**
+ * 换阵营：记下来 + 立刻补发该阵营的全部超能力。
+ *
+ * 作者 2026-10-23 第 2 条：换阵营时要把**上一个阵营的牌**从手里收走。
+ * 靶场的手牌本来就是「本阵营全发」，旧的那一手留着只会和新阵营混在一起
+ * （换个阵营还得自己一张张丢）。收走以后，手里永远是当前阵营的一整套。
+ * 场上已经摆出去的牌不动 —— 那是摆好的局面，不是手牌。
+ *
+ * 返回 { added, removed }：界面要拿它说「发了 N 张、收走 M 张」。
+ */
 export function sandboxSetFaction(state, side, key) {
   const p = state.players[side];
-  if (!p) return [];
+  if (!p) return { added: [], removed: [] };
+  const old = p.faction;
   p.faction = key || null;
   p.superpowers = [];
   p.spThresholds = {};
-  return sandboxGrantFaction(state, side);
+  const removed = (old && old !== p.faction) ? dropFactionHand(state, side, old) : [];
+  const added = sandboxGrantFaction(state, side);
+  return { added, removed };
+}
+
+/** 把某一阵营的牌从手牌里抽走（换阵营时用） */
+function dropFactionHand(state, side, faction) {
+  const p = state.players[side];
+  const removed = [];
+  for (let i = p.hand.length - 1; i >= 0; i--) {
+    const def = state.cardLib[p.hand[i].cardId];
+    if (def && def.faction === faction) {
+      removed.unshift(p.hand[i].cardId);
+      p.hand.splice(i, 1);
+    }
+  }
+  if (removed.length) log(state, { type: 'sandbox-drop', side, faction, count: removed.length });
+  return removed;
 }
 
 /** 加一张牌进手牌（靶场的「加牌」面板用） */
@@ -90,6 +117,32 @@ export function sandboxRefillMana(state, side) {
   p.mana = 99;
   p.manaCap = 99;
   p.manaPenalty = 0;
+}
+
+/**
+ * 把一张陷阱牌埋伏到**指定的线路**陷阱格里（靶场专用，作者 2026-10-23 第 3 条）。
+ *
+ * 真对局的 placeTrap 是「自己找第一条空线路」—— 靶场里点了哪一格就该落在哪一格，
+ * 所以这里直接写那一格；那一格已经有陷阱就顶掉（顶错了按「清空场地」重来）。
+ * 返回落地的线路，写不进去返回 null。
+ */
+export function sandboxPlantTrap(state, side, lane, cardId) {
+  const p = state.players[side];
+  const def = state.cardLib[cardId];
+  const traps = state.board[lane] && state.board[lane].traps;
+  if (!p || !def || !traps) return null;
+  traps[side] = {
+    cardId,
+    owner: side,
+    paid: 0,
+    placedTurn: state.turn,
+    // 打出时是单位回合还是锦囊回合  回手要按「同类型阶段」算
+    phaseKind: state.phase && state.phase.startsWith('DEPLOY') ? 'deploy' : 'spell',
+    revealed: false,
+    expiresTurn: null,
+  };
+  log(state, { type: 'trap-placed', side, lane, cardId, sandbox: true });
+  return lane;
 }
 
 /** 清空场地（双方所有格子 + 陷阱格），手牌和国王血量不动 */

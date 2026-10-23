@@ -54,10 +54,14 @@ export {
 export { viewFor, renderBoard } from './view.js';
 
 // 靶场（作者 2026-10-22）：试卡用的沙盒操作
+// sandboxPlantTrap：点哪一格陷阱格就埋伏在哪一条线路（作者 2026-10-23 第 3 条）
 export {
   sandboxEnable, sandboxFactionCards, sandboxGrantFaction, sandboxSetFaction,
-  sandboxAddCard, sandboxRefillMana, sandboxClearBoard,
+  sandboxAddCard, sandboxRefillMana, sandboxClearBoard, sandboxPlantTrap,
 } from './sandbox.js';
+
+// 陷阱牌判定：界面要拿它决定「点陷阱格算不算合法落点」（也用在 playCard 里）
+export { isTrapCard } from './board.js';
 
 // 阵营与超能力（作者 2026-10-03）
 export { FACTIONS } from './factions.js';

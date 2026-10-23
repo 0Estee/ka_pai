@@ -51,12 +51,52 @@ check('界面：观战入口在联机菜单里，观战屏不显示重开 / 认�
   if (!screens.includes('export function watchJoinHTML')) throw new Error('缺少观战入口页');
   if (!screens.includes('export function watchingHTML')) throw new Error('缺少观战等待页');
   const ui = fsx.readFileSync(pathx.join(ROOT, 'app', 'js', 'ui.js'), 'utf8');
-  if (!ui.includes('hand-watch')) throw new Error('观战者的手牌区没有「不公开」那一版');
   if (!/view\.watcher === true/.test(ui)) throw new Error('界面没有区分观战者');
   const render = fsx.readFileSync(pathx.join(ROOT, 'app', 'js', 'render.js'), 'utf8');
   if (!/view\.watcher\s*\?/.test(render)) throw new Error('战报菜单没有按观战者分支（会露出「认输」）');
   const input = fsx.readFileSync(pathx.join(ROOT, 'app', 'js', 'play-input.js'), 'utf8');
   if (!input.includes('function isWatching')) throw new Error('输入层没有观战者闸门');
+});
+
+check('观战不画手牌格子（作者 2026-10-23 第 4 条）：整块手牌区都不出现', () => {
+  const ui = fsx.readFileSync(pathx.join(ROOT, 'app', 'js', 'ui.js'), 'utf8');
+  if (ui.includes('hand-watch')) throw new Error('还留着那块「手牌不公开」的区域');
+  if (!/if \(view\.watcher === true\) return '';/.test(ui)) {
+    throw new Error('handHTML 没有对观战者直接返回空串（有手牌就会漏出来）');
+  }
+  // 真渲染一遍：观战画面里不该有任何手牌格子（.hand / .hand-wrap）
+  // ⚠ 用 __watchView（只翻 view 上的标记）而不是 __watchDemo：后者会 startNewGame()，
+  //   而 20-combat-suspend 是异步跑的，换掉 state 会把它带塌（已经踩过一次）。
+  if (!api.__watchView) throw new Error('缺少 __watchView 钩子');
+  api.__watchView(0);
+  const html = api.document.getElementById('stage').innerHTML;
+  if (!html) throw new Error('观战画面根本没渲染出来');
+  if (html.includes('hand-wrap') || html.includes('class="hand"')) {
+    throw new Error('观战画面里还有手牌区（作者要的是连格子都不要）');
+  }
+  // 但手牌张数要还能看到（状态条上那行「手牌 N」）
+  if (!/手牌\s*\d+/.test(html)) throw new Error('观战画面里看不到任何手牌张数 —— 玩家还剩几张牌就没人知道了');
+});
+
+check('观战可以切换视角（作者 2026-10-23 第 5 条）：玩家1 / 玩家2 都能摆到下面', () => {
+  const stage = api.document.getElementById('stage');
+  api.__watchView(0);
+  const html0 = stage.innerHTML;
+  if (!html0.includes('data-act="watch-side"')) throw new Error('顶栏没有「视角」按钮');
+  if (!html0.includes('玩家1 前排')) throw new Error('视角 0 的说明行不是「玩家1 前排」，拿到的是：'
+    + (html0.match(/row-label">([^<]*)</g) || []).join(' / '));
+  const g0 = api.__game();
+  const stepBefore = g0.turn;
+  const side1 = api.__watchSide(1);
+  if (side1 !== 1) throw new Error('切到视角 1 失败：' + side1);
+  const html1 = stage.innerHTML;
+  if (html1 === html0) throw new Error('切了视角，画面一模一样 —— 棋盘没翻过来');
+  if (!html1.includes('玩家2 前排')) throw new Error('切到视角 1 之后下面那半场不是玩家2');
+  if (!html1.includes('玩家1 后排')) throw new Error('切到视角 1 之后上面那半场不是玩家1');
+  // 只翻界面：引擎状态一步都不该动
+  if (api.__game().turn !== stepBefore) throw new Error('切视角把回合推进了');
+  api.__watchSide(0);
+  api.__watchView(null);   // 恢复成普通对局视角，别把后面的分组带进观战态
 });
 
 check('观战者不结算金币、不驱动回合循环（game-flow 里的两处闸）', () => {

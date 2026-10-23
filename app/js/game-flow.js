@@ -58,7 +58,9 @@ function startSandboxGame() {
   screen = 'game';
   startBoardReveal();
   newSandboxGame();
-  view.hint = '靶场：先点一张手牌，再点场上任意格子（点对面格子＝放在对面）。';
+  view.hint = playMode === 'forge'
+    ? '靶场（强化模式）：点一张手牌，再点场上任意格子。强化 / 精通在这一局里生效。'
+    : '靶场：点一张手牌，再点场上任意格子（点对面＝放到对面，格子里有牌就顶掉）。';
   refresh();
 }
 
@@ -69,6 +71,22 @@ function newSandboxGame() {
   const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   // 靶场把整副卡池都给出来：加牌面板要能拿到任何一张牌
   const deck = buildTestDeck(1000, seed);
+  /**
+   * 强化模式里的靶场（作者 2026-10-23 第 1 条）：这一局要读双方的强化 / 精通。
+   *
+   * 口径和 newGame 完全一致：我这一侧来自档案，对面按「难度 + 局内种子」确定性生成
+   * （这样同一局面反复重开，对面的强化不会每次都变）。
+   * 普通模式的靶场仍然是卡面原值 —— 强化是独立模式，不能偷偷混进来。
+   */
+  const forgeMode = playMode === 'forge';
+  const enhance = forgeMode ? [] : null;
+  if (forgeMode) {
+    const aiForge = Enh.aiForge(TEST_CARD_LIB, { seed, difficulty });
+    enhance[0] = Enh.buildSideEnhance(TEST_CARD_LIB, profile);
+    enhance[1] = Enh.buildSideEnhance(TEST_CARD_LIB, aiForge);
+  }
+  // 控制方每次进靶场都从「玩家1」开始，免得上一局的换边带到新局
+  setSandboxSide(0);
   // 对面的阵营默认取「下一个」：一眼能看出两边不同，随时可以在靶场里换
   const keys = Object.keys(G.FACTIONS);
   const myIdx = Math.max(0, keys.indexOf(myFaction));
@@ -79,7 +97,7 @@ function newSandboxGame() {
     deck,
     cardLib: TEST_CARD_LIB,
     factions: [myFaction, foeFaction],
-    enhance: null,
+    enhance,
   });
   G.sandboxEnable(state);
   G.startGame(state);

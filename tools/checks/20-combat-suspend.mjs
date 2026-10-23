@@ -88,7 +88,6 @@ async function scenarioOnce() {
   api.__go('game');
   api.__pause(false);
   api.__nav('end', {});                          // 走真实路由结束阶段 -> 开战
-
   const samples = [];
   const boardTrail = [];
   let sawPending = false;

@@ -35,6 +35,18 @@ function setSandboxSide(side) {
   sandboxSide = Number(side) === 1 ? 1 : 0;
 }
 
+/**
+ * 观战者的视角：把哪一方摆在下面看（作者 2026-10-23 第 5 条）。
+ *
+ * 观战者不属于任何一方（session.mySide 固定 0），所以这个值只影响界面：
+ * 上下半场、状态条、「谁在行动」全跟着它翻。回合推进、结算一概不受影响。
+ */
+let watchSide = 0;
+function setWatchSide(side) {
+  watchSide = Number(side) === 1 ? 1 : 0;
+}
+function watchSideOf() { return watchSide; }
+
 /** 这一局是不是靶场（试卡用的沙盒，见 engine/src/sandbox.js） */
 function sandboxOn() {
   return !!(state && state.sandbox === true);
@@ -46,7 +58,8 @@ function sandboxOn() {
  * 所以**所有**「我这方」的判断都必须走这里，不能再直接写 HUMAN。
  */
 function me() {
-  if (session) return session.mySide;
+  // 观战者没有座位：它看谁的视角，就是谁那一侧在下（见上面的 watchSide）
+  if (session) return session.isWatcher ? watchSide : session.mySide;
   if (state && state.sandbox === true) return sandboxSide;
   return HUMAN;
 }
@@ -163,6 +176,7 @@ let recordingEnhance = null;
 
 export {
   AI, me, foe, foeName, canAnswerChoice, sandboxOn, sandboxSide, setSandboxSide,
+  watchSideOf, setWatchSide,
   screen, state, view, bannerTimer, autoAdvanceTimer, paused,
   profile, settings, replays, recording, lastSettle, setProfile,
   replayCtx, rpUI, lanRooms, lanScanning, session, autoAdvancing,

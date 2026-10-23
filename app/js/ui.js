@@ -234,8 +234,15 @@ function unitInfoHTML(state, unit, view) {
 function slotHTML(state, view, lane, side, row) {
   const unit = state.board[lane].units[side][row];
   const mine = side === view.humanSide;
-  // 只有自己的格子才可能被高亮为合法落点，否则对手的同名格会一起亮
-  const isLegal = mine && view.legalSlots.some((p) => p.lane === lane && p.row === row);
+  /**
+   * 高亮合法落点。
+   * 真对局：只有**自己**这一侧的格子会亮（否则对手的同名格会跟着一起亮）。
+   * 靶场（作者 2026-10-23 第 3 条）：两边都亮 —— 点对面那一侧就是放到对面。
+   */
+  const sandboxBoard = state.sandbox === true;
+  const isLegal = (mine || sandboxBoard)
+    && view.legalSlots.some((p) => p.lane === lane && p.row === row
+      && (!sandboxBoard || p.side === undefined || p.side === side));
   // 召唤落点：挂起等玩家点格子时，合法格借「可放置」那套发光样式亮起来
   const isSummonCell = mine && (view.legalSummonCells || []).some((c) => c.lane === lane && c.row === row);
   const isLaneTarget = mine && row === 'front' && view.legalLanes.includes(lane) && !unit;
@@ -435,16 +442,13 @@ function handHTML(state, view) {
   const handIn = reveal === null || reveal >= REVEAL_TOTAL ? '' : ' data-in="0"';
   const p = state.players[view.humanSide];
   /**
-   * 观战者（作者 2026-10-23）：默认**看不到手牌**（只报双方张数）。
+   * 观战者（作者 2026-10-23 第 4 条）：**不画手牌**，一个格子也不画。
    *
-   * 理由：观战位是「看棋」，不是「帮一边看牌」。真要看得开顶栏那个
-   * 「公开手牌」——那是给作者自己试牌用的（点开也只画玩家1那一手，且点不动）。
+   * 观战位是「看棋」，不是「帮一边看牌」。手牌张数在状态条上（手牌 N），
+   * 所以要看的牌看得到，不该看的牌一张也不摆出来。
+   * 走到这里说明调用方漏了防护 —— 返回空串，别把谁的手牌摊在观战者面前。
    */
-  if (view.watcher === true && !view.watchReveal) {
-    const h0 = state.players[0].hand.length;
-    const h1 = state.players[1].hand.length;
-    return `<div class="hand-watch">观战中 · 手牌不公开<span>玩家1 ${h0} 张 · 玩家2 ${h1} 张</span></div>`;
-  }
+  if (view.watcher === true) return '';
   if (!p.hand.length) return '<div class="hand-empty">手牌已空</div>';
 
   return p.hand.map((hc, hi) => {
@@ -453,9 +457,8 @@ function handHTML(state, view) {
     // 手牌实例上可能带费用修正（「-1 花费」）—— 显示与实际扣费都必须读实例值，
     // 否则会出现「看着付得起、点下去报错」或者反过来。
     const cost = G.costOf(state, hc);
-    const watching = view.watcher === true;
-    const afford = watching ? true : cost <= p.mana;
-    const playable = watching ? true : view.playableIids.includes(hc.iid);
+    const afford = cost <= p.mana;
+    const playable = view.playableIids.includes(hc.iid);
     const selected = hc.iid === view.selectedIid;
     // 阵营超能力：高亮 + 角标。开局那一张没有「出牌」时刻，写提示行又会被
     // 后面的阶段提示顶掉，所以做成手牌上的持久标记（玩家一眼能看到自己有什么）。
@@ -539,12 +542,23 @@ function spellDescription(def) {
 export function render(root, state, view) {
   const foeSide = 1 - view.humanSide;
 
+  /**
+   * 行标签（作者 2026-10-23 第 5 条）：观战者是第三方，没有「我 / 敌」——
+   * 只有「玩家1 / 玩家2」，而且名字要跟着**它正在看的那一侧**走。
+   */
+  const rowLabel = (own, txt) => {
+    if (view.watcher !== true) return (own ? '我' : '敌') + txt;
+    const side = own ? view.humanSide : foeSide;
+    const name = (view.playerNames && view.playerNames[side]) || ('玩家' + (side + 1));
+    return name + ' ' + txt;
+  };
+
   const rows = [
-    { side: foeSide, row: 'back', label: '敌后排', cls: 'r-foe-back' },
-    { side: foeSide, row: 'front', label: '敌前排', cls: 'r-foe-front' },
+    { side: foeSide, row: 'back', label: rowLabel(false, '后排'), cls: 'r-foe-back' },
+    { side: foeSide, row: 'front', label: rowLabel(false, '前排'), cls: 'r-foe-front' },
     { side: null, row: 'trap', label: '陷阱', cls: 'r-trap' },
-    { side: view.humanSide, row: 'front', label: '我前排', cls: 'r-my-front' },
-    { side: view.humanSide, row: 'back', label: '我后排', cls: 'r-my-back' },
+    { side: view.humanSide, row: 'front', label: rowLabel(true, '前排'), cls: 'r-my-front' },
+    { side: view.humanSide, row: 'back', label: rowLabel(true, '后排'), cls: 'r-my-back' },
   ];
 
   // 开局铺开：进度来自 render.js 的 boardReveal；没轮到的行渲染成 data-in="0"（不可见）。
@@ -613,7 +627,7 @@ export function render(root, state, view) {
       <span class="deck-left">牌库 ${state.deck.length}</span>
       ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
       ${myP && myP.faction === 'flame' ? `<span class="raw-left">异火 ${G.flamePileOf(state, view.humanSide).length}</span>` : ''}
-      ${view.watcher === true ? `<button class="btn-watch${view.watchReveal ? ' on' : ''}" data-act="watch-reveal">${view.watchReveal ? '隐藏手牌' : '公开手牌'}</button>` : ''}
+      ${view.watcher === true ? `<button class="btn-watch" data-act="watch-side">视角：${esc((view.playerNames && view.playerNames[view.humanSide]) || '玩家1')}</button>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
     ${sandbox ? sandboxBarHTML(state, view) + (view.pickOpen ? sandboxPickerHTML(state, view) : '') : ''}
@@ -630,7 +644,14 @@ export function render(root, state, view) {
     </div>
 
     ${view.hint ? `<div class="hint ${view.selectedIid !== null ? 'hint-active' : ''}">${esc(view.hint)}</div>` : ''}
-    <div class="hand-wrap${view.watcher === true ? ' watch' : ''}"><div class="hand">${handHTML(state, view)}</div></div>
+    ${/**
+       * 观战者不画手牌区（作者 2026-10-23 第 4 条：不要显示手牌格子）。
+       * 双方各有几张手牌，状态条上那行「手牌 N」已经说了 —— 手牌格子对旁观者
+       * 只是占掉屏幕下半截的一块空地。视角切换见顶栏的「视角」按钮。
+       */
+      view.watcher === true
+        ? ''
+        : `<div class="hand-wrap"><div class="hand">${handHTML(state, view)}</div></div>`}
 
     ${view.banner ? `<div class="banner${view.bannerAnimate === false ? ' banner-rest' : ''}">${esc(view.banner)}${view.bannerSub ? `<small>${esc(view.bannerSub)}</small>` : ''}</div>` : ''}
     ${infoHTML(state, view)}
@@ -720,5 +741,14 @@ function trapSlotHTML(state, view, lane) {
   const mine = one(state.board[lane].traps[view.humanSide], true);
   const foe = one(state.board[lane].traps[1 - view.humanSide], false);
   const inner = mine || foe;
-  return `<div class="slot trap" data-lane="${lane}">${inner || '<span class="trap-mark">陷阱格</span>'}</div>`;
+  /**
+   * 靶场（作者 2026-10-23 第 3 条）：手里选着陷阱牌时，中间这一行陷阱格也要亮
+   * —— 点哪一格就埋伏在哪一条线路（见 play-input.js 的 handleSlotClick）。
+   */
+  const sel = view && view.selectedIid !== null
+    ? (((state.players[view.humanSide] || {}).hand) || []).find((c) => c.iid === view.selectedIid)
+    : null;
+  const trapLegal = state.sandbox === true && !!sel
+    && G.isTrapCard(state.cardLib[sel.cardId] || null);
+  return `<div class="slot trap${trapLegal ? ' legal' : ''}" data-lane="${lane}">${inner || '<span class="trap-mark">陷阱格</span>'}</div>`;
 }

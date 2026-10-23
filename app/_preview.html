@@ -113,9 +113,17 @@
         document.body.appendChild(pre);
       }
     } else if (demo === 'watch') {
-      // 观战中：只读视角 + 手牌不公开
-      document.title = 'demo: ' + JSON.stringify(window.__watchDemo(Number(p.get('turn') || 4)));
-      if (p.get('revealHands')) window.__watchToggleHands();
+      // 观战中：只读视角、不画手牌区；side=1 看「玩家2 在下面」那一侧
+      const info = window.__watchDemo(Number(p.get('turn') || 4), Number(p.get('side') || 0));
+      document.title = 'demo: ' + JSON.stringify(info) + ' side=' + window.__watchSide(Number(p.get('side') || 0));
+      window.__revealAll();
+    } else if (demo === 'sbfaction') {
+      // 靶场换阵营：手里的旧阵营牌要被收走，只留新阵营那一整套
+      window.__sandbox();
+      window.__advance();
+      window.__view().busy = false;
+      const r = window.__sbFaction(0, p.get('fac') || 'demon');
+      document.title = 'demo: ' + JSON.stringify(r);
       window.__revealAll();
     } else if (demo === 'watchlobby') {
       window.__watchLobby(p.get('code') || 'K7QM2P', p.get('status') || 'connected');

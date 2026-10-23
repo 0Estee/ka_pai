@@ -300,9 +300,10 @@ window.__showFaction = (key) => {
 };
 
 window.__sandbox = (opts) => {
-  playMode = 'normal';
-  startSandboxGame();
   const cfg = opts || {};
+  // mode: 'forge' = 强化模式的靶场（读强化 / 精通，见 game-flow.js 的 newSandboxGame）
+  playMode = cfg.mode === 'forge' ? 'forge' : 'normal';
+  startSandboxGame();
   const runs = [];
   for (const [side, cardId, lane, row] of (cfg.place || [])) {
     runs.push({ side, cardId, lane, row, ...window.__sbPlay(side, cardId, { lane, row, placeSide: side }) });
@@ -406,16 +407,49 @@ window.__watchProbe = async () => {
   return out;
 };
 
-/** 截图：切一下观战者的「公开手牌」 */
-window.__watchToggleHands = () => {
-  if (!view) return false;
-  view.watchReveal = !view.watchReveal;
+/**
+ * 自检用：把**当前这一局**临时切成「观战视角」（不新建对局、不动定时器）。
+ *
+ * 为什么不复用 __watchDemo：那个钩子会 startNewGame()，而集成测试里别的分组
+ * 可能正挂在一局上（20-combat-suspend 是异步跑的），换掉 state 会把它们带塌。
+ * 这里只翻 view 上的几个标记，state / session / 定时器一概不碰。
+ * 传 null 恢复成普通对局视角。
+ */
+window.__watchView = (side) => {
+  if (!state) return null;
+  if (side === null || side === undefined || side === false) {
+    if (view) { view.watcher = false; view.isReplay = false; refresh(); }
+    return null;
+  }
+  setWatchSide(Number(side) ? 1 : 0);
+  if (!view) view = makeView();
+  view.watcher = true;
+  view.isReplay = true;
+  view.playerNames = ['玩家1', '玩家2'];
+  view.playerTags = [
+    state.firstPlayer === 0 ? '先手' : '后手',
+    state.firstPlayer === 1 ? '先手' : '后手',
+  ];
+  view.humanSide = watchSideOf();
+  screen = 'game';
   refresh();
-  return view.watchReveal;
+  return view.humanSide;
+};
+
+/**
+ * 截图 / 自检：切换观战视角（作者 2026-10-23 第 5 条）。
+ * 不传参 = 翻到另一侧；传 0/1 = 直接指定看哪一侧。返回现在的视角。
+ */
+window.__watchSide = (side) => {
+  if (!view) return null;
+  setWatchSide(side === undefined || side === null ? 1 - watchSideOf() : (Number(side) ? 1 : 0));
+  view.humanSide = watchSideOf();
+  refresh();
+  return view.humanSide;
 };
 
 /** 截图 / 自检：摆一局「观战中」的画面（AI 对打到第 N 回合，然后切成只读视角） */
-window.__watchDemo = (turns) => {
+window.__watchDemo = (turns, side) => {
   startNewGame();
   const n = Math.max(1, Number(turns) || 4);
   for (let i = 0; i < n; i++) {
@@ -429,10 +463,10 @@ window.__watchDemo = (turns) => {
     transport: { send: async () => ({ ok: false, error: 'read-only' }), start: async () => true, leave: async () => true },
   };
   recording = null;
+  setWatchSide(Number(side) ? 1 : 0);
   view = makeView();
   view.watcher = true;
   view.isReplay = true;
-  view.watchReveal = false;
   view.playerNames = ['玩家1', '玩家2'];
   view.playerTags = [state.firstPlayer === 0 ? '先手' : '后手', state.firstPlayer === 1 ? '先手' : '后手'];
   screen = 'game';
@@ -471,6 +505,14 @@ window.__sandboxClearBoard = () => {
   resetCombatFx();
   refresh();
   return true;
+};
+
+/** 靶场：换某一边的阵营（自检用；界面上的按钮走 sandboxCycleFaction） */
+window.__sbFaction = (side, key) => {
+  if (!state || !state.sandbox) return { ok: false, err: '不在靶场里' };
+  const r = G.sandboxSetFaction(state, side, key);
+  refresh();
+  return { ok: true, faction: state.players[side].faction, added: (r.added || []).length, removed: (r.removed || []).length };
 };
 
 /** 靶场：把一张牌加进手牌并立刻按给定的落点/目标打出去（调试用） */
@@ -544,7 +586,7 @@ window.__go = (name) => {
   else if (name === 'settings') goSettings();
   else if (name === 'replays') goReplays();
   else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby' || name === 'forge'
-    || name === 'watchJoin' || name === 'watching') {
+    || name === 'forgeMenu' || name === 'watchJoin' || name === 'watching') {
     screen = name;
     if (name === 'lanScan') { lanRooms = []; lanScanning = false; }
     refresh();

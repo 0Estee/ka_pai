@@ -15,6 +15,7 @@ import { hasRooted, hasKeyword, syncStatAuras } from './auras.js';
 import { execActions } from './effects.js';
 import { instantiateUnit, probeFromDef, enhanceFor } from './setup.js';
 import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
+import { sandboxPlantTrap } from './sandbox.js';
 import { isOver, getActor, checkGameOver, triggerInHandEffects, applyHandStatDelta, advance } from './turns.js';
 import { apiFor } from './combat.js';
 import { flushTriggers, driveGenerator } from './choices.js';
@@ -189,7 +190,13 @@ export function playCard(state, side, iid, opts = {}) {
   //       不广播「敌方打出锦囊」
   //    费用照付；效果等触发条件达成时再由 damage.js / 后续牌结算。
   if (isTrapCard(def)) {
-    const lane = placeTrap(state, side, handCard.cardId, cost);
+    /**
+     * 靶场：点**哪一格陷阱格**就埋伏在哪一条线路（作者 2026-10-23 第 3 条）。
+     * 真对局照旧交给 placeTrap 自己找第一条空线路。
+     */
+    const lane = (sandbox && opts.lane)
+      ? sandboxPlantTrap(state, side, opts.lane, handCard.cardId)
+      : placeTrap(state, side, handCard.cardId, cost);
     if (lane === null) throw new Error(`陷阱格已满（每方最多 ${TRAP_MAX} 个），不能再用陷阱`);
     p.hand.splice(idx, 1);
     p.mana -= cost;
@@ -237,9 +244,19 @@ export function playCard(state, side, iid, opts = {}) {
     const legalTerrain = sandbox || canPlaceInLane(probe, lane);
     const fuse = hasKw(probe, 'fuse');
     const occupant = state.board[lane].units[placeSide][row];
-    // 靶场里唯一的规矩：格子已经被占住了就先拦一下（不然会凭空顶掉一张牌）
+    /**
+     * 靶场：**任意格子都能放**（作者 2026-10-23 第 3 条）。
+     *
+     * 以前靶场还剩一条规矩「这一格有人了就拦一下」，理由是怕顶掉一张牌；
+     * 试卡时真正碍事的就是它 —— 想在同一个坑位上换一张牌，得先清空整块场地。
+     * 现在格子里有人就直接顶掉：顶掉和「融合进化」一样不触发任何被消灭效果，
+     * 靶场里那只是换一张牌摆着看。
+     * 唯一还拦的是「行」必须是前排/后排：陷阱格上选着单位牌时不能凭空造出一个
+     * 挂在 undefined 上的单位（那会让棋盘和渲染一起错位）。
+     */
+    const legalRow = row === 'front' || row === 'back';
     const legalSlot = sandbox
-      ? !occupant
+      ? legalRow
       : (legalTerrain && canPlaceUnit(state, side, probe, lane, row, { allowFuse: fuse }));
     if (!legalSlot) {
       // 回滚，避免出现「付了费但没落地」的坏状态
@@ -247,7 +264,7 @@ export function playCard(state, side, iid, opts = {}) {
       p.mana += cost;
       state.stats.cardsPlayed--;
       throw new Error(sandbox
-        ? `这一格已经有单位了，先清空再放「${def.name}」`
+        ? `这一格放不下单位：位置只能是前排或后排`
         : (legalTerrain
           ? `无法将「${def.name}」放置在 ${LANE_NAME[lane]}-${row}（该位置已被占用或线路已满）`
           : `无法将「${def.name}」放置在 ${LANE_NAME[lane]}（地形限制）`));
@@ -256,6 +273,11 @@ export function playCard(state, side, iid, opts = {}) {
     // fusedAway 会作为 onPlay 的 payload 传下去 —— 卡牌可以写
     // 「融合进化:这张牌获得双重打击」（霸王龙），靠 effect.when === 'fused' 区分。
     const fusedAway = !!(fuse && occupant && !occupant.removed);
+    // 靶场顶掉：格子里原本那张牌「消失」，不触发被打死 / 被消灭的任何效果
+    const replaced = sandbox && !!occupant && !occupant.removed;
+    if (replaced) {
+      M.vanishUnit(state, occupant, 'sandbox-replace');
+    }
     if (fusedAway) {
       M.vanishUnit(state, occupant, `fuse-by-${def.id}`);
     }

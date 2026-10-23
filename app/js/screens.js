@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.67.0';
+export const APP_VERSION = '0.68.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -110,6 +110,10 @@ export function forgeMenuHTML({ difficulty, lanSupported, profile }) {
     <button class="hm-btn" data-act="lan-menu">
       <span class="hm-text">强化 联机对决</span>
       <span class="hm-sub">双方各自带上自己的强化卡组</span>
+    </button>
+    <button class="hm-btn" data-act="start-sandbox">
+      <span class="hm-text">靶场</span>
+      <span class="hm-sub">试卡用：任意摆牌、超能力全发，强化与精通在这里生效</span>
     </button>
     <button class="hm-btn" data-act="open-forge">
       <span class="hm-text">强化工坊</span>

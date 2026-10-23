@@ -396,7 +396,13 @@ function fillMenuLog() {
  * 屏幕层级：数字变大 = 前进（进二级 / 三级菜单、进对局），变小 = 返回。
  * 切换时用它决定滑动方向，于是「返回动画与进入相反」是自动成立的。
  */
-const SCREEN_DEPTH = { home: 0, account: 1, settings: 1, replays: 1, play: 1, forgeMenu: 1, forge: 2, difficulty: 2, lan: 2, lanScan: 3, lobby: 3, admin: 2, game: 3, replay: 4 };
+const SCREEN_DEPTH = {
+  home: 0, account: 1, settings: 1, replays: 1, play: 1, forgeMenu: 1, forge: 2,
+  difficulty: 2, lan: 2, lanScan: 3, lobby: 3, admin: 2,
+  // 观战：入口页和联机大厅同级，等待页和大厅同级（进出动画的方向靠它）
+  watchJoin: 2, watching: 3,
+  game: 3, replay: 4,
+};
 let lastScreen = null;
 let navTimer = null;
 
