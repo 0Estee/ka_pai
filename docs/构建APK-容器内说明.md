@@ -95,3 +95,22 @@ adb install -r dist/ka-pai-0.68.0.apk
 
 签名用的是 `android/keystore.jks`（已存在就复用，**别换** —— 换了密钥覆盖安装会失败）。
 签出来的 APK 用 v2 + v3 方案签名（minSdk 24，v1/JAR 签名不需要，`apksigner` 也会自动跳过）。
+
+## 发 GitHub Release（别漏）
+
+APK 进仓库只是备份，**别人下载的正路是 Release 附件**（固定链接
+`https://github.com/0Estee/ka_pai/releases/latest/download/ka-pai-<版本>.apk`）。
+0.61~0.67 那几版就是只推了源码、没发 Release，作者在 GitHub 上看着就是「没有推送」。
+
+```bash
+cd /sdcard/ka_pai
+node tools/publish-release.mjs 0.68.0 --dry-run   # 先看一眼
+node tools/publish-release.mjs 0.68.0             # 真发
+```
+
+它会：校验 `dist/ka-pai-<版本>.apk` → 打 tag `v<版本>`（已存在就跳过）→
+建 Release（正文取 `docs/发行说明-<版本>.md`）→ 上传 APK 并核对字节数。
+
+另外 `tools/push-github.mjs` 现在**会把 `dist/*.apk` 一起推**（.gitignore 里本来就写着
+「dist/ 不忽略：APK 是交付物」）—— 0.61 之后它被 SKIP_EXT 里的 `.apk` 挡掉了，
+现在只对 `dist/` 放开。
