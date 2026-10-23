@@ -73,14 +73,23 @@ function blobSha(buf) {
 }
 
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'assets', '.toolchain', 'shots',
+  'node_modules', '.git', 'build', 'assets', '.toolchain', 'shots',
   '.verify-apk', '.tmp', '.wrangler', '.dsh',
 ]);
 const SKIP_FILES = new Set(['.cf-token', '.gh-token', 'keystore.jks']);
 const SKIP_EXT = new Set(['.apk', '.idsig', '.log', '.zip', '.tar', '.gz', '.xz']);
+/**
+ * .apk 是**交付物**，必须进仓库（作者 2026-10 的要求，.gitignore 里也写着「dist/ 不忽略」）。
+ *
+ * 以前 SKIP_EXT 把 .apk 一律挡掉，于是 0.61 之后每一个 APK 都没上 GitHub ——
+ * 作者看到的就是「GitHub 上没有推送」（源码在，包没有）。这里只对 dist/ 放开。
+ */
+const ALLOW_EXT_DIRS = ['dist/'];
 
 /** 只提交这些位置；其余（生成物、密钥、APK）一律不碰 */
 const ROOTS = [
+  // dist/ 只放 APK 交付物（其余生成物都不进仓库，见 .gitignore）
+  'dist',
   'app', 'engine', 'cloudflare/src', 'cloudflare/test', 'docs', 'tools', 'data', 'android/app',
   // android/test 是桌面可跑的 Java 测试（观战那条链路就是靠它验的）
   'android/test',
@@ -105,7 +114,9 @@ function walk(rel, out) {
   }
   if (!st.isFile()) return;
   if (SKIP_FILES.has(path.basename(rel))) return;
-  if (SKIP_EXT.has(path.extname(rel).toLowerCase())) return;
+  const ext = path.extname(rel).toLowerCase();
+  const keepByDir = ALLOW_EXT_DIRS.some((d) => rel.startsWith(d));
+  if (SKIP_EXT.has(ext) && !(keepByDir && ext === '.apk')) return;
   out.push(rel.split(path.sep).join('/'));
 }
 
