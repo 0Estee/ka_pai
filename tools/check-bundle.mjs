@@ -64,6 +64,7 @@ import './checks/43-mp-lockstep.mjs';
 import './checks/44-combat-fx-source.mjs';
 import './checks/45-sandbox.mjs';
 import './checks/46-lan-restart-sandbox-ui.mjs';
+import './checks/47-watch.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

@@ -101,7 +101,8 @@ export function netMode() {
   try {
     const p = new URLSearchParams(globalThis.location.search);
     const m = p.get('net');
-    return m === 'host' || m === 'guest' ? m : null;
+    // watch = 观战（作者 2026-10-23）：只读的第三条连接
+    return m === 'host' || m === 'guest' || m === 'watch' ? m : null;
   } catch {
     return null;
   }
@@ -220,7 +221,14 @@ export function localIp() {
  */
 export class Transport {
   constructor(who, room) {
-    this.who = who;           // 'host' | 'guest'
+    this.who = who;           // 'host' | 'guest' | 'watch'
+    /** 观战者：只读连接（不发送任何消息，服务端也会拒） */
+    this.isWatcher = who === 'watch';
+    /**
+     * 观战者的随机 id：服务端拿它统计「几个人在看」，离开时也靠它清自己的心跳。
+     * 两端不需要（服务端按 host / guest 两个固定键记在线状态）。
+     */
+    this.wid = this.isWatcher ? 'w' + Math.random().toString(36).slice(2, 10) : '';
     // 房间号：公网服务端按它路由到对应的房间对象；局域网服务端只有一个房间，带了也不认
     this.room = roomCode(room) || roomCode(currentRoom());
     this.since = 0;
@@ -231,11 +239,15 @@ export class Transport {
   url(path, extra) {
     const q = new URLSearchParams({ who: this.who });
     if (this.room) q.set('room', this.room);
+    if (this.wid) q.set('wid', this.wid);
     for (const [k, v] of Object.entries(extra || {})) q.set(k, String(v));
     return `${path}?${q.toString()}`;
   }
 
   async send(msg) {
+    // 观战者不发消息：能发就等于能往锁步流里插操作，两端立刻分叉。
+    // 服务端那边也会 403，这里是本地先挡一道（也省一次往返）。
+    if (this.isWatcher) return { ok: false, error: 'read-only' };
     const r = await fetchWithTimeout(this.url('/api/send'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -268,10 +280,12 @@ export class Transport {
     for (const m of data.msgs || []) {
       if (m.seq >= this.since) this.since = m.seq + 1;
     }
-    return { msgs: data.msgs || [], peerLeft: false };
+    // 观战人数（纯展示，不进锁步）：服务端每轮回包顺手告诉我们
+    return { msgs: data.msgs || [], peerLeft: false, watchers: data.watchers };
   }
 
   async start() {
+    if (this.isWatcher) return;   // 观战者不能替别人标记开局
     try { await fetchWithTimeout(this.url('/api/start'), { method: 'POST' }); } catch { /* 忽略 */ }
   }
 
@@ -345,7 +359,17 @@ export class Session {
   constructor({ who, cardLib, onUpdate, onStatus, onStart, onAction, room }) {
     this.who = who;
     this.isHost = who === 'host';
-    this.mySide = this.isHost ? 0 : 1;
+    /**
+     * 观战者（作者 2026-10-23）：只读的第三条连接。
+     *
+     * 它和客人走**同一条**锁步流水（收 start、按 n 执行 act），区别只有三条：
+     *   · 不发送任何操作（submit / send / start 全部本地挡掉）
+     *   · 不去要补齐（need）：它只读，缺的那几条下一轮 poll 会自己带回来
+     *   · 不比对指纹、不判胜负、不结算金币
+     * 视角固定按 0 号（座位1）看：棋盘的上/下布局对观战者来说只是「一边在上面」。
+     */
+    this.isWatcher = who === 'watch';
+    this.mySide = this.isHost || this.isWatcher ? 0 : 1;
     this.cardLib = cardLib;
     this.onUpdate = onUpdate || (() => {});
     this.onStatus = onStatus || (() => {});
@@ -398,6 +422,10 @@ export class Session {
     this.looping = false;
 
     this.conflict = null;
+    /** 观战者：错过了 start（房间日志已经裁掉），进不来这一局 */
+    this.missedStart = false;
+    /** 当前有几个观战者（服务端每轮 poll 报一次；只用于大厅那行提示） */
+    this.watchers = 0;
   }
 
   /**
@@ -477,6 +505,8 @@ export class Session {
 
   /** 本地要执行一个操作：先应用，再广播 */
   async submit(action) {
+    // 观战者永远不提交操作（界面上也不会走到这里，这里是第二道闸）
+    if (this.isWatcher) return false;
     if (this.conflict || !this.state) return false;
     try {
       this.applyAction(action);
@@ -578,6 +608,8 @@ export class Session {
     if (!msg || typeof msg !== 'object') return false;
     switch (msg.t) {
       case 'hello':
+        // 观战者不参与大厅协商（它没有座位、也不报阵营）
+        if (this.isWatcher) return false;
         this.peerName = msg.name || '';
         // 进房间时互相报一次阵营，主机开局才能按各自的阵营建局
         if (msg.faction) this.peerFaction = msg.faction;
@@ -610,12 +642,24 @@ export class Session {
       case 'act': {
         // 棋盘还没建好：先攒着，start 一到按原顺序补执行（见 early 的说明）
         if (!this.state) {
+          /**
+           * 观战者没拿到 start 就收到了操作 = 这局开始得太久，服务端的消息日志
+           * 已经把 start 裁掉了（房间只留最近 600 条）。记一笔给界面，说清楚
+           * 「进不来」比让玩家对着「等待这局开始…」干等要好。
+           */
+          if (this.isWatcher) this.missedStart = true;
           if (this.early.length < 400) this.early.push(msg.a);
           return false;
         }
         const n = typeof msg.n === 'number' ? msg.n : this.step;
         if (n < this.step) return false;          // 重复（重连补发），忽略
         if (n > this.step) {                      // 中间缺了几条：不硬执行，去要
+          /**
+           * 观战者**不能**发 need（它是只读连接，发了服务端也会拒）。
+           * 它靠的是 transport.since：只有真的收到才推进，所以缺的那几条
+           * 下一轮 poll 会原样带回来，等到了自然接上。
+           */
+          if (this.isWatcher) return false;
           this.requestCatchUp();
           return false;
         }
@@ -634,6 +678,8 @@ export class Session {
       }
 
       case 'need': {
+        // 观战者没有 history 可给（它本来就不该被要）
+        if (this.isWatcher) return false;
         // 对端缺了一段：把我这边第 from 步之后的原样发过去
         if (!this.state) return false;
         const from = Math.max(0, Number(msg.from) || 0);
@@ -642,6 +688,8 @@ export class Session {
       }
 
       case 'give': {
+        // 观战者不会发 need，也就不会收到 give
+        if (this.isWatcher) return false;
         if (!this.state) return false;
         const from = Math.max(0, Number(msg.from) || 0);
         if (from !== this.step) return false;    // 不是我缺的那一段
@@ -663,6 +711,11 @@ export class Session {
       }
 
       case 'hash': {
+        /**
+         * 观战者不比对指纹：它不发送、也没有对方的步数语境，比了只会误报；
+         * 而且指纹对不上时它会把自己判成「跑飞」，把整个观战会话关掉。
+         */
+        if (this.isWatcher) return false;
         if (!this.state) return false;
         // 步数不同就不比指纹：那条指纹属于另一格状态，比了只会误报「跑飞」
         if (typeof msg.step === 'number' && msg.step > this.step) {
@@ -783,7 +836,7 @@ export class Session {
     let lastOk = Date.now();
     while (this.running) {
       try {
-        const { msgs, peerLeft } = await this.transport.poll();
+        const { msgs, peerLeft, watchers } = await this.transport.poll();
         if (!this.running) break;
         lastOk = Date.now();
         this.setStatus('connected');
@@ -792,6 +845,11 @@ export class Session {
         for (const m of msgs) {
           if (m.from === this.who) continue;   // 自己发的不用再处理一遍
           if (this.handleMessage(m.msg, m.from)) changed = true;
+        }
+        // 观战人数变了也要重绘一次（大厅上那行「有 N 人在观战」）
+        if (typeof watchers === 'number' && watchers !== this.watchers) {
+          this.watchers = watchers;
+          changed = true;
         }
         if (changed) this.onUpdate();
 
@@ -821,7 +879,10 @@ export class Session {
   /** 主动退出：告诉对方，然后停掉 */
   async leave() {
     this.running = false;
-    try { await this.transport.send({ t: 'bye', reason: 'left' }); } catch { /* 忽略 */ }
+    // 观战者不发 bye：那会让两端以为「对手离开了」
+    if (!this.isWatcher) {
+      try { await this.transport.send({ t: 'bye', reason: 'left' }); } catch { /* 忽略 */ }
+    }
     await this.transport.leave();
   }
 }

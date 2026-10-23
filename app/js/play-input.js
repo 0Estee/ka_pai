@@ -201,7 +201,13 @@ function toggleBrewPick(iid) {
   refresh();
 }
 
+/** 观战者（只读连接）点棋盘 / 手牌一律无效 —— 出牌只有两端能做 */
+function isWatching() {
+  return !!(session && session.isWatcher);
+}
+
 function selectCard(iid) {
+  if (isWatching()) return;
   if (view.busy || state.winner !== null) return;
   // 靶场：不看「现在轮到谁」—— 自动阶段（回合开始 / 开战）里也想试牌
   if (state.sandbox !== true && G.getActor(state) !== me()) return;
@@ -446,6 +452,7 @@ function commitPlay(iid, opts) {
 }
 
 function handleSlotClick(slotEl) {
+  if (isWatching()) return;
   if (view.busy || state.winner !== null) return;
 
   /**
@@ -673,6 +680,7 @@ function abortCardDrag() {
 }
 
 function handleUnitClick(uid) {
+  // 观战者可以点开单位详情看效果（那是只读的），但不能出牌
   if (view.busy || state.winner !== null) return;
 
   const clicked = M.findUnit(state, uid);
@@ -737,6 +745,7 @@ function handleUnitClick(uid) {
 
 /** 点击顶部/底部血条上的国王，把国王作为目标打出（「造成X点伤害」类卡片） */
 function handleKingClick(side) {
+  if (isWatching()) return;
   if (view.busy || state.winner !== null) return;
   if (view.selectedIid === null) return;
   // 靶场：两边的国王都能被指定（比如「对一个敌方目标造成伤害」想打谁的国王都行）
@@ -967,6 +976,16 @@ function handleAction(act, el) {
 
   // ── 局域网
   if (act === 'lan-menu') { screen = 'lan'; refresh(); return; }
+  // ── 观战（作者 2026-10-23）
+  if (act === 'watch-join') { lanManualError = ''; screen = 'watchJoin'; refresh(); return; }
+  if (act === 'watch-enter') { watchByInput(); return; }
+  if (act === 'watch-exit') { quitRoom(); return; }
+  if (act === 'watch-reveal') {
+    if (!view) return;
+    view.watchReveal = !view.watchReveal;
+    refresh();
+    return;
+  }
   if (act === 'lan-host') { createRoom(); return; }
   if (act === 'lan-scan') { scanLanRooms(); return; }
   if (act === 'lan-join') { Net.navigateTo(el.dataset.url); return; }

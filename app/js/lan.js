@@ -24,11 +24,13 @@ function lanPlayerName(mode) {
     const c = Cloud.cloudStatus();
     if (c && c.user && c.user.username) return String(c.user.username);
   } catch { /* 云存档没初始化：退回座位名 */ }
+  if (mode === 'watch') return '观战者';
   return mode === 'host' ? '玩家1' : '玩家2';
 }
 
-/** 进入联机大厅并建立会话 */
+/** 进入联机大厅并建立会话（mode 也可能是 'watch'：观战，只读） */
 function enterLobby(mode) {
+  const watching = mode === 'watch';
   const room = Net.currentRoom();
   const myName = lanPlayerName(mode);
   lanInfo = {
@@ -45,6 +47,8 @@ function enterLobby(mode) {
       ? `${Net.siteBase()}/?net=guest&room=${room}`
       : '',
     code: room,
+    // 观战者：界面上要和两端区分开（没有座位、没有金币、没有重开/认输）
+    watch: watching,
   };
 
   session = new Net.Session({
@@ -85,6 +89,15 @@ function enterLobby(mode) {
   };
 
   session.start();
+  if (watching) {
+    /**
+     * 观战者不发 hello：它没有座位、不报阵营，也不该在大厅里出现在「对手」那一栏。
+     * 服务端只认 host / guest 两个座位，观战者来去不影响两端。
+     */
+    screen = 'watching';
+    refresh();
+    return;
+  }
   // 进房间就报一次自己的阵营：主机开局要按两边各自的阵营建局（作者 2026-10-05）
   // 顺便把自己的强化增量报过去：主机开局要把它写进 enhance（见 hostStartMatch）
   session.transport.send({
@@ -114,6 +127,32 @@ function isHostName() {
  * （作者 2026-10 报的「联机开始后无法出牌」就是这个）。
  */
 function beginLanMatch(st) {
+  /**
+   * 观战者（作者 2026-10-23）：**只读**地跑同一局。
+   *
+   * 它和两端收到的是同一份 start + 同一串 act，所以本地引擎跑出来的棋盘和
+   * 玩家那边逐格一致 —— 观战不需要"另传一份棋盘"。
+   * 但三件事绝不能做：不发操作、不驱动回合循环、不结算金币/回放。
+   */
+  if (session && session.isWatcher) {
+    resetTurnLoop();
+    state = st;
+    view = makeView();
+    view.watcher = true;
+    // isReplay 是"只读"的既有语义：不出牌、不弹结算面板、菜单里不给重开/认输
+    view.isReplay = true;
+    view.watchReveal = false;
+    view.playerNames = ['玩家1', '玩家2'];
+    view.playerTags = [
+      st.firstPlayer === 0 ? '先手' : '后手',
+      st.firstPlayer === 1 ? '先手' : '后手',
+    ];
+    recording = null;
+    lanInfo.gameReady = true;
+    screen = 'game';
+    refresh();
+    return;
+  }
   // 模式以主机为准：客人是通过 URL 进房的，本地默认是普通模式，
   // 必须按广播过来的这一份切换，否则界面说一套、引擎跑另一套。
   playMode = session && session.mode === 'forge' ? 'forge' : 'normal';
@@ -342,6 +381,40 @@ async function requestLanRestart() {
     await session.transport.send({ t: 'restart-req' });
   } catch { /* 断线时忽略：房间本来就要重连 */ }
   showBanner('已请求重开', 1600, '等房主按一下「重新开局」');
+}
+
+/**
+ * 观战入口（作者 2026-10-23）。
+ *
+ * 输入可以是**房间号**（公网）或**主机地址**（局域网），和「加入房间」同一套识别，
+ * 只是 URL 上的 net 换成 watch —— 观战者是一条只读连接，不占座位。
+ */
+function watchByInput() {
+  const el = document.getElementById('watch-input');
+  const raw = String((el && el.value) || '');
+  const code = Net.roomCode(raw);
+
+  if (code && Net.onlineAvailable()) {
+    lanManualError = '';
+    const target = `${Net.siteBase()}/?net=watch&room=${code}`;
+    try {
+      globalThis.location.href = target;
+      return;
+    } catch {
+      lanManualError = '浏览器不允许跳转，请手动打开：' + target;
+      refresh();
+      return;
+    }
+  }
+
+  const addr = normalizeHostInput(raw);
+  if (!addr) {
+    lanManualError = '没看懂这个输入。公网填房间号（例如 K7QM2P），局域网填 192.168.x.x 或 192.168.x.x:8765。';
+    refresh();
+    return;
+  }
+  lanManualError = '';
+  Net.navigateTo(`http://${addr}/?net=watch`);
 }
 
 /** 退出房间：告诉对方、停服务、回首页 */

@@ -381,10 +381,14 @@ function fillMenuLog() {
         <button class="btn-close" data-act="close-menu">关闭</button>
       </div>
       <div class="menu-body">${lines || '<div class="lg">暂无记录</div>'}</div>
-      ${screen === 'replay' ? '' : `<div class="menu-foot">
+      ${screen === 'replay' ? '' : (view && view.watcher
+        ? `<div class="menu-foot">
+        <button class="btn-restart" data-act="watch-exit">退出观战</button>
+      </div>`
+        : `<div class="menu-foot">
         <button class="btn-restart" data-act="restart">重新开局</button>
         <button class="btn-surrender" data-act="surrender">认输</button>
-      </div>`}
+      </div>`)}
     </div>`;
 }
 
@@ -1655,6 +1659,31 @@ function renderScreen(stage) {
     return;
   }
 
+  if (screen === 'watchJoin') {
+    stage.innerHTML = watchJoinHTML({
+      online: Net.onlineAvailable(),
+      native: Net.nativeAvailable(),
+      manualError: lanManualError,
+    });
+    applyScreenFx(stage);
+    return;
+  }
+
+  if (screen === 'watching') {
+    stage.innerHTML = watchingHTML({
+      roomName: lanInfo.roomName,
+      code: lanInfo.code,
+      status: lanInfo.status,
+      // 观战者最可能卡住的两件事：连不上 / 这局开始得太久（start 已被服务端裁掉）
+      error: (session && session.missedStart)
+        ? '这局已经进行了很久，房间日志里已经没有开局信息，进不来观战。等他们开下一局吧。'
+        : (lanInfo.discoverError || ''),
+      online: Net.onlineAvailable(),
+    });
+    applyScreenFx(stage);
+    return;
+  }
+
   if (screen === 'lan') {
     stage.innerHTML = lanMenuHTML({
       // 要么有原生服务（APK 里开房间），要么页面本身就跑在 http(s) 上（公网站点）
@@ -1697,6 +1726,8 @@ function renderScreen(stage) {
       // 大厅里也要能选阵营（作者 2026-10-05）
       faction: myFaction,
       factions: factionOptions(),
+      // 有几个人在看：服务端每轮 poll 报一次（纯展示，不进锁步）
+      watchers: (session && session.watchers) || 0,
       // 强化是独立模式：大厅里要能一眼看出这一局用哪套规则
       forgeMode: playMode === 'forge',
       peerForge: session ? !!session.peerForge : false,

@@ -315,6 +315,19 @@ function advanceGame() {
 function tick() {
   // 只有在对局屏幕上才驱动回合（首页/设置/回放列表不该有计时器在跑）
   if (screen !== 'game') return;
+  /**
+   * 观战者（作者 2026-10-23）：**只演出、不推进**。
+   *
+   * 回合推进、AI、结算这些都由两端做，观战者照抄收到的 act 就行；
+   * 它自己推一下就会和玩家那边多走一步，画面立刻对不上。
+   */
+  if (session && session.isWatcher) {
+    pumpCombatFx();
+    view.busy = false;
+    view.busyText = '';
+    refresh();
+    return;
+  }
   pumpCombatFx();
   presentSuperpowers();
   if (paused) { refresh(); return; }
@@ -486,6 +499,8 @@ function tick() {
 function settleIfNeeded() {
   // 靶场是试卡用的：不发金币、不进回放、不留战绩（作者 2026-10-22）
   if (state && state.sandbox === true) return;
+  // 观战者不结算：这局不是它的（作者 2026-10-23）
+  if (session && session.isWatcher) return;
   if (!recording || recording.settled) return;
 
   const record = RP.finishRecording(recording, state);

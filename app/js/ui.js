@@ -434,6 +434,17 @@ function handHTML(state, view) {
   const reveal = view && typeof view.revealShown === 'number' ? view.revealShown : null;
   const handIn = reveal === null || reveal >= REVEAL_TOTAL ? '' : ' data-in="0"';
   const p = state.players[view.humanSide];
+  /**
+   * 观战者（作者 2026-10-23）：默认**看不到手牌**（只报双方张数）。
+   *
+   * 理由：观战位是「看棋」，不是「帮一边看牌」。真要看得开顶栏那个
+   * 「公开手牌」——那是给作者自己试牌用的（点开也只画玩家1那一手，且点不动）。
+   */
+  if (view.watcher === true && !view.watchReveal) {
+    const h0 = state.players[0].hand.length;
+    const h1 = state.players[1].hand.length;
+    return `<div class="hand-watch">观战中 · 手牌不公开<span>玩家1 ${h0} 张 · 玩家2 ${h1} 张</span></div>`;
+  }
   if (!p.hand.length) return '<div class="hand-empty">手牌已空</div>';
 
   return p.hand.map((hc, hi) => {
@@ -442,8 +453,9 @@ function handHTML(state, view) {
     // 手牌实例上可能带费用修正（「-1 花费」）—— 显示与实际扣费都必须读实例值，
     // 否则会出现「看着付得起、点下去报错」或者反过来。
     const cost = G.costOf(state, hc);
-    const afford = cost <= p.mana;
-    const playable = view.playableIids.includes(hc.iid);
+    const watching = view.watcher === true;
+    const afford = watching ? true : cost <= p.mana;
+    const playable = watching ? true : view.playableIids.includes(hc.iid);
     const selected = hc.iid === view.selectedIid;
     // 阵营超能力：高亮 + 角标。开局那一张没有「出牌」时刻，写提示行又会被
     // 后面的阶段提示顶掉，所以做成手牌上的持久标记（玩家一眼能看到自己有什么）。
@@ -565,7 +577,13 @@ export function render(root, state, view) {
         : (actor === view.humanSide ? '轮到你了' : 'AI 行动中')));
   /** 靶场：随时都能出牌、随时都能按「结束阶段」（引擎那边也不再校验阶段） */
   const sandbox = state.sandbox === true;
-  const canAct = sandbox ? !view.busy : (!view.busy && actor === view.humanSide && !state.winner);
+  /**
+   * 观战者（作者 2026-10-23）：**任何操作按钮都不该是可点的**。
+   * 它不是这一局的玩家，按下去只会走一条注定被 session.submit 挡回来的路，
+   * 界面上却看起来像「按得动」—— 那是骗人。所以这里直接把 canAct 关掉。
+   */
+  const watchingGame = view.watcher === true;
+  const canAct = watchingGame ? false : (sandbox ? !view.busy : (!view.busy && actor === view.humanSide && !state.winner));
 
   /**
    * 恶魔阵营的「献祭」按钮（作者 2026-10-03）：出现在结束阶段左边。
@@ -591,10 +609,11 @@ export function render(root, state, view) {
 
   root.innerHTML = `
     <div class="topbar${sandbox ? ' topbar-sb' : ''}">
-      <span class="turn">${sandbox ? '靶场 · ' : ''}第 ${state.turn} 回合</span>
+      <span class="turn">${sandbox ? '靶场 · ' : (view.watcher === true ? '观战 · ' : '')}第 ${state.turn} 回合</span>
       <span class="deck-left">牌库 ${state.deck.length}</span>
       ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
       ${myP && myP.faction === 'flame' ? `<span class="raw-left">异火 ${G.flamePileOf(state, view.humanSide).length}</span>` : ''}
+      ${view.watcher === true ? `<button class="btn-watch${view.watchReveal ? ' on' : ''}" data-act="watch-reveal">${view.watchReveal ? '隐藏手牌' : '公开手牌'}</button>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
     ${sandbox ? sandboxBarHTML(state, view) + (view.pickOpen ? sandboxPickerHTML(state, view) : '') : ''}
@@ -611,7 +630,7 @@ export function render(root, state, view) {
     </div>
 
     ${view.hint ? `<div class="hint ${view.selectedIid !== null ? 'hint-active' : ''}">${esc(view.hint)}</div>` : ''}
-    <div class="hand-wrap"><div class="hand">${handHTML(state, view)}</div></div>
+    <div class="hand-wrap${view.watcher === true ? ' watch' : ''}"><div class="hand">${handHTML(state, view)}</div></div>
 
     ${view.banner ? `<div class="banner${view.bannerAnimate === false ? ' banner-rest' : ''}">${esc(view.banner)}${view.bannerSub ? `<small>${esc(view.bannerSub)}</small>` : ''}</div>` : ''}
     ${infoHTML(state, view)}

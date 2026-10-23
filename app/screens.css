@@ -4199,3 +4199,87 @@ body::before, body::after { content: none; }
   box-shadow: none;
 }
 .statusbar .pip.on { background: var(--ink-dim); box-shadow: none; }
+
+/* ══════════════════════════════════════════════════════════
+   0.67 观战（作者 2026-10-23）
+   ──────────────────────────────────────────────────────────
+   观战是**只读**的第三条连接：不占座位、不出牌、不结算。
+   界面上要一眼能看出「我在看，不是我在打」，所以只在两处加东西：
+   顶栏一个「观战 ·」前缀 + 一个「公开手牌」小胶囊，手牌区换成一行说明。
+   ══════════════════════════════════════════════════════════ */
+.watch-hero { padding: 20px 20px 4px; }
+.watch-hero-title {
+  font-family: var(--font-title);
+  font-size: 19px;
+  color: var(--ink);
+}
+.watch-hero-line {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-dim);
+}
+.watch-room {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 20px 20px 4px;
+}
+.watch-room-label {
+  font-size: 11px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+.watch-room-code {
+  font-family: var(--font-title);
+  font-size: 22px;
+  letter-spacing: .08em;
+  color: var(--ink);
+}
+.watch-status {
+  padding: 6px 20px 10px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.watch-exit {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 18px 20px 0;
+}
+.lobby-watch {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+/* 观战者的手牌区：不公开时就是一行字 */
+.hand-watch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 30px 0;
+  font-size: 12.5px;
+  letter-spacing: .02em;
+  color: var(--ink-faint);
+}
+.hand-watch span { font-size: 11px; color: var(--ink-faint); }
+/* 观战者就算打开了「公开手牌」也只是看：牌不响应任何点击 */
+.hand-wrap.watch .card { pointer-events: none; }
+
+/* 顶栏那颗「公开手牌」 */
+.btn-watch {
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 22px;
+  cursor: pointer;
+}
+.btn-watch.on { border-color: var(--gold); color: var(--gold); }

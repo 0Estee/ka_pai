@@ -53,6 +53,13 @@ export class Room {
     this.log = [];
     /** 每一端最后一次露面的时间戳（判闲置用） */
     this.seen = { host: 0, guest: 0 };
+    /**
+     * 观战者心跳：`{ 观战者随机 id: 最后一次轮询时间 }`（作者 2026-10-23）。
+     *
+     * 观战者可以有任意多个、随时来随时走，所以不能像两端那样用固定键存 `seen`。
+     * 这里只留「最近 45 秒还在轮询的」，`/api/room` 数一下就是当前观战人数。
+     */
+    this.watchers = {};
     /** 每一端是否已经离开（离开后对方的 poll 立刻返回 peer-left） */
     this.left = { host: false, guest: false };
     this.started = false;
@@ -67,6 +74,7 @@ export class Room {
         this.log = saved.log || [];
         this.seen = saved.seen || this.seen;
         this.left = saved.left || this.left;
+        this.watchers = saved.watchers || {};
         this.started = !!saved.started;
         this.roomName = saved.roomName || '';
       }
@@ -79,6 +87,7 @@ export class Room {
       log: this.log,
       seen: this.seen,
       left: this.left,
+      watchers: this.watchers,
       started: this.started,
       roomName: this.roomName,
     });
@@ -147,7 +156,17 @@ export class Room {
   async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname;
-    const who = url.searchParams.get('who') === 'guest' ? 'guest' : 'host';
+    /**
+     * 这一条请求来自谁：'host' | 'guest' | 'watch'。
+     *
+     * 'watch' 是观战者（作者 2026-10-23）：它**只读**——
+     *   · /api/send 一律 403（观战者不能往对局里插操作）
+     *   · /api/poll 能拿到两端的全部消息（自己的 from 永远不是 host/guest，所以不会被过滤掉）
+     *   · 两端都离开才算 peer-left，否则观战者会被一个人的退出踢出去
+     */
+    const whoRaw = url.searchParams.get('who');
+    const who = whoRaw === 'guest' ? 'guest' : (whoRaw === 'watch' ? 'watch' : 'host');
+    const isWatcher = who === 'watch';
     const roomName = url.searchParams.get('room') || '';
     if (roomName && !this.roomName) this.roomName = roomName;
 
@@ -163,6 +182,7 @@ export class Room {
         host: '主机',
         port: 0,
         players,
+        watchers: this.watchCount(),
         started: this.started,
         version: 1,
       });
@@ -170,6 +190,11 @@ export class Room {
 
     if (path === '/api/send') {
       if (request.method !== 'POST') return json({ ok: false, error: 'need-post' }, 405);
+      /**
+       * 观战者是**只读**连接：它要是能发消息，就等于能往锁步流里插操作，
+       * 两端会立刻分叉。所以这一层直接拒掉（客户端也不会发）。
+       */
+      if (isWatcher) return json({ ok: false, error: 'read-only', message: '观战者不能发送消息' }, 403);
       let body;
       try { body = await request.json(); } catch { return json({ ok: false, error: 'bad-json' }, 400); }
       const name = url.searchParams.get('name') || '';
@@ -186,6 +211,16 @@ export class Room {
       if (!(timeout > 0)) timeout = POLL_DEFAULT_MS;
       timeout = Math.min(timeout, POLL_MAX_MS);
       this.seen[who] = Date.now();
+      if (isWatcher) {
+        this.touchWatcher(url.searchParams.get('wid'));
+        const msgs0 = this.pendingFor(who, since);
+        if (!msgs0.length && timeout > 0) await this.wait(timeout, who);
+        // 观战者只在**两端都走了**之后才结束（一个人退出不影响看棋）
+        if (this.left.host && this.left.guest) return json({ ok: false, error: 'peer-left' });
+        return json({
+          ok: true, now: this.now, msgs: this.pendingFor(who, since), watching: true, watchers: this.watchCount(),
+        });
+      }
       const other = who === 'host' ? 'guest' : 'host';
       if (this.left[other] && this.seen[other]) {
         return json({ ok: false, error: 'peer-left' });
@@ -197,10 +232,18 @@ export class Room {
         if (this.left[other] && this.seen[other]) return json({ ok: false, error: 'peer-left' });
         msgs = this.pendingFor(who, since);
       }
-      return json({ ok: true, now: this.now, msgs });
+      // 顺带把「现在有几个人在看」告诉玩家：大厅里要显示「有 N 人在观战」。
+      // 这不参与锁步，纯展示，所以随便刷新都不影响对局。
+      return json({ ok: true, now: this.now, msgs, watchers: this.watchCount() });
     }
 
     if (path === '/api/leave') {
+      if (isWatcher) {
+        // 观战者离开：清掉自己的心跳就行，千万别把 left 标上（那会让两端以为对手走了）
+        this.dropWatcher(url.searchParams.get('wid'));
+        await this.persist();
+        return json({ ok: true });
+      }
       this.left[who] = true;
       this.seen[who] = Date.now();
       // 对端正挂着长轮询的话立刻叫醒它，让它马上看到 peer-left
@@ -210,6 +253,7 @@ export class Room {
     }
 
     if (path === '/api/start') {
+      if (isWatcher) return json({ ok: true, ignored: true });
       this.started = true;
       this.seen[who] = Date.now();
       await this.persist();
@@ -217,6 +261,27 @@ export class Room {
     }
 
     return json({ ok: false, error: 'not-found' }, 404);
+  }
+
+  /** 观战者心跳（45 秒内有轮询就算还在看） */
+  touchWatcher(wid) {
+    const key = String(wid || '').slice(0, 24) || 'anon';
+    this.watchers[key] = Date.now();
+    const cutoff = Date.now() - 45000;
+    for (const k of Object.keys(this.watchers)) {
+      if (this.watchers[k] < cutoff) delete this.watchers[k];
+    }
+    // 心跳不用每条都落盘：它只是「界面上显示几个人在看」，丢了不影响对局
+  }
+
+  dropWatcher(wid) {
+    const key = String(wid || '').slice(0, 24) || 'anon';
+    delete this.watchers[key];
+  }
+
+  watchCount() {
+    const cutoff = Date.now() - 45000;
+    return Object.keys(this.watchers).filter((k) => this.watchers[k] >= cutoff).length;
   }
 
   /** 挂起最多 ms 毫秒，或被新消息 / 对端离开叫醒 */
@@ -256,8 +321,13 @@ export class Room {
     // hibernation API：对象休眠后这些连接仍然活着，消息会重新唤醒 fetch/webSocketMessage
     this.ctx.acceptWebSocket(server);
     try { server.serializeAttachment({ who }); } catch { /* 老运行时忽略 */ }
-    this.seen[who] = Date.now();
-    this.left[who] = false;
+    if (who === 'watch') {
+      // 观战者：只记心跳，不动两端的 seen/left（否则会把房主挤成「没来」）
+      this.touchWatcher(url.searchParams.get('wid'));
+    } else {
+      this.seen[who] = Date.now();
+      this.left[who] = false;
+    }
 
     // 握手时先把 since 之后漏掉的消息补上（和长轮询同一套语义）
     for (const e of this.pendingFor(who, since)) {

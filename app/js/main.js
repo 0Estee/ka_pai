@@ -321,6 +321,140 @@ window.__sandbox = (opts) => {
   };
 };
 
+/**
+ * 观战自检（作者 2026-10-23）：用**真的 Session**跑一遍「房主 + 观战者」。
+ *
+ * 假传输模拟服务端：一个共享 log，按 from 过滤（和真服务端同一个语义）。
+ * 这里要钉住的是观战者那条只读链路：
+ *   · 收到 start 能自己把这一局建起来，并且和房主逐步一致
+ *   · submit / send 一律无效（不能往锁步流里插操作）
+ *   · 缺一条 act 时**不去要 need**（只读连接发不出去），等下一轮 poll 自己补
+ */
+window.__watchProbe = async () => {
+  const log = [];
+  let now = 0;
+  const mkTransport = (who) => {
+    let since = 0;
+    return {
+      who,
+      isWatcher: who === 'watch',
+      room: 'TEST1',
+      wid: who === 'watch' ? 'w-test' : '',
+      url: (p) => p,
+      async send(msg) {
+        if (this.isWatcher) return { ok: false, error: 'read-only' };
+        log.push({ seq: now, from: who, msg });
+        now++;
+        return { ok: true, seq: now - 1 };
+      },
+      async start() { return true; },
+      async poll() {
+        const msgs = log.filter((e) => e.seq >= since && e.from !== who);
+        for (const m of msgs) if (m.seq >= since) since = m.seq + 1;
+        return { msgs, peerLeft: false, watchers: 1 };
+      },
+      async leave() { return true; },
+    };
+  };
+  const make = (who) => {
+    const sess = new Net.Session({ who, cardLib: TEST_CARD_LIB, room: 'TEST1' });
+    sess.transport = mkTransport(who);
+    return sess;
+  };
+  const host = make('host');
+  const watch = make('watch');
+  const feed = async (sess) => {
+    const { msgs } = await sess.transport.poll();
+    let changed = false;
+    for (const m of msgs) if (sess.handleMessage(m.msg, m.from)) changed = true;
+    if (changed) sess.onUpdate();
+    return msgs.length;
+  };
+
+  const seed = 4242;
+  const deck = buildTestDeck(80, seed);
+  await host.beginGame({ seed, firstPlayer: 0, deck, factions: ['demon', 'god'], enhance: null, mode: 'normal' });
+
+  const out = { watcherBuilt: false, sameHashAfter2: false, watchersCount: 0 };
+  out.fedToWatcher = await feed(watch);
+  out.watcherBuilt = !!watch.state && watch.started === true;
+  out.sameHashAtStart = out.watcherBuilt && Net.stateHash(watch.state) === Net.stateHash(host.state);
+
+  // 两端各推进两步（自动阶段），观战者照抄
+  await host.submit({ k: 'a' });
+  await host.submit({ k: 'a' });
+  await feed(watch);
+  out.sameHashAfter2 = out.watcherBuilt && Net.stateHash(watch.state) === Net.stateHash(host.state);
+  out.steps = { host: host.step, watch: watch.step };
+
+  // 只读：观战者提交 / 发送都无效
+  const logLenBefore = log.length;
+  out.submitAccepted = await watch.submit({ k: 'a' });
+  out.sendResult = await watch.transport.send({ t: 'act', a: { k: 'a' }, n: 0 });
+  out.logGrewByWatcher = log.length - logLenBefore;
+
+  // 缺一条 act：观战者不能发 need，只能等下一轮把缺的带回来
+  const seqBefore = log.length;
+  log.push({ seq: now, from: 'host', msg: { t: 'act', a: { k: 'a' }, n: watch.step + 2 } });
+  now++;
+  const stepBefore = watch.step;
+  await feed(watch);
+  out.gapIgnored = watch.step === stepBefore;              // 没有硬执行
+  out.needSent = log.some((e) => e.from === 'watch');      // 也没发 need
+  out.seqBefore = seqBefore;
+  out.watchersCount = host.watchers || 0;
+  return out;
+};
+
+/** 截图：切一下观战者的「公开手牌」 */
+window.__watchToggleHands = () => {
+  if (!view) return false;
+  view.watchReveal = !view.watchReveal;
+  refresh();
+  return view.watchReveal;
+};
+
+/** 截图 / 自检：摆一局「观战中」的画面（AI 对打到第 N 回合，然后切成只读视角） */
+window.__watchDemo = (turns) => {
+  startNewGame();
+  const n = Math.max(1, Number(turns) || 4);
+  for (let i = 0; i < n; i++) {
+    try { __playTurns(i + 1); } catch { /* 到点收工 */ }
+  }
+  // 装作这是一条观战连接：只读、手牌不公开、没有座位
+  session = {
+    isWatcher: true, isHost: false, mySide: 0, step: 0, lastError: '', peerName: '', watchers: 1,
+    submit() { return false; },
+    async leave() { return true; },
+    transport: { send: async () => ({ ok: false, error: 'read-only' }), start: async () => true, leave: async () => true },
+  };
+  recording = null;
+  view = makeView();
+  view.watcher = true;
+  view.isReplay = true;
+  view.watchReveal = false;
+  view.playerNames = ['玩家1', '玩家2'];
+  view.playerTags = [state.firstPlayer === 0 ? '先手' : '后手', state.firstPlayer === 1 ? '先手' : '后手'];
+  screen = 'game';
+  revealBoardAll();
+  return { turn: state.turn, hands: state.players.map((p) => p.hand.length) };
+};
+
+/** 截图：观战等待页（房间号 / 连接状态） */
+window.__watchLobby = (code, status) => {
+  lanInfo = {
+    ...(lanInfo || {}),
+    roomName: '测试房间',
+    code: String(code || 'K7QM2P'),
+    status: String(status || 'connected'),
+    watch: true,
+    online: true,
+  };
+  screen = 'watching';
+  refresh();
+  return { screen, code: lanInfo.code };
+};
+
 /** 战斗演出：同步步进一帧（自检 / 截图用，不等 820ms 的定时器） */
 window.__stepFx = () => {
   if (!view) return null;
@@ -409,7 +543,8 @@ window.__go = (name) => {
   else if (name === 'admin') { screen = 'admin'; Cloud.loadAdminUsers(); refresh(); }
   else if (name === 'settings') goSettings();
   else if (name === 'replays') goReplays();
-  else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby' || name === 'forge') {
+  else if (name === 'play' || name === 'difficulty' || name === 'lan' || name === 'lanScan' || name === 'lobby' || name === 'forge'
+    || name === 'watchJoin' || name === 'watching') {
     screen = name;
     if (name === 'lanScan') { lanRooms = []; lanScanning = false; }
     refresh();

@@ -20,7 +20,7 @@ import {
 import { esc } from './ui.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.66.0';
+export const APP_VERSION = '0.67.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -220,6 +220,10 @@ export function lanMenuHTML({ lanSupported, localIp, online, native = false }) {
       <span class="hm-ico">⌕</span><span class="hm-text">${onlineOnly ? '输入房间号' : '加入房间'}</span>
       <span class="hm-sub">${joinSub}</span>
     </button>
+    <button class="hm-btn" data-act="watch-join">
+      <span class="hm-ico">◎</span><span class="hm-text">观战</span>
+      <span class="hm-sub">${online ? '输入房间号，进去只看不打' : '输入主机地址，进去只看不打'}</span>
+    </button>
     <div class="hf-warn">主机中途退出会导致房间消失，对手将直接判负。</div>
     ${localIp ? `<div class="set-tip">本机地址：${esc(localIp)}</div>` : ''}
   `);
@@ -284,7 +288,59 @@ export function lanScanHTML({ rooms, scanning, manualError, online, native = fal
 }
 
 /** 联机大厅：主机等对手，客人等主机开始 */
-export function lobbyHTML({ mode, roomName, peerName, myName, discoverError, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge, online, joinUrl, code }) {
+/**
+ * 观战入口：和「加入房间」同一个输入框，只是进去以后是**只读**的。
+ *
+ * 说明里把三件事讲清楚（作者 2026-10-23）：
+ *   · 不占座位：两个人照常对局，观战的人来几个都行
+ *   · 看不到手牌：默认只画双方手牌张数（作者可以自己打开「公开手牌」）
+ *   · 只读：点什么都不出牌
+ */
+export function watchJoinHTML({ online, native = false, manualError = '' } = {}) {
+  const tip = online
+    ? '把主机大厅里显示的<b>房间号</b>填在这里（也可以直接粘整条链接）：'
+    : '让主机把大厅里显示的那串地址念给你，填在这里：';
+  const ph = online ? '例如 K7QM2P' : '例如 192.168.1.7:8765';
+  return subScreen('观战', `
+    <div class="watch-hero">
+      <div class="watch-hero-title">进去看，不占座位</div>
+      <div class="watch-hero-line">双方照常对局；观战者只读——点什么都不出牌，也不影响胜负与金币。</div>
+      <div class="watch-hero-line">默认看不到手牌（只显示张数），想看可以进去以后自己打开。</div>
+    </div>
+    <div class="lan-manual">
+      <div class="lan-manual-tip">${tip}</div>
+      <input id="watch-input" class="lan-input" type="text" inputmode="${online ? 'text' : 'decimal'}"
+             autocomplete="off" autocapitalize="${online ? 'characters' : 'off'}" spellcheck="false"
+             placeholder="${ph}">
+      <button class="rp-btn" data-act="watch-enter">开始观战</button>
+      ${manualError ? `<div class="lan-err">${esc(manualError)}</div>` : ''}
+    </div>
+    ${native ? '<div class="set-tip">同一 Wi-Fi 下：主机开好房间后，把「本机地址」那一行念给你。</div>' : ''}
+  `);
+}
+
+/** 观战等待页：已经连上房间，等两位玩家开局 */
+export function watchingHTML({ roomName, code, status, error, online }) {
+  const stateText = status === 'closed'
+    ? '连接已断开'
+    : (status === 'reconnecting' ? '重连中…' : '等待这局开始…');
+  return subScreen('观战中', `
+    <div class="watch-room">
+      <span class="watch-room-label">房间</span>
+      <b class="watch-room-code">${esc(code || roomName || '—')}</b>
+    </div>
+    <div class="watch-status">${esc(stateText)}</div>
+    <div class="set-tip">
+      两位玩家进房并开局之后，画面会自动出来。<br>
+      观战是只读的：不出牌、不结算金币，也不会影响对局。
+    </div>
+    ${error ? `<div class="lan-err">${esc(error)}</div>` : ''}
+    <button class="rp-btn watch-exit" data-act="watch-exit">退出观战</button>
+    ${online ? '<div class="set-tip">房间号不对？回上一页重新输入。</div>' : ''}
+  `);
+}
+
+export function lobbyHTML({ mode, roomName, peerName, myName, discoverError, status, localIp, port, gameReady, gold, canPvp, faction, factions, forgeMode, peerForge, online, joinUrl, code, watchers = 0 }) {
   const isHost = mode === 'host';
   const seat = isHost ? '玩家1' : '玩家2';
   const seatRole = myName && myName !== seat ? `${myName}（${seat} · ${isHost ? '主机' : '客人'}）` : `${seat}（${isHost ? '主机' : '客人'}）`;
@@ -360,6 +416,7 @@ export function lobbyHTML({ mode, roomName, peerName, myName, discoverError, sta
         <div class="lobby-room">${esc(roomName || '未命名房间')}</div>
         ${invite}
         <div class="lobby-status lobby-${status}">${esc(statusText)}</div>
+        ${watchers > 0 ? `<div class="lobby-watch">有 ${watchers} 人在观战</div>` : ''}
         ${isHost && discoverError ? `<div class="hf-warn">${esc(discoverError)}</div>` : ''}
         <div class="lobby-mode">房间模式：${forgeMode ? '强化模式（双方各带自己的强化卡组）' : '普通模式（卡面原值）'}${peerName
           ? `　·　对手：${peerForge ? '强化模式' : '普通模式'}${!!peerForge !== !!forgeMode ? '（与房间不一致，开局以主机为准）' : ''}`

@@ -112,6 +112,13 @@
         pre.textContent = report;
         document.body.appendChild(pre);
       }
+    } else if (demo === 'watch') {
+      // 观战中：只读视角 + 手牌不公开
+      document.title = 'demo: ' + JSON.stringify(window.__watchDemo(Number(p.get('turn') || 4)));
+      if (p.get('revealHands')) window.__watchToggleHands();
+      window.__revealAll();
+    } else if (demo === 'watchlobby') {
+      window.__watchLobby(p.get('code') || 'K7QM2P', p.get('status') || 'connected');
     } else if (demo === 'sbdamage') {
       /**
        * 靶场里真打一下，停在「命中」那一帧：

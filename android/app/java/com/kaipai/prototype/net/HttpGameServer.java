@@ -14,6 +14,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,13 @@ public final class HttpGameServer {
 
     private static final String WHO_HOST = "host";
     private static final String WHO_GUEST = "guest";
+    /**
+     * 观战者（作者 2026-10-23）。它是**只读**的第三条连接：
+     *   · 能拿到两端的全部消息（日志本来就按 seq 全存，两端只是各自过滤自己发的）
+     *   · 不能 /api/send（否则等于往锁步流里插操作，两端立刻分叉）
+     *   · 来去都不影响「对手是否还在」：两端都离开才算对局结束
+     */
+    private static final String WHO_WATCH = "watch";
 
     private final AssetSource assets;
     private final Object lock = new Object();
@@ -85,6 +93,8 @@ public final class HttpGameServer {
     // ── 在线状态（协议 §5 requirement：peer-left） ──────────────
     private final PeerState host = new PeerState();
     private final PeerState guest = new PeerState();
+    /** 观战者心跳：观战者随机 id -> 最后轮询时刻（毫秒）。只用于「几个人在看」与清理 */
+    private final Map<String, Long> watchers = new HashMap<String, Long>();
 
     public HttpGameServer(AssetSource assets) {
         this(assets, "卡牌对决", "主机");
@@ -412,6 +422,7 @@ public final class HttpGameServer {
             m.put("host", hostName);
             m.put("port", port);
             m.put("players", playersLocked());
+            m.put("watchers", watchCount());
             m.put("started", started);
             m.put("version", VERSION);
         }
@@ -433,6 +444,10 @@ public final class HttpGameServer {
 
         String from = req.who;
         if (from == null) from = "guest";
+        if (isWatcher(from)) {
+            // 观战者是只读连接：能发消息就等于能往锁步流里插操作
+            return Response.json(403, "{\"ok\":false,\"error\":\"read-only\"}");
+        }
 
         synchronized (lock) {
             // 已离开的一方不该再往日志里塞消息：否则另一端重连后会看到"幽灵对手"还在动
@@ -467,6 +482,8 @@ public final class HttpGameServer {
 
     private Response poll(Request req) {
         String me = req.who == null ? "guest" : req.who;
+        boolean watching = isWatcher(me);
+        if (watching) touchWatcher(Json.str(req.query, "wid", ""));
         int since = Json.intVal(req.query, "since", 0);
         if (since < 0) since = 0;
         int timeout = Json.intVal(req.query, "timeout", POLL_TIMEOUT_DEFAULT_MS);
@@ -483,10 +500,15 @@ public final class HttpGameServer {
                 while (true) {
                     if (!running) return Response.json(503, "{\"ok\":false,\"error\":\"server-stopped\"}");
 
-                    PeerState other = peerOf(otherOf(me));
-                    if (other != null && other.left) {
-                        // 协议 §2.4：一方离开后，另一方下一次 poll 立刻返回 peer-left
-                        return peerLeft();
+                    if (watching) {
+                        // 观战者只在**两端都走了**之后才结束：一个人退出不该把看棋的人踢掉
+                        if (host.left && guest.left) return peerLeft();
+                    } else {
+                        PeerState other = peerOf(otherOf(me));
+                        if (other != null && other.left) {
+                            // 协议 §2.4：一方离开后，另一方下一次 poll 立刻返回 peer-left
+                            return peerLeft();
+                        }
                     }
 
                     List<Object> msgs = messagesSince(since);
@@ -497,11 +519,15 @@ public final class HttpGameServer {
                     // 超时判定：对方「出现过、但 15 秒没有任何请求、且此刻没有挂着的 poll」。
                     // 那个 activePolls 条件是必须的 —— 否则两端互相长轮询时，
                     // 谁先把 20 秒的 poll 挂出去，对方就会在自己 poll 返回的间隙被误判成掉线。
-                    if (other != null && other.seen && !other.left && other.activePolls == 0
-                            && System.nanoTime() - other.lastActivityNanos > PEER_TIMEOUT_NANOS) {
-                        other.left = true;
-                        lock.notifyAll();
-                        return peerLeft();
+                    // 掉线判定只对正常的两端做（观战者不参与，否则它会把空闲的一方判成离开）
+                    if (!watching) {
+                        PeerState other = peerOf(otherOf(me));
+                        if (other != null && other.seen && !other.left && other.activePolls == 0
+                                && System.nanoTime() - other.lastActivityNanos > PEER_TIMEOUT_NANOS) {
+                            other.left = true;
+                            lock.notifyAll();
+                            return peerLeft();
+                        }
                     }
 
                     long remainMs = (deadline - System.nanoTime()) / 1000000L;
@@ -551,6 +577,11 @@ public final class HttpGameServer {
 
     private Response leave(Request req) {
         String who = req.who == null ? "guest" : req.who;
+        if (isWatcher(who)) {
+            // 观战者离开只清自己的心跳，千万别把 left 标上（那会让两端以为对手走了）
+            synchronized (lock) { watchers.remove(watchKey(req)); }
+            return Response.json(200, "{\"ok\":true}");
+        }
         synchronized (lock) {
             PeerState p = peerOf(who);
             if (p != null) p.left = true;
@@ -560,6 +591,9 @@ public final class HttpGameServer {
     }
 
     private Response startGame(Request req) {
+        if (isWatcher(req.who)) {
+            return Response.json(200, "{\"ok\":true,\"ignored\":true}");
+        }
         synchronized (lock) {
             started = true;
             lock.notifyAll();
@@ -629,6 +663,35 @@ public final class HttpGameServer {
             p.seen = true;
             p.lastActivityNanos = System.nanoTime();
         }
+    }
+
+    /** 观战者心跳的键（没有 wid 就归到匿名，一小时内没人轮询就清掉） */
+    private static String watchKey(Request req) {
+        String wid = Json.str(req.query, "wid", "");
+        return (wid == null || wid.isEmpty()) ? "anon" : wid;
+    }
+
+    private static boolean isWatcher(String who) {
+        return WHO_WATCH.equals(who);
+    }
+
+    private void touchWatcher(String wid) {
+        String key = (wid == null || wid.isEmpty()) ? "anon" : wid;
+        synchronized (lock) {
+            watchers.put(key, System.currentTimeMillis());
+            long cutoff = System.currentTimeMillis() - 45000L;
+            Iterator<Map.Entry<String, Long>> it = watchers.entrySet().iterator();
+            while (it.hasNext()) {
+                if (it.next().getValue() < cutoff) it.remove();
+            }
+        }
+    }
+
+    private int watchCount() {
+        long cutoff = System.currentTimeMillis() - 45000L;
+        int n = 0;
+        for (Long ts : watchers.values()) if (ts != null && ts >= cutoff) n++;
+        return n;
     }
 
     private PeerState peerOf(String who) {
