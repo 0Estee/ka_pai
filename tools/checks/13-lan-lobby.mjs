@@ -20,7 +20,8 @@ check('大厅里也能选阵营（以前只有难度页有，联机只能被主�
   const r = api.__demoLobby('张三');
   if (!r.factionRows) throw new Error('大厅里没有阵营选项（联机阵营选不了）');
   // 阵营数量跟着引擎 FACTIONS 走：7 个旧阵营 + 炼金 + 炼狱 / 极寒 / 罪恶 + 派对 = 11
-  if (r.factionRows !== 12) throw new Error('阵营选项应当是 12 个（7 旧阵营 + 炼金 + 炼狱/极寒/罪恶 + 派对 + 炎帝），实际 ' + r.factionRows);
+  // 2026-10-24 加了心驭 → 13 个
+  if (r.factionRows !== 13) throw new Error('阵营选项应当是 13 个（7 旧阵营 + 炼金 + 炼狱/极寒/罪恶 + 派对 + 炎帝 + 心驭），实际 ' + r.factionRows);
 });
 
 check('联机认输会作为一条操作交给会话发出去（对手那边要跟着结算）', () => {

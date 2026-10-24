@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-node engine/test/smoke.mjs     # 跑规则回归测试（当前 182 个）
+node engine/test/smoke.mjs     # 跑规则回归测试（当前 192 个）
 ```
 
 ```js
@@ -77,8 +77,8 @@ engine.js     （门面：状态机与公开 API）
 |---|---|
 | `src/constants.js` | 线路、排、阶段、常量开关（`DRAW_ON_FIRST_TURN` / `MAX_TURNS`） |
 | `src/rng.js` | 可复现随机源。存种子即可重放整局 |
-| `src/keywords.js` | 25 个词条的查询与判定；伤害修正链；目标过滤器 |
-| `src/board.js` | 场地与单位：查询、站位、移动/弹射、消灭（`destroyUnit` / `vanishUnit`） |
+| `src/keywords.js` | 25 个词条的查询与判定；伤害修正链；目标过滤器（含 `maxCost`） |
+| `src/board.js` | 场地与单位：查询、站位、移动/弹射、**控制**（`controlUnit` / `findControlSpot` / `returnControlledUnit`）、消灭（`destroyUnit` / `vanishUnit`） |
 | `src/damage.js` | 伤害与死亡结算、触发入队、冻结、伤害封顶、属性改写 |
 | `src/stats.js` | 词条的授予/剥夺、抽牌、法力 |
 | `src/mechanics.js` | **门面**：把 board / damage / stats 合成原来那一层 API |
@@ -417,7 +417,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**182 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**192 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长

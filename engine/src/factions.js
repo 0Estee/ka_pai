@@ -33,6 +33,8 @@ export const FACTIONS = {
   party: { key: 'party', name: '派对' },
   // 作者 2026-10-12：超能力第五批（炎帝 + 异火堆，卡 id U467 起）
   flame: { key: 'flame', name: '炎帝' },
+  // 作者 2026-10-24：心驭（控制机制；卡 id U478 起）
+  heart: { key: 'heart', name: '心驭' },
 };
 
 /** 抽超能力的国王血量阈值（从高到低，顺序固定 = 抽取顺序确定） */

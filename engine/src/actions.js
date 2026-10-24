@@ -9,11 +9,12 @@
 
 import { LANES, ADJACENT_LANES, LANE_NAME } from './constants.js';
 import { isFrozen, KEYWORD_DEFS } from './keywords.js';
-import { hasRooted, getKeyword } from './auras.js';
+import { hasRooted, getKeyword, effectiveAtk } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
   drawCards, gainMana, gainManaCap, laneUnits, allUnits, log, freezeUnit,
   canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
+  controlUnit, returnControlledUnit,
   sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword, transformUnit,
   buffKeywordX, lockAtk,
 } from './mechanics.js';
@@ -41,6 +42,26 @@ function* askSummonCell(ctx, side, cardId, prompt) {
     noAuto: side === human || undefined,
   };
   return answer && answer.lane ? answer : cells[0];
+}
+
+/**
+ * 「两个单位打一架」（心驭「人性の爱」的「与其战斗」）。
+ *
+ * 和开战一样**同时结算**：两边的伤害先各自算出来，再依次落地 ——
+ * 所以 A 被 B 打死时，A 那一击照样打得出去（同归于尽）。
+ * 伤害走 dealDamage（护甲 / 荆棘 / 暴击 / 溅射这些词条照常生效）。
+ */
+function duelUnits(state, ctx, a, b) {
+  const powerOf = (u) => (u.attackWithHp ? Math.max(0, u.hp) : effectiveAtk(state, u));
+  const toB = Math.max(0, powerOf(a));
+  const toA = Math.max(0, powerOf(b));
+  log(state, { type: 'duel', a: a.uid, b: b.uid, toA, toB, cardId: ctx.card ? ctx.card.id : null });
+  if (toB > 0 && !b.removed) {
+    dealDamage(state, a, { kind: 'unit', unit: b }, toB, { reason: '「' + a.name + '」交战' });
+  }
+  if (toA > 0 && !a.removed) {
+    dealDamage(state, b, { kind: 'unit', unit: a }, toA, { reason: '「' + b.name + '」交战' });
+  }
 }
 
 /**
@@ -423,6 +444,67 @@ export function* execAction(state, ctx, action) {
       for (const t of targets) {
         if (t.kind === 'unit' && !t.unit.removed) freezeUnit(state, t.unit);
       }
+      break;
+    }
+
+    /**
+     * 「控制」一名敌方单位（心驭阵营，作者 2026-10-24）。
+     *
+     * 控制 = 换主人 + 搬到控制者那一侧（见 board.js 的 controlUnit），
+     * 从此它就是**这一方的单位**：交战时打它原来的队友、能被献祭、国王伤害照算。
+     *
+     * 两个可选参数：
+     *   · freeze: true            —— 顺带冻结（它下一次攻击不进行）
+     *   · returnAtTurnStart: true —— 下个回合开始时还回**原主人**手牌（魔醉の臣服）
+     */
+    case 'control': {
+      const targets = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenEnemyUnit' });
+      for (const t of targets) {
+        if (t.kind !== 'unit' || t.unit.removed) continue;
+        const moved = controlUnit(state, t.unit, me, { cardId: ctx.card ? ctx.card.id : null });
+        if (!moved) {
+          // 没位置 / 扎根：牌打出来了但这一下没成，日志要说清楚（不静默吞掉）
+          log(state, { type: 'control-failed', uid: t.unit.uid, name: t.unit.name, reason: 'no-slot-or-rooted' });
+          continue;
+        }
+        if (action.freeze) freezeUnit(state, t.unit);
+        if (action.returnAtTurnStart) {
+          if (!Array.isArray(state.controlReturns)) state.controlReturns = [];
+          state.controlReturns.push({
+            uid: t.unit.uid,
+            atTurn: state.turn + 1,
+            owner: t.unit.charmOrigin,
+          });
+        }
+      }
+      break;
+    }
+
+    /**
+     * 「选择一个单位，指定另一个单位与其战斗」（心驭「人性の爱」）。
+     *
+     * 两问：先选 A（双方任意单位），再选 B（任意单位，排除 A）。
+     * 「战斗」= 两人同时互砍一次（与开战同一条伤害管线）：
+     *   伤害先各自算出来再落地，所以同归于尽也算双方都出手了。
+     * 之后由卡牌自己再写 draw 1（作者卡面就是这么拆的）。
+     */
+    case 'duel': {
+      const first = yield* resolveTargets(state, ctx, action.target || { kind: 'chosenAnyUnit' });
+      const a = first.length && first[0].kind === 'unit' ? first[0].unit : null;
+      if (!a || a.removed) break;
+      // 第二问：把上一步选中的目标从 ctx 里摘掉，否则引擎会以为「已经选好了」
+      const sub = { ...ctx, chosenTargetUid: null, chosenTargetIsKing: false, chosenTargetKingSide: undefined };
+      // 第二问的选择器：数据里写的那份 + **强制**排除刚刚选中的 A
+      //（写在数据里迟早会漏；「不能选同一个」是这条效果的定义，不是卡面参数）
+      const secondSpec = Object.assign(
+        { kind: 'chosenAnyUnit' },
+        action.second || {},
+        { excludeUid: a.uid, prompt: action.prompt || ('让谁和「' + a.name + '」战斗') },
+      );
+      const second = yield* resolveTargets(state, sub, secondSpec);
+      const b = second.length && second[0].kind === 'unit' ? second[0].unit : null;
+      if (!b || b.removed || b.uid === a.uid) break;
+      duelUnits(state, ctx, a, b);
       break;
     }
 

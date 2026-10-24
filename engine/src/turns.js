@@ -136,6 +136,21 @@ function onTurnStart(state) {
     for (const d of drawDue) M.drawCards(state, d.side, d.n || 1);
   }
 
+  /**
+   * 「控制到期」（心驭「魔醉の臣服」：下个回合开始时返回敌方手牌）。
+   * 与延迟召唤 / 延迟抽牌同族：排队在 state.controlReturns，
+   * 在回合开始的**同一点**兑现 —— 联机锁步与回放才不会分叉。
+   */
+  if (Array.isArray(state.controlReturns) && state.controlReturns.length) {
+    const dueControls = state.controlReturns.filter((c) => c.atTurn <= state.turn);
+    state.controlReturns = state.controlReturns.filter((c) => c.atTurn > state.turn);
+    for (const c of dueControls) {
+      const u = M.findUnit(state, c.uid);
+      if (!u || u.removed) continue;
+      M.returnControlledUnit(state, u);
+    }
+  }
+
   // 上回合遗留效果（淬毒 / 疾病）—— 裁决 B8：回合开始、费用重置那一刻结算
   resolveMarks(state);
 

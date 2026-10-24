@@ -12,9 +12,11 @@
  * 依赖方向：keywords ← mechanics ← effects ← engine
  */
 
+// 控制（心驭阵营，作者 2026-10-24）：findControlSpot / controlUnit / returnControlledUnit
 export {
   log, findUnit, laneUnits, allUnitsInLane, allUnits, enemyCombatTarget,
   findBodyguard, removeUnitFromBoard, destroyUnit, vanishUnit, canMoveTo, moveUnitToLane, bounceUnit,
+  findControlSpot, controlUnit, returnControlledUnit,
 } from './board.js';
 export {
   dealDamage, queueTrigger, queueKingTrigger, healUnit, healKing,

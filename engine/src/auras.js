@@ -284,6 +284,15 @@ export function filterCtx(state, source) {
   return {
     atkOf: (u) => effectiveAtk(state, u),
     isRooted: (u) => hasRooted(state, u),
+    /**
+     * 卡面花费（「控制一名花费≤3的敌人」用）。
+     * 只读 cardLib 的 cost —— 强化 / 精通的减费属于某一方自己的账，
+     * 不该让同一张牌在不同人手里「贵不贵」变得不一样。
+     */
+    costOf: (u) => {
+      const def = u && state && state.cardLib ? state.cardLib[u.cardId] : null;
+      return def ? Number(def.cost) || 0 : 0;
+    },
     source,
   };
 }

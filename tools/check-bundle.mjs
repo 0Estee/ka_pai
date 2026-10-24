@@ -66,6 +66,7 @@ import './checks/45-sandbox.mjs';
 import './checks/46-lan-restart-sandbox-ui.mjs';
 import './checks/47-watch.mjs';
 import './checks/48-admin-edit.mjs';
+import './checks/49-heart.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

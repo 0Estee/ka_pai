@@ -76,6 +76,8 @@ function analyzeSpell(def) {
           if (spec.kind === 'chosenEnemyFront' && row !== 'front') continue;
           // 与引擎共用同一个过滤器，保证界面高亮的目标一定能打出
           if (!matchesTargetFilter(u, spec.filter, filterCtx(state))) continue;
+          // 「控制」类（心驭）：我这边没地方落脚就不亮 —— 与引擎的 controlUnit 同一个判据
+          if (spec.controlRoom && !M.findControlSpot(state, u, me())) continue;
           unitTargets.add(u.uid);
         }
       }
@@ -91,6 +93,9 @@ function analyzeSpell(def) {
             const u = state.board[lane].units[side][row];
             if (!u) continue;
             if (!matchesTargetFilter(u, spec.filter, filterCtx(state))) continue;
+            // 「与其战斗」第二问的候选里不该再出现第一问选中的那个（引擎侧同一条）
+            if (spec.excludeUid != null && u.uid === spec.excludeUid) continue;
+            if (spec.controlRoom && !M.findControlSpot(state, u, me())) continue;
             unitTargets.add(u.uid);
           }
         }

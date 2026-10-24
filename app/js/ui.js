@@ -5,7 +5,7 @@
  * 棋盘规模很小（4 路 × 5 排 + 手牌），整块重绘的开销远低于维护差量更新的复杂度。
  */
 
-import { LANES, LANE_NAME, ROWS } from '../../engine/src/constants.js';
+import { LANES, LANE_NAME, ROWS, SIDE_NAME } from '../../engine/src/constants.js';
 import { KEYWORD_DEFS } from '../../engine/src/keywords.js';
 import { effectiveAtk, hasRooted } from '../../engine/src/auras.js';
 import * as G from '../../engine/src/engine.js';
@@ -91,10 +91,17 @@ function unitHTML(state, unit, view) {
   const kws = keywordLabels(state, unit);
   const marks = markLabels(unit);
   const isTarget = view.legalUnitTargets.includes(unit.uid);
+  /**
+   * 被控制（心驭，作者 2026-10-24）：卡面加 .charmed（粉红纹路，见 style.css），
+   * 名字下面再挂一颗「被控制」的小胶囊 —— 光靠纹路在缩略图里看不清，
+   * 而「这张牌现在是敌是友」是玩家做决策时最需要一眼确认的事。
+   */
+  const charmed = !!unit.charmed;
   const classes = [
     'unit',
     unit.row === 'front' ? 'in-front' : 'in-back',
     isTarget ? 'targetable' : '',
+    charmed ? 'charmed' : '',
   ].filter(Boolean).join(' ');
 
   // 显示有效攻击力（含光环），否则玩家看到的数字和实际打出的伤害对不上
@@ -113,6 +120,7 @@ function unitHTML(state, unit, view) {
   return `
     <div class="${classes}" data-uid="${unit.uid}">
       <div class="u-name">${esc(unit.name)}</div>
+      ${charmed ? '<div class="u-charm">被控制</div>' : ''}
       ${kws.length ? `<div class="u-kw">${esc(kws.join(' · '))}</div>` : ''}
       ${marks.length ? `<div class="u-marks">${esc(marks.join(' '))}</div>` : ''}
       <div class="u-bottom">
@@ -186,8 +194,15 @@ function unitInfoHTML(state, unit, view) {
   const effect = def.text
     || (def.type === 'spell' ? spellDescription(def) : '');
 
-  const who = unit.side === view.humanSide ? `我方 · ${LANE_NAME[unit.lane]}${unit.row === 'front' ? '前排' : '后排'}`
-    : `敌方 · ${LANE_NAME[unit.lane]}${unit.row === 'front' ? '前排' : '后排'}`;
+  const spot = `${LANE_NAME[unit.lane]}${unit.row === 'front' ? '前排' : '后排'}`;
+  /**
+   * 被控制的单位要在这行里说清楚**现在归谁、原来是谁的** ——
+   * 卡面上只有一颗「被控制」，不说原主人的话，玩家会以为是对方投降过来的。
+   */
+  const charmNote = unit.charmed
+    ? `（被控制 · 原属${SIDE_NAME[unit.charmOrigin === undefined ? 1 - unit.side : unit.charmOrigin]}）`
+    : '';
+  const who = (unit.side === view.humanSide ? '我方' : '敌方') + ' · ' + spot + charmNote;
 
   const strike = atk > 0
     ? `<div class="ui-line">开战打向：<b>${target ? esc(target.name) : '国王'}</b> ${atk} 点</div>`
@@ -531,6 +546,13 @@ function spellDescription(def) {
         break;
       }
       case 'attachKingEffect': parts.push('使自己的国王获得一个永久效果'); break;
+      // 心驭（作者 2026-10-24）：控制与「与其战斗」
+      case 'control':
+        parts.push('控制一名敌方单位' + (a.freeze ? '并冻结它' : '')
+          + (a.returnAtTurnStart ? '，下个回合开始时还回对方手牌' : ''));
+        break;
+      case 'duel': parts.push('指定两个单位互相战斗'); break;
+      case 'summonToHand': parts.push('获得一张' + (((typeof a.cardId === 'string' && a.cardId) || '') ? '「' + a.cardId + '」' : '牌')); break;
       default: parts.push(a.op);
     }
   }

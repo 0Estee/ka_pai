@@ -214,6 +214,15 @@ export function matchesTargetFilter(unit, filter, ctx = {}) {
   const atk = ctx.atkOf ? ctx.atkOf(unit) : unit.atk;
 
   if (filter.maxAtk !== undefined && atk > filter.maxAtk) return false;
+  /**
+   * 「控制一名**花费≤3**的敌人」（心驭「恶堕の催眠」）。
+   * 花费读**卡面**（costOf 由 filterCtx 注入，读 cardLib 的 cost）：
+   * 增强 / 精通的减费是那一方自己的账，不该改变「这张牌贵不贵」的筛选口径。
+   */
+  if (filter.maxCost !== undefined) {
+    const cost = ctx.costOf ? ctx.costOf(unit) : 0;
+    if (cost > filter.maxCost) return false;
+  }
   if (filter.minAtk !== undefined && atk < filter.minAtk) return false;
   if (filter.maxHp !== undefined && unit.hp > filter.maxHp) return false;
   if (filter.minHp !== undefined && unit.hp < filter.minHp) return false;

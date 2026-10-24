@@ -63,6 +63,11 @@
   --unit-back-line: #a38b56;       /* 后排单位框线（金） */
   --unit-back-bg-1: #34291b;
   --unit-back-bg-2: #2b2217;
+  /* 被控制（心驭）：粉红纹路。三套主题各给一组（纹路用 rgba 而不是 color-mix，
+     WebView 太老时 color-mix 会让整条 background-image 失效、卡面直接变透明） */
+  --charm: #e06aa8;
+  --charm-line-1: rgba(224, 106, 168, .55);
+  --charm-line-2: rgba(224, 106, 168, .30);
   --hpbar-bg: #3d2a26;             /* 血条底槽 */
 
   /* ── 手牌 ───────────────────────────────────────────── */
@@ -180,6 +185,9 @@
   --unit-back-line: #a38b56;
   --unit-back-bg-1: #fcf5e3;  /* 后排：淡金，和前排白色区分 */
   --unit-back-bg-2: #f1e7cd;
+  --charm: #c23e7f;           /* 被控制：浅色主题要压深一档才看得清 */
+  --charm-line-1: rgba(194, 62, 127, .50);
+  --charm-line-2: rgba(194, 62, 127, .26);
   --hpbar-bg: #ddc8c3;
 
   /* ── 手牌 ───────────────────────────────────────────── */
@@ -450,6 +458,38 @@ html, body {
 }
 .unit.in-front { border-color: var(--unit-front-line); }
 .unit.in-back { border-color: var(--unit-back-line); background: linear-gradient(160deg, var(--unit-back-bg-1), var(--unit-back-bg-2)); }
+/* ── 被控制（心驭，作者 2026-10-24）────────────────────────
+   作者要的是「卡牌上出现粉红色纹路」+「被控制」标签。
+   纹路画在卡面**背景**上（两条斜向细线 + 一层粉色雾），不盖字：
+   用 background-image 而不是绝对定位的伪元素 —— 伪元素会压在文字上面。
+   颜色只从 --charm 来，三套主题各一份，浅色主题压深一档。 */
+.unit.charmed {
+  border-color: var(--charm, #e06aa8);
+  box-shadow: 0 0 0 1px rgba(224, 106, 168, .45), inset 0 0 12px rgba(224, 106, 168, .18);
+  background-image:
+    repeating-linear-gradient(58deg, var(--charm-line-1, rgba(224, 106, 168, .55)) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(-58deg, var(--charm-line-2, rgba(224, 106, 168, .30)) 0 1px, transparent 1px 14px),
+    linear-gradient(160deg, var(--unit-bg-1), var(--unit-bg-2));
+}
+.unit.charmed.in-back {
+  background-image:
+    repeating-linear-gradient(58deg, var(--charm-line-1, rgba(224, 106, 168, .55)) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(-58deg, var(--charm-line-2, rgba(224, 106, 168, .30)) 0 1px, transparent 1px 14px),
+    linear-gradient(160deg, var(--unit-back-bg-1), var(--unit-back-bg-2));
+}
+/* 「被控制」三个字：粉色实心小胶囊，压到卡名下面一行 */
+.unit.charmed .u-charm {
+  align-self: flex-start;
+  margin: 1px 0 0;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--charm, #e06aa8);
+  color: #1b0c14;
+  font-size: 9px;
+  line-height: 14px;
+  letter-spacing: .04em;
+  font-weight: 600;
+}
 .u-name {
   font-size: 11px;
   line-height: 1.15;
@@ -963,6 +1003,9 @@ html, body {
   --unit-back-line: rgba(224, 187, 124, .34);  /* 后排：金线，和主强调同族 */
   --unit-back-bg-1: rgba(255, 255, 255, .08);
   --unit-back-bg-2: rgba(255, 255, 255, .03);
+  --charm: #f08ac4;
+  --charm-line-1: rgba(240, 138, 196, .50);
+  --charm-line-2: rgba(240, 138, 196, .26);
   --hpbar-bg: rgba(255, 255, 255, .12);
   --hand-bg: rgba(255, 255, 255, .04);  /* 手牌区 */
   --card-bg-1: rgba(255, 255, 255, .10);  /* 手牌 */

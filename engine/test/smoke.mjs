@@ -15,7 +15,7 @@ import { instantiateUnit } from '../src/setup.js';
 import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
 import { pickFragileTarget } from '../src/targets.js';
 import { filterCtx, effectiveAtk, hasRooted, syncStatAuras } from '../src/auras.js';
-import { trapsOf, visibleMana } from '../src/board.js';
+import { trapsOf, visibleMana, findControlSpot } from '../src/board.js';
 import { flamePileOf, drawFlame, checkFlameLotus, superpowerPool, FLAME_IDS } from '../src/factions.js';
 import { spellLocked } from '../src/play.js';
 import { dealDamage } from '../src/damage.js';
@@ -2576,6 +2576,133 @@ test('死神 U401：有队友时献祭照常结算（消灭队友 + 死神 3/3 +
   assert.equal(king(s, 0), kingBefore - 3, '对自己国王造成 3 点');
   const foeNow = at(s, LANES[1], 1, ROWS[0]);
   assert.equal(foeNow ? foeNow.hp : foeHp - 5, foeHp - 5, '对一个敌方目标造成 5 点');
+});
+
+
+// ══════════════════════════════════════════════════════════
+// 心驭阵营：控制机制（作者 2026-10-24）
+// ══════════════════════════════════════════════════════════
+group('§ 心驭阵营：控制（作者 2026-10-24）');
+
+test('「恶堕の催眠」控制一名花费≤3的敌人：换主人 + 搬到我的镜像格 + 挂「被控制」', () => {
+  const s = game();
+  const prey = deploy(s, 1, 'U242', LANES[0], ROWS[0]);   // 拳击手 2 费 2/3
+  cast(s, 0, 'U478', { targetUid: prey.uid });
+  const now = at(s, LANES[0], 0, ROWS[0]);
+  assert.ok(now && now.uid === prey.uid, '应当搬到我这边的镜像格（同线路同排）');
+  assert.equal(now.side, 0, '阵营换成我方');
+  assert.ok(!!now.charmed, '要挂「被控制」标记（界面据此画标签与粉红纹路）');
+  assert.equal(now.charmOrigin, 1, '要记下原主人（魔醉の臣服到期要还回去）');
+  assert.ok(!at(s, LANES[0], 1, ROWS[0]), '对面那一格应当空了');
+  assert.ok((s.log || []).some((e) => e.type === 'control' && e.uid === prey.uid), '日志里要有 control 这一笔');
+  assert.ok(!(s.log || []).some((e) => e.type === 'unit-died' || e.type === 'death'), '控制不是消灭：不该有任何死亡日志');
+});
+
+test('「恶堕の催眠」管不到花费>3 的敌人（maxCost 过滤器三层同源）', () => {
+  const s = game();
+  const big = deploy(s, 1, 'W04', LANES[0], ROWS[0]);     // 6 费 5/6
+  assert.equal(matchesTargetFilter(big, { maxCost: 3 }, filterCtx(s)), false, '引擎过滤器应当拒绝');
+  cast(s, 0, 'U478', { targetUid: big.uid });
+  assert.equal(big.side, 1, '花费超标的敌人不该被控制');
+  assert.equal(at(s, LANES[0], 1, ROWS[0]).uid, big.uid, '它还该站在原来的格子上');
+});
+
+test('「绝对の服从」控制攻击力≤2的敌人，并把「最强の诱惑」放进手牌', () => {
+  const s = game();
+  const prey = deploy(s, 1, 'U242', LANES[1], ROWS[0]);   // 2 攻
+  cast(s, 0, 'U479', { targetUid: prey.uid });
+  assert.equal(at(s, LANES[1], 0, ROWS[0]).uid, prey.uid, '应当搬到我这侧同线路');
+  const tokens = s.players[0].hand.filter((c) => c.cardId === 'U480');
+  assert.equal(tokens.length, 1, '手里应当多了一张「最强の诱惑」');
+});
+
+test('「最强の诱惑」没有攻击力上限：5 攻的敌人也能控制', () => {
+  const s = game();
+  const big = deploy(s, 1, 'W04', LANES[0], ROWS[0]);
+  cast(s, 0, 'U480', { targetUid: big.uid });
+  const now = at(s, LANES[0], 0, ROWS[0]);
+  assert.ok(now && now.uid === big.uid, '应当把 5/6 拉过来');
+  assert.equal(now.side, 0);
+});
+
+test('被控制的单位算我方单位：开战时打它原来的队友，我方国王不吃它的伤害', () => {
+  const s = game();
+  const prey = deploy(s, 1, 'W04', LANES[0], ROWS[0]);    // 5/6，先被控制过来
+  cast(s, 0, 'U480', { targetUid: prey.uid });
+  const ally = deploy(s, 1, 'U242', LANES[0], ROWS[0]);  // 对面同线再站一个挡路的
+  const kingMine = king(s, 0);
+  const allyHp = ally.hp;
+  combat(s);
+  const still = at(s, LANES[0], 1, ROWS[0]);
+  assert.ok(still ? still.hp < allyHp : true, '被控制的单位应当打对面的单位');
+  assert.equal(king(s, 0), kingMine, '我方国王不该挨自己单位的打');
+  assert.ok(king(s, 1) <= king(s, 0) + 20, '对面的国王血量正常（这里只做健全性检查）');
+});
+
+test('「魔醉の臣服」：控制 + 冻结，下个回合开始时还回**原主人**手牌', () => {
+  const s = game();
+  const prey = deploy(s, 1, 'U242', LANES[0], ROWS[0]);
+  cast(s, 0, 'U482', { targetUid: prey.uid });
+  const now = at(s, LANES[0], 0, ROWS[0]);
+  assert.ok(now && now.uid === prey.uid, '先要控制过来');
+  assert.ok(isFrozen(now), '并且要冻结');
+  const foeHandsBefore = s.players[1].hand.filter((c) => c.cardId === 'U242').length;
+  nextTurn(s);
+  assert.ok(!at(s, LANES[0], 0, ROWS[0]), '回合开始后不该还站在我这边');
+  const foeHandsAfter = s.players[1].hand.filter((c) => c.cardId === 'U242').length;
+  assert.equal(foeHandsAfter, foeHandsBefore + 1, '要回到**原主人**（敌方）手牌');
+});
+
+test('「人性の爱」：两个单位同时互砍一次，然后抽一张牌', () => {
+  const s = game();
+  const a = deploy(s, 0, 'W04', LANES[0], ROWS[0]);       // 5/6
+  const b = deploy(s, 1, 'U242', LANES[0], ROWS[0]);      // 2/3
+  s.autoResolveChoices = false;
+  const handBefore = s.players[0].hand.length;
+  forcePhase(s, 0, 'spell');
+  const hc = give(s, 0, 'U481');
+  G.playCard(s, 0, hc.iid, {});
+  assert.ok(s.pending && s.pending.request.type === 'chooseUnit', '第一问：选一个单位');
+  G.resolveChoice(s, { uid: a.uid });
+  assert.ok(s.pending && s.pending.request.type === 'chooseUnit', '第二问：再指定另一个单位');
+  const offered = (s.pending.request.options || []).map((o) => o.uid);
+  assert.ok(offered.indexOf(a.uid) < 0, '第二问的候选里不该再有第一个单位');
+  // 打出锦囊这件事本身会触发拳击手的「对方打出锦囊时 +1/+1」（卡面效果），
+  // 所以它的攻击力要现场读一次，别把 2 写死
+  const bAtk = effectiveAtk(s, b);
+  G.resolveChoice(s, { uid: b.uid });
+  assert.ok(!at(s, LANES[0], 1, ROWS[0]), '拳击手挨 5 点应当被消灭');
+  assert.equal(a.hp, a.maxHp - bAtk, '同时结算：它死了也照样打了这一下（' + bAtk + ' 点）');
+  assert.equal(s.players[0].hand.length, handBefore + 1, '结算完抽一张牌');
+});
+
+test('扎根的单位控制不了（与「移动 / 弹射」同一条规矩）', () => {
+  const s = game();
+  const rooted = deploy(s, 1, 'U242', LANES[0], ROWS[0]);
+  M.grantKeyword(s, rooted, 'rooted');
+  cast(s, 0, 'U480', { targetUid: rooted.uid });
+  assert.equal(rooted.side, 1, '扎根的单位应当留在对面');
+  assert.equal(at(s, LANES[0], 1, ROWS[0]).uid, rooted.uid, '还在原来的格子上');
+  assert.ok((s.log || []).some((e) => e.type === 'control-failed'), '日志要说明这次控制没成');
+});
+
+test('控制者那一侧没有空位时，控制目标不会被列出（不让人白打一张牌）', () => {
+  const s = game();
+  for (const lane of LANES) for (const row of ROWS) deploy(s, 0, 'U242', lane, row);
+  const prey = deploy(s, 1, 'U242', LANES[0], ROWS[0]);
+  assert.equal(findControlSpot(s, prey, 0), null, '我方 8 格全满 = 没有落点');
+  cast(s, 0, 'U480', { targetUid: prey.uid });
+  assert.equal(prey.side, 1, '没有落地就不该换主人');
+});
+
+test('心驭阵营：四张超能力进抽取池，令牌不进', () => {
+  const s = game({ factions: ['heart', 'heart'] });
+  // 开局已经抽过一张，所以「池子 + 已抽」合起来才是这一阵营的全集
+  const all = superpowerPool(s, 0).concat(s.players[0].superpowers || []);
+  for (const id of ['U478', 'U479', 'U481', 'U482']) {
+    assert.ok(all.indexOf(id) >= 0, '抽取池（含已抽）里应当有 ' + id);
+  }
+  assert.equal(all.indexOf('U480'), -1, '令牌不进超能力抽取池');
 });
 
 console.log('\n' + BAR);

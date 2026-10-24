@@ -5350,4 +5350,138 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
+
+  // ─────────────────────────────────────────────────────────
+  // 心驭阵营（作者 2026-10-24）：控制机制的五张超能力
+  //
+  //   共同点：把敌人**拉到自己这一侧**（换主人 + 搬位置，见 board.js 的 controlUnit）。
+  //   被控制的单位挂 charmed 标记，界面画「被控制」+ 粉红纹路，此后算我方单位：
+  //   交战时打它原来的队友、能被献祭、也能当自己的牌用。
+  //   控制的目标选择器都带 controlRoom: true —— 我这边没地方落脚时不列出这些敌人，
+  //   玩家不会点了白打一张牌。
+  // ─────────────────────────────────────────────────────────
+  {
+    "id": "U478",
+    "name": "恶堕の催眠",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "heart",
+    "text": "控制一名花费≤3的敌人。",
+    "actions": [
+      {
+        "op": "control",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "controlRoom": true,
+          "filter": {
+            "maxCost": 3,
+            "spellTargetable": true
+          },
+          "prompt": "控制一名花费≤3的敌人"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U479",
+    "name": "绝对の服从",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "heart",
+    "text": "控制一名攻击力≤2的敌人，召唤一张最强の诱惑。",
+    "actions": [
+      {
+        "op": "control",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "controlRoom": true,
+          "filter": {
+            "maxAtk": 2,
+            "spellTargetable": true
+          },
+          "prompt": "控制一名攻击力≤2的敌人"
+        }
+      },
+      {
+        "op": "summonToHand",
+        "cardId": "U480"
+      }
+    ]
+  },
+  {
+    "id": "U480",
+    "name": "最强の诱惑",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 7,
+    "faction": "heart",
+    "token": true,
+    "text": "控制一名敌人。",
+    "actions": [
+      {
+        "op": "control",
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "controlRoom": true,
+          "filter": {
+            "spellTargetable": true
+          },
+          "prompt": "控制一名敌人"
+        }
+      }
+    ]
+  },
+  {
+    "id": "U481",
+    "name": "人性の爱",
+    "type": "spell",
+    "spellKind": "attack",
+    "cost": 1,
+    "faction": "heart",
+    "text": "选择一个单位，指定另一个单位与其战斗，抽一张牌。",
+    "actions": [
+      {
+        "op": "duel",
+        "target": {
+          "kind": "chosenAnyUnit",
+          "prompt": "选择第一个单位"
+        },
+        "second": {
+          "kind": "chosenAnyUnit",
+          "prompt": "指定另一个单位与其战斗"
+        }
+      },
+      {
+        "op": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "U482",
+    "name": "魔醉の臣服",
+    "type": "spell",
+    "spellKind": "item",
+    "cost": 1,
+    "faction": "heart",
+    "text": "控制一名敌人并将其冻结，下个回合开始时，将其返回敌方手牌。",
+    "actions": [
+      {
+        "op": "control",
+        "freeze": true,
+        "returnAtTurnStart": true,
+        "target": {
+          "kind": "chosenEnemyUnit",
+          "controlRoom": true,
+          "filter": {
+            "spellTargetable": true
+          },
+          "prompt": "控制一名敌人"
+        }
+      }
+    ]
+  },
+
 ];

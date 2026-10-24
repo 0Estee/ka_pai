@@ -23,6 +23,8 @@ import * as G from '../../engine/src/engine.js';
 import { LANES, ROWS } from '../../engine/src/constants.js';
 import { matchesTargetFilter } from '../../engine/src/keywords.js';
 import { filterCtx, effectiveAtk } from '../../engine/src/auras.js';
+// 「控制」类效果要判断「我这边放不放得下」—— 与引擎同一个判据（心驭，作者 2026-10-24）
+import { findControlSpot } from '../../engine/src/mechanics.js';
 // allUnits 直接用引擎的实现 —— 这里**不能**再自己写一份：
 // 打包器把所有模块拼进同一个作用域，重名的函数会互相覆盖，
 // 连 mechanics.js 内部的调用都会被顶掉。build-web.mjs 会拦截这种情况。
@@ -337,6 +339,8 @@ function bestSpellTarget(state, side, def, P) {
     if (spec.kind === 'chosenEnemyFront') cands = cands.filter((u) => u.row === 'front');
     // 与引擎共用同一个过滤器（如「滚石」的 maxAtk:2），避免 AI 选出非法目标
     if (spec.filter) cands = cands.filter((u) => matchesTargetFilter(u, spec.filter, filterCtx(state)));
+    // 「控制」：我这边没地方落脚就别选它（引擎会直接判定控制失败，白白浪费一张牌）
+    if (spec.controlRoom) cands = cands.filter((u) => !!findControlSpot(state, u, side));
 
     const scored = [];
     for (const u of cands) {
@@ -428,6 +432,26 @@ function scoreSpell(state, side, def, target, P) {
         break;
       case 'sacrifice':
         score -= 3.5;
+        break;
+      /**
+       * 心驭（作者 2026-10-24）：
+       *   · control —— 抢一张敌人过来，等于「消灭 + 自己拍一张」，按对方的威胁估价；
+       *   · duel    —— 让两个单位互砍，AI 里按「解掉一个大威胁」的中等价给分；
+       *   · summonToHand —— 多一张手牌，按抽牌的一半左右给（它还要再花费用打出去）。
+       */
+      case 'control': {
+        score += 5.5;
+        if (target && !target.king) {
+          const t = units.find((u) => u.uid === target.uid);
+          if (t) score += threatOf(state, t) * 0.55;
+        }
+        break;
+      }
+      case 'duel':
+        score += 3.2;
+        break;
+      case 'summonToHand':
+        score += 1.6;
         break;
       case 'buffAtk':
       case 'buffMaxHp':

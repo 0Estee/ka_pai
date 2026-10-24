@@ -133,6 +133,19 @@
       if (p.get('saved')) window.__adminEditState({ hint: '已写入云端 v5。玩家下次同步时选「用云端」即可生效。', version: 5 });
       document.title = 'demo: adminEdit ' + (shown ? 'ok' : 'fail');
       window.__revealAll();
+    } else if (demo === 'charm') {
+      // 心驭：把对面一只控制过来，看卡面上的「被控制」标签与粉红纹路
+      window.__sandbox();
+      window.__advance();
+      window.__view().busy = false;
+      window.__sbPlay(1, 'U242', { lane: 'mountain', row: 'front', placeSide: 1 });
+      window.__sbPlay(1, 'W04', { lane: 'plainL', row: 'front', placeSide: 1 });
+      const chSt = window.__game();
+      const chTarget = chSt.board.mountain.units[1].front;
+      window.__sbPlay(0, 'U478', { targetUid: chTarget.uid });
+      window.__clearFlights();
+      window.__revealAll();
+      document.title = 'demo: charmed=' + !!(chSt.board.mountain.units[0].front || {}).charmed;
     } else if (demo === 'sbfaction') {
       // 靶场换阵营：手里的旧阵营牌要被收走，只留新阵营那一整套
       window.__sandbox();

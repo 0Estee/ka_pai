@@ -321,6 +321,100 @@ function notifyBounceWatchers(state, bounced) {
   }
 }
 
+// ── 控制（心驭阵营，作者 2026-10-24） ─────────────────────
+//
+// 「被控制」不是印在卡面上的词条，而是**状态**：单位换了主人（side）、
+// 搬到控制者那一侧、身上挂一个 charmed 标记（界面据此画标签与粉红纹路）。
+// 之所以直接改 side 而不是加一层「临时归属」：引擎里所有判定（交战、献祭、
+// 光环、国王伤害、AI 评估）读的都是 unit.side，改这一处就等于「算作他的单位」，
+// 不会出现「界面说是我的、引擎还当它是敌人的」那种分裂。
+
+/**
+ * 被控制的单位该落到**控制者**的哪一格。
+ *
+ * 口径（作者原话「移动规则和正常一样」）：
+ *   1. 先试**镜像格**（同线路、同排）—— 原来站哪个坑，就搬到对面那个坑，
+ *      玩家一眼看得出「这一张是被拉过去的」；
+ *   2. 镜像格有人，就试同线路的另一排；
+ *   3. 再不行按线路顺序（山地 → 平地左 → 平地右 → 水路）找第一个空位，前排优先；
+ *   4. 地形照旧（水生只能落水路、两栖随便、轻灵看当前血量）——
+ *      所以一只水生的牌不会因为「被控制」就站到山地上。
+ * 找不到位置返回 null，调用方据此判定这次控制落不了地（卡片会先过滤掉这种情况）。
+ */
+export function findControlSpot(state, unit, side) {
+  if (!unit || unit.removed) return null;
+  const mine = state.board[unit.lane] && state.board[unit.lane].units[side];
+  if (!mine) return null;
+  const rows = [unit.row, ...ROWS.filter((r) => r !== unit.row)];
+  if (canPlaceInLane(unit, unit.lane)) {
+    for (const row of rows) {
+      if (!mine[row]) return { lane: unit.lane, row };
+    }
+  }
+  for (const lane of LANES) {
+    if (lane === unit.lane) continue;
+    if (!canPlaceInLane(unit, lane)) continue;
+    for (const row of ROWS) {
+      if (!state.board[lane].units[side][row]) return { lane, row };
+    }
+  }
+  return null;
+}
+
+/**
+ * 把一名单位「控制」到另一侧（心驭阵营，作者 2026-10-24）。
+ *
+ * 控制 = **换主人**，不只是挂个标记：
+ *   · 落到控制者那一侧（findControlSpot），之后交战时按新主人算，
+ *     打的是它原来的队友 —— 「算作使用控制它的那张牌的那一方的单位」；
+ *   · 记下原主人 unit.charmOrigin（「魔醉の臣服」到期要还回去）；
+ *   · 挂 unit.charmed = { by, cardId, turn }，界面据此画「被控制」标签与粉红纹路。
+ * 扎根（无法被移动）的单位控制不了 —— 与「移动 / 弹射」同一条规矩。
+ *
+ * 返回是否真的控制成功（没位置 / 扎根 / 已经是自己人 都返回 false）。
+ */
+export function controlUnit(state, unit, side, opts = {}) {
+  if (!unit || unit.removed) return false;
+  if (unit.side === side) return false;
+  const rooted = opts.isRooted ? opts.isRooted(unit) : hasKw(unit, 'rooted');
+  if (rooted) return false;
+  const spot = findControlSpot(state, unit, side);
+  if (!spot) return false;
+
+  const from = { side: unit.side, lane: unit.lane, row: unit.row };
+  removeUnitFromBoard(state, unit);
+  if (unit.charmOrigin === undefined) unit.charmOrigin = from.side;
+  unit.side = side;
+  unit.lane = spot.lane;
+  unit.row = spot.row;
+  unit.charmed = { by: side, cardId: opts.cardId || null, turn: state.turn };
+  state.board[spot.lane].units[side][spot.row] = unit;
+  log(state, {
+    type: 'control', uid: unit.uid, name: unit.name, cardId: opts.cardId || null,
+    from, to: { lane: spot.lane, row: spot.row },
+  });
+  // 「进入一条线:」异能 —— 搬到新线路也算进入（与 moveUnitToLane 同一条）
+  queueTrigger(state, unit, 'onEnterLane', { from: from.lane, lane: spot.lane });
+  return true;
+}
+
+/**
+ * 把被控制的单位还给**原主人**（「魔醉の臣服」：下个回合开始时返回敌方手牌）。
+ *
+ * 不是消灭：走 vanishUnit，不触发 onDeath，也不惊动国王的「友方单位被消灭时」。
+ * 手牌按「原主人」算（不是当前控制者）—— 作者口径就是「返回敌方手牌」。
+ */
+export function returnControlledUnit(state, unit) {
+  if (!unit || unit.removed) return false;
+  const owner = unit.charmOrigin === undefined ? unit.side : unit.charmOrigin;
+  const cardId = unit.cardId;
+  const from = { lane: unit.lane, row: unit.row };
+  vanishUnit(state, unit, 'control-return');
+  state.players[owner].hand.push({ iid: state.nextIid++, cardId });
+  log(state, { type: 'control-return', cardId, side: owner, lane: from.lane, row: from.row });
+  return true;
+}
+
 // 
 // 陷阱（作者 2026-10 口径）
 //    单位回合 / 锦囊回合都能打出；**不算打出卡牌**

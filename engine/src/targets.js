@@ -10,7 +10,7 @@
 import { LANES, ADJACENT_LANES, LANE_NAME, SIDE_NAME } from './constants.js';
 import { matchesTargetFilter, isFrozen } from './keywords.js';
 import { filterCtx } from './auras.js';
-import { laneUnits, allUnitsInLane, allUnits } from './mechanics.js';
+import { laneUnits, allUnitsInLane, allUnits, findControlSpot } from './mechanics.js';
 import { asUnit, asKing } from './amounts.js';
 
 /** 目标引用的可读名（用于日志与提示） */
@@ -210,6 +210,10 @@ function* resolveTargetsInner(state, ctx, selector) {
         const picked = allUnits(state).find((u) => u.uid === ctx.chosenTargetUid);
         if (!picked) return [];
         if (!matchesTargetFilter(picked, selector.filter, filterCtx(state, source))) return [];
+        // 「另一个单位」（人性の爱第二问）：重复选同一个不算数
+        if (selector.excludeUid != null && picked.uid === selector.excludeUid) return [];
+        // 「控制」：控制者那一侧没地方落脚，这次控制根本做不成
+        if (selector.controlRoom && !findControlSpot(state, picked, me)) return [];
         return [asUnit(picked)];
       }
 
@@ -224,6 +228,18 @@ function* resolveTargetsInner(state, ctx, selector) {
       }
       // 献祭类效果不把「效果来源自己」列进候选（选了也只会被 op 过滤掉，白点一次）
       if (selector.excludeSource && ctx.source) options = options.filter((u) => u !== ctx.source);
+      /**
+       * 「另一个单位」（心驭「人性の爱」第二问）：把已经选中的那个排除掉。
+       * 只在选择器上声明 —— 不写进 filter，是因为 filter 是「这张牌能不能打它」的口径，
+       * 而这里排除的是「这一问里刚刚点过的那一个」，跟卡牌强度无关。
+       */
+      if (selector.excludeUid != null) options = options.filter((u) => u.uid !== selector.excludeUid);
+      /**
+       * 「控制」类效果（心驭）：控制者那一侧**得有地方落脚**，
+       * 否则玩家点了也会白打一张牌。判据与 board.js 的 controlUnit 同一个函数，
+       * 所以「界面上能点 = 引擎一定放得下」。
+       */
+      if (selector.controlRoom) options = options.filter((u) => !!findControlSpot(state, u, me));
       if (options.length === 0) return [];
 
       const answer = yield {
