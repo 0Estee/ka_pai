@@ -33,6 +33,8 @@ const SHOTS = [
   { id: 'watchSide2', q: 'demo=watch&side=1&turn=4' },
   { id: 'sbfaction', q: 'demo=sbfaction&fac=demon' },
   { id: 'forgeMenu', q: 'screen=forgeMenu' },
+  { id: 'adminEdit', q: 'demo=adminEdit' },
+  { id: 'adminEditSaved', q: 'demo=adminEdit&saved=1' },
   { id: 'watchJoin', q: 'screen=watchJoin' },
   { id: 'watching', q: 'demo=watchlobby&code=K7QM2P' },
   { id: 'factioninfo', q: 'demo=factioninfo&fac=demon' },

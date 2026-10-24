@@ -578,6 +578,25 @@ window.__cloudCall = (name, ...args) => {
     return Promise.reject(e);
   }
 };
+/** 自检 / 截图：把管理后台摆成一个确定的样子（管理员 + 三个用户 + 一条日志，不发请求） */
+window.__adminDemo = () => (typeof Cloud.adminDemo === 'function' ? Cloud.adminDemo() : null);
+
+/** 自检 / 截图：把「改数据」面板摆成某份存档的样子（不发请求） */
+window.__adminEditShow = (username, save) => (typeof Cloud.adminEditShow === 'function'
+  ? Cloud.adminEditShow(username, save)
+  : null);
+/** 自检：直接把面板改到某个状态（{error,hint,rawOpen,saving,version,…}） */
+window.__adminEditState = (patch) => (typeof Cloud.adminEditPatchState === 'function'
+  ? Cloud.adminEditPatchState(patch)
+  : null);
+/** 自检：最近的云请求列表（找「那条 POST」，避免被列表刷新顶掉） */
+window.__cloudRequests = () => (typeof Cloud.cloudRequests === 'function' ? Cloud.cloudRequests() : []);
+
+/** 自检：最后一次真的发出去的云请求（断言「点了保存发的是什么」） */
+window.__cloudLastRequest = () => (typeof Cloud.lastCloudRequest === 'function'
+  ? Cloud.lastCloudRequest()
+  : null);
+
 /** 直接切屏（截图 / 自检用） */
 window.__go = (name) => {
   if (name === 'home') goHome();

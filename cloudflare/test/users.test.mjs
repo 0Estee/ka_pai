@@ -343,6 +343,112 @@ const resetGhost = await call(users, '/api/admin/reset-password', {
 });
 ok('重置不存在的用户返回 404', resetGhost.status === 404 && resetGhost.body.error === 'not-found', JSON.stringify(resetGhost.body));
 
+// ── 4b. 管理员改玩家数据（0.69.0，协议 §1.6） ─────────────
+section('4b. 管理员改玩家数据');
+const DORA_PASS = 'dora-pass-1';
+const doraReg = await call(users, '/api/auth/register', { method: 'POST', body: { username: 'dora', password: DORA_PASS } });
+ok('注册 dora 成功', doraReg.status === 200);
+const doraToken = doraReg.body.token;
+
+const DORA_PROFILE = {
+  v: 2, gold: 50, dust: 10, perf: 300, games: 2, wins: 1, losses: 1, draws: 0,
+  forge: { v: 1, cards: { U01: { lvl: 9, masteries: ['w_atk'] } } },
+};
+const doraPush = await call(users, '/api/save', { method: 'PUT', token: doraToken, body: { data: DORA_PROFILE, baseVersion: 0 } });
+ok('dora 上传了一份存档', doraPush.status === 200 && doraPush.body.save.version === 1, JSON.stringify(doraPush.body));
+
+const anonRead = await call(users, '/api/admin/save?username=dora');
+ok('没登录不能读别人的存档', anonRead.status === 401, JSON.stringify(anonRead.body));
+
+const userRead = await call(users, '/api/admin/save?username=dora', { token: doraToken });
+ok('普通玩家不能读「指定用户」的存档', userRead.status === 403 && userRead.body.error === 'forbidden', JSON.stringify(userRead.body));
+
+const adminRead = await call(users, '/api/admin/save?username=dora', { token: adminToken });
+ok('管理员能读到 dora 的完整存档', adminRead.status === 200 && adminRead.body.save.data.gold === 50, JSON.stringify(adminRead.body).slice(0, 200));
+ok('读存档响应不含 hash/salt', noSecrets(adminRead.body));
+ok('读存档带版本与 summary', adminRead.body.save.version === 1 && adminRead.body.save.summary.perf === 300, JSON.stringify(adminRead.body.save.summary));
+
+const ghostRead = await call(users, '/api/admin/save?username=nobody', { token: adminToken });
+ok('读不存在的用户返回 404', ghostRead.status === 404 && ghostRead.body.error === 'not-found', JSON.stringify(ghostRead.body));
+
+const patchRes = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken,
+  body: { username: 'dora', patch: { gold: 700, perf: 1200 } },
+});
+ok('管理员改金币与表现分成功', patchRes.status === 200 && patchRes.body.ok === true, JSON.stringify(patchRes.body).slice(0, 200));
+ok('改完版本号 +1', patchRes.body.save.version === 2, JSON.stringify(patchRes.body.save && patchRes.body.save.version));
+ok('改完 summary 跟着变', patchRes.body.save.summary.gold === 700 && patchRes.body.save.summary.perf === 1200, JSON.stringify(patchRes.body.save.summary));
+
+const doraAfter = await call(users, '/api/save', { token: doraToken });
+ok('玩家自己拉到的就是管理员改后的数', doraAfter.body.save.data.gold === 700 && doraAfter.body.save.data.perf === 1200, JSON.stringify(doraAfter.body.save.data));
+ok('没点名改的字段原样保留', doraAfter.body.save.data.forge.cards.U01.lvl === 9 && doraAfter.body.save.data.wins === 1, JSON.stringify(doraAfter.body.save.data).slice(0, 200));
+
+const clampRes = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken,
+  body: { username: 'dora', patch: { gold: 999999, dust: 99999 } },
+});
+ok('越界的数被夹住（金币 1000 / 星尘 500）',
+  clampRes.status === 200 && clampRes.body.save.data.gold === 1000 && clampRes.body.save.data.dust === 500,
+  JSON.stringify(clampRes.body.save && clampRes.body.save.summary));
+
+const emptyPatch = await call(users, '/api/admin/save', { method: 'POST', token: adminToken, body: { username: 'dora', patch: {} } });
+ok('patch 里没有可改字段返回 400', emptyPatch.status === 400 && emptyPatch.body.error === 'bad-patch', JSON.stringify(emptyPatch.body));
+
+const bothModes = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken,
+  body: { username: 'dora', patch: { gold: 1 }, data: { gold: 2 } },
+});
+ok('patch 与 data 同时给返回 400', bothModes.status === 400, JSON.stringify(bothModes.body));
+
+const replaceRes = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken,
+  body: {
+    username: 'dora',
+    data: { gold: 12, perf: 60, forge: { v: 1, cards: { U02: { lvl: 15, masteries: ['a', 'b', 'c', 'd'] }, U03: { lvl: 0, masteries: [] } } } },
+  },
+});
+const cleaned = replaceRes.body.save && replaceRes.body.save.data;
+ok('整份替换成功', replaceRes.status === 200 && cleaned.gold === 12, JSON.stringify(replaceRes.body).slice(0, 200));
+ok('强化表被洗干净（lvl 15→9、精通最多 2 个）',
+  cleaned.forge.cards.U02.lvl === 9 && cleaned.forge.cards.U02.masteries.length === 2,
+  JSON.stringify(cleaned.forge));
+ok('空记录不进存档', !cleaned.forge.cards.U03, JSON.stringify(cleaned.forge));
+
+const badData = await call(users, '/api/admin/save', { method: 'POST', token: adminToken, body: { username: 'dora', data: [1, 2, 3] } });
+ok('data 不是对象返回 400', badData.status === 400 && badData.body.error === 'bad-data', JSON.stringify(badData.body));
+
+const hugeAdmin = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken,
+  body: { username: 'dora', data: { blob: 'x'.repeat(70000) } },
+});
+ok('管理员也受 64 KB 限制', hugeAdmin.status === 413 && hugeAdmin.body.error === 'save-too-large', JSON.stringify(hugeAdmin.body).slice(0, 160));
+
+const stalePush = await call(users, '/api/save', {
+  method: 'PUT', token: doraToken, body: { data: { gold: 0 }, baseVersion: 1 },
+});
+ok('玩家拿着旧版本上传会撞 409（管理员改动不会被静默覆盖）',
+  stalePush.status === 409 && stalePush.body.error === 'conflict', JSON.stringify(stalePush.body).slice(0, 200));
+
+const eveReg = await call(users, '/api/auth/register', { method: 'POST', body: { username: 'eve', password: 'eve-pass-1' } });
+ok('注册 eve（还没有存档）成功', eveReg.status === 200);
+const evePatch = await call(users, '/api/admin/save', {
+  method: 'POST', token: adminToken, body: { username: 'eve', patch: { gold: 321, games: 7 } },
+});
+ok('没存档的用户也能直接给数据（以空档案为底）',
+  evePatch.status === 200 && evePatch.body.save.version === 1
+  && evePatch.body.save.data.gold === 321 && evePatch.body.save.data.forge.cards,
+  JSON.stringify(evePatch.body).slice(0, 200));
+
+const logRes = await call(users, '/api/admin/log', { token: adminToken });
+ok('管理员能读操作日志', logRes.status === 200 && Array.isArray(logRes.body.log) && logRes.body.log.length >= 3, JSON.stringify(logRes.body).slice(0, 160));
+ok('日志记了操作人、对象与字段',
+  logRes.body.log.some((e) => e.by && e.username === 'dora' && Array.isArray(e.fields) && e.fields.includes('gold')),
+  JSON.stringify(logRes.body.log[0]));
+ok('日志不含 hash/salt', noSecrets(logRes.body));
+
+const logForbidden = await call(users, '/api/admin/log', { token: doraToken });
+ok('普通玩家读不了操作日志', logForbidden.status === 403, JSON.stringify(logForbidden.body));
+
 // ── 5. 用户自己改密码 ──────────────────────────────────────
 section('5. 改密码');
 const carol = await call(users, '/api/auth/register', { method: 'POST', body: { username: 'carol', password: 'carol-pass-1' } });

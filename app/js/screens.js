@@ -18,9 +18,11 @@ import {
  * 再写第二份同名常量会直接报重名。
  */
 import { esc } from './ui.js';
+// 等级是由表现分推算出来的（economy.levelFor），管理后台要让管理员看到「这么多数是几级」
+import { levelFor } from './economy.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.68.0';
+export const APP_VERSION = '0.69.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -734,7 +736,8 @@ export function adminHTML({ cloud } = {}) {
     const ops = confirming
       ? `<button class="cloud-btn danger" data-act="cloud-admin-delete-confirm" data-user="${esc(name)}">确认删除</button>
          <button class="cloud-btn" data-act="cloud-admin-delete-cancel" data-user="${esc(name)}">取消</button>`
-      : `<button class="cloud-btn" data-act="cloud-admin-reset" data-user="${esc(name)}">重置密码</button>
+      : `<button class="cloud-btn" data-act="cloud-admin-edit" data-user="${esc(name)}">改数据</button>
+         <button class="cloud-btn" data-act="cloud-admin-reset" data-user="${esc(name)}">重置密码</button>
          <button class="cloud-btn danger" data-act="cloud-admin-delete" data-user="${esc(name)}">删除</button>`;
     return `
     <div class="cloud-admin-card">
@@ -746,6 +749,9 @@ export function adminHTML({ cloud } = {}) {
       ${saveLine ? `<div class="cloud-admin-line cloud-admin-sub">${esc(saveLine)}</div>` : ''}
       <div class="cloud-admin-line cloud-admin-sub">上次登录 ${cloudTime(u.lastLoginAt) || '—'}</div>
       <div class="cloud-actions">${ops}</div>
+      ${admin.edit && String(admin.edit.username).toLowerCase() === name.toLowerCase()
+        ? adminEditHTML(name, admin.edit, levelFor)
+        : ''}
     </div>`;
   }).join('');
 
@@ -769,7 +775,91 @@ export function adminHTML({ cloud } = {}) {
     <div class="cloud-admin-list">
       ${rows || `<div class="rp-empty">${admin.loading ? '正在加载用户…' : '还没有用户数据'}<br><span>点「刷新」从云端读取</span></div>`}
     </div>
+
+    ${adminLogHTML(admin.log)}
   `, 'cloud-admin-back');
+}
+
+/**
+ * 管理员「改数据」面板（0.69.0）。
+ *
+ * 为什么长在用户卡片里：改数据前一定要先看清楚「这个人现在是什么样」，
+ * 弹窗那种把原值盖住的做法反而容易改错人。
+ *
+ * 字段只给**数值类**的（金币 / 星尘 / 表现分 / 对局 / 胜 / 负 / 平），
+ * 其它结构（强化表）走「高级：改整份 JSON」或「清空强化」——
+ * 手机键盘上敲嵌套 JSON 不现实，但真要动的时候得留一条路。
+ */
+function adminEditHTML(name, edit, levelFn) {
+  const e = edit && typeof edit === 'object' ? edit : {};
+  const form = e.form && typeof e.form === 'object' ? e.form : {};
+  const val = (k) => {
+    const n = Math.floor(Number(form[k]));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const field = (label, id, v, tip) => `
+    <label class="cloud-edit-field">
+      <span class="cloud-edit-label">${esc(label)}</span>
+      <input id="${id}" class="cloud-input cloud-edit-input" type="number" inputmode="numeric"
+             min="0" step="1" value="${v}" data-adm="${id}">
+      ${tip ? `<span class="cloud-edit-tip">${esc(tip)}</span>` : ''}
+    </label>`;
+  const lv = levelFn(val('perf'));
+  const forgeTip = e.forgeCount > 0 ? '（现在 ' + e.forgeCount + ' 张牌有强化）' : '（现在没有任何强化）';
+  return `
+  <div class="cloud-admin-edit">
+    <div class="cloud-admin-edit-head">
+      <b>改「${esc(name)}」的数据</b>
+      <span class="cloud-edit-version">云端 v${e.version || 0}${e.exists ? '' : ' · 还没有云存档'}</span>
+    </div>
+    ${e.loading ? '<div class="cloud-hint">正在读取这个人的存档…</div>' : ''}
+    ${e.error ? `<div class="cloud-err">${esc(e.error)}</div>` : ''}
+    ${e.hint ? `<div class="cloud-ok">${esc(e.hint)}</div>` : ''}
+    <div class="cloud-edit-grid">
+      ${field('金币', 'admin-gold', val('gold'), '上限 1000')}
+      ${field('星尘', 'admin-dust', val('dust'), '上限 500')}
+      ${field('表现分', 'admin-perf', val('perf'), 'Lv.' + lv)}
+      ${field('对局数', 'admin-games', val('games'), '')}
+      ${field('胜', 'admin-wins', val('wins'), '')}
+      ${field('负', 'admin-losses', val('losses'), '')}
+      ${field('平', 'admin-draws', val('draws'), '')}
+    </div>
+    <div class="cloud-actions">
+      <button class="cloud-btn primary" data-act="cloud-admin-save" ${e.saving || e.loading ? 'disabled' : ''}>保存数值</button>
+      <button class="cloud-btn" data-act="cloud-admin-clear-forge" ${e.saving || e.loading ? 'disabled' : ''}>清空强化${forgeTip}</button>
+      <button class="cloud-btn" data-act="cloud-admin-raw">${e.rawOpen ? '收起整份 JSON' : '高级：改整份 JSON'}</button>
+      <button class="cloud-btn" data-act="cloud-admin-edit-close">关闭</button>
+    </div>
+    ${e.rawOpen ? `
+      <div class="cloud-hint">整份替换：最外层必须是 { }，保存后云端版本 +1。改坏了只能在这里再改回来。</div>
+      <textarea id="admin-raw" class="cloud-input cloud-raw" rows="9" spellcheck="false"
+                autocapitalize="off" autocomplete="off">${esc(e.raw || '{}')}</textarea>
+      <div class="cloud-actions">
+        <button class="cloud-btn danger" data-act="cloud-admin-save-raw" ${e.saving || e.loading ? 'disabled' : ''}>用这份 JSON 覆盖</button>
+      </div>
+    ` : ''}
+  </div>`;
+}
+
+/** 最近的管理操作（服务端审计），给管理员一个「我刚才改了什么」的回头账 */
+function adminLogHTML(log) {
+  const list = Array.isArray(log) ? log.slice(0, 6) : [];
+  if (!list.length) return '';
+  const fieldName = {
+    gold: '金币', dust: '星尘', perf: '表现分', games: '对局', wins: '胜',
+    losses: '负', draws: '平', forge: '强化', data: '整份存档', lifetimeGold: '累计金币',
+  };
+  const lines = list.map((e) => {
+    const who = String(e.username || '?');
+    const fields = Array.isArray(e.fields) ? e.fields.map((f) => fieldName[f] || f).join(' / ') : '';
+    return `<li>${esc(cloudTime(e.at))} · ${esc(String(e.by || '管理员'))} 改了 ${esc(who)} 的 ${esc(fields || '数据')}（v${Number(e.version) || 0}）</li>`;
+  }).join('');
+  return `
+  <div class="cloud-card cloud-admin-log">
+    <div class="cloud-card-head">最近的管理操作</div>
+    <ul class="cloud-log-list">${lines}</ul>
+    <div class="cloud-hint">只保留最近 50 条，存在服务端；管理员改的是**云端存档**。</div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════

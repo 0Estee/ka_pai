@@ -49,6 +49,24 @@ let cloudAdminUsers = [];
 let cloudAdminLoading = false;
 let cloudAdminError = '';
 let cloudConfirmDelete = '';
+/**
+ * 管理员正在编辑的那个玩家的数据（null = 没在编辑）。
+ * 形状：{ username, loading, saving, error, hint, rawOpen, version, exists,
+ *         form:{gold,dust,perf,games,wins,losses,draws}, raw }
+ * 表单值放在这里而不是直接从 DOM 读：保存过程中会重绘一次，直接从 DOM 读会把
+ * 玩家刚敲进去的数冲掉（先 setField 落进 form，再重绘）。
+ */
+let cloudAdminEdit = null;
+/** 最近的管理操作（服务端审计，倒序） */
+let cloudAdminLog = [];
+/**
+ * 最后一次真的发出去的请求（{method,path,body,at}）。
+ * 只给自检用：打包门禁的 DOM 桩没有真网络，靠它才能断言「点保存时到底发了什么」。
+ * 正常运行时它只是多留一个对象，不参与任何判断。
+ */
+let cloudLastRequest = null;
+/** 最近 20 条请求（自检要「找到那条 POST」，光看最后一条会被后台的列表刷新顶掉） */
+let cloudRequestLog = [];
 
 // ══════════════════════════════════════════════════════════
 // 地址与底层请求
@@ -138,6 +156,8 @@ function cloudDropSession(message) {
   cloudAdminLoading = false;
   cloudAdminError = '';
   cloudConfirmDelete = '';
+  cloudAdminEdit = null;
+  cloudAdminLog = [];
   cloudError = message || '登录已过期，请重新登录';
   cloudNotice = '';
 }
@@ -169,6 +189,12 @@ async function cloudRequest(method, path, payload, options) {
     }
   }
   if (token) headers.Authorization = 'Bearer ' + token;
+  // 记一笔（见 cloudLastRequest 的注释）；解析失败就不记，别把坏 payload 也存下来
+  try {
+    cloudLastRequest = { method, path: String(path), body: payload === undefined ? null : JSON.parse(init.body), at: Date.now() };
+    cloudRequestLog.push(cloudLastRequest);
+    if (cloudRequestLog.length > 20) cloudRequestLog.splice(0, cloudRequestLog.length - 20);
+  } catch { /* 忽略 */ }
 
   let abortCtl = null;
   let timeoutId = 0;
@@ -253,6 +279,9 @@ function cloudStatus() {
       loading: cloudAdminLoading,
       error: cloudAdminError,
       confirmDelete: cloudConfirmDelete,
+      // 改数据面板 + 最近的操作记录（0.69.0）
+      edit: cloudAdminEdit,
+      log: cloudAdminLog,
     },
   };
 }
@@ -513,6 +542,8 @@ function init(options) {
   cloudAdminLoading = false;
   cloudAdminError = '';
   cloudConfirmDelete = '';
+  cloudAdminEdit = null;
+  cloudAdminLog = [];
   if (cloudPushTimer) { clearTimeout(cloudPushTimer); cloudPushTimer = null; }
   try { Store.setCloudSaveHook(cloudOnLocalSave); } catch { /* 老版本 store 没有钩子就跳过 */ }
   if (cloudAuth && cloudAuth.token) cloudVerifySession();
@@ -581,6 +612,8 @@ async function logout() {
   cloudAdminLoading = false;
   cloudAdminError = '';
   cloudConfirmDelete = '';
+  cloudAdminEdit = null;
+  cloudAdminLog = [];
   cloudError = '';
   cloudNotice = '已退出登录，本地进度仍然保留';
   cloudNotify();
@@ -900,6 +933,340 @@ function resetPassword(username, newPassword) {
   });
 }
 
+/**
+ * 管理员「改数据」：把某个玩家当前的完整存档读下来摊进表单（0.69.0）。
+ *
+ * 和列表里那份 summary 的区别：summary 只有 4 个数字（对局/胜/表现分/金币），
+ * 改数据要连星尘、负平、强化表一起看，所以单独走 /api/admin/save 读全量。
+ */
+function adminEditOpen(username) {
+  const name = String(username === undefined || username === null ? '' : username).trim();
+  if (!name) return Promise.resolve({ ok: false, message: '缺少用户名' });
+  if (!cloudIsAdmin()) {
+    cloudAdminError = '需要管理员权限';
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: cloudAdminError });
+  }
+  cloudAdminEdit = {
+    username: name,
+    loading: true,
+    saving: false,
+    error: '',
+    hint: '',
+    rawOpen: false,
+    version: 0,
+    exists: false,
+    forgeCount: 0,
+    form: { gold: 0, dust: 0, perf: 0, games: 0, wins: 0, losses: 0, draws: 0 },
+    raw: '{}',
+  };
+  cloudNotify();
+  return cloudRequest('GET', '/api/admin/save?username=' + encodeURIComponent(name)).then((result) => {
+    // 期间换了人（很快点了另一个「改数据」）就丢掉这次结果
+    if (!cloudAdminEdit || cloudAdminEdit.username !== name) return result;
+    cloudAdminEdit.loading = false;
+    if (!result.ok) {
+      cloudAdminEdit.error = result.message || '读取该玩家的存档失败，请稍后重试';
+      cloudNotify();
+      return result;
+    }
+    const save = result.data && result.data.save ? result.data.save : null;
+    adminEditFill(cloudAdminEdit, save);
+    cloudNotify();
+    return { ok: true, save };
+  }).catch(() => {
+    if (cloudAdminEdit && cloudAdminEdit.username === name) {
+      cloudAdminEdit.loading = false;
+      cloudAdminEdit.error = '读取该玩家的存档失败，请稍后重试';
+      cloudNotify();
+    }
+    return { ok: false, message: '读取失败' };
+  });
+}
+
+/** 把服务端的一份存档摊进表单（没存档 = 一份空档案的样子） */
+function adminEditFill(edit, save) {
+  const data = save && save.data && typeof save.data === 'object' ? save.data : {};
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
+  edit.form = {
+    gold: num(data.gold),
+    dust: num(data.dust),
+    perf: num(data.perf),
+    games: num(data.games),
+    wins: num(data.wins),
+    losses: num(data.losses),
+    draws: num(data.draws),
+  };
+  const cards = data.forge && data.forge.cards && typeof data.forge.cards === 'object' ? data.forge.cards : {};
+  edit.forgeCount = Object.keys(cards).length;
+  edit.version = save ? Number(save.version) || 0 : 0;
+  edit.exists = !!save;
+  try { edit.raw = JSON.stringify(data, null, 2); } catch { edit.raw = '{}'; }
+}
+
+function adminEditClose() {
+  cloudAdminEdit = null;
+  cloudNotify();
+  return cloudStatus();
+}
+
+/** 表单字段落进状态（保存过程中会重绘，先存下来才不会把刚敲的数冲掉） */
+function adminEditSetField(field, value) {
+  if (!cloudAdminEdit) return null;
+  const key = String(field || '');
+  if (!Object.prototype.hasOwnProperty.call(cloudAdminEdit.form, key)) return null;
+  const n = Math.floor(Number(value));
+  cloudAdminEdit.form[key] = Number.isFinite(n) && n > 0 ? n : 0;
+  return cloudAdminEdit.form[key];
+}
+
+function adminEditToggleRaw(open) {
+  if (!cloudAdminEdit) return null;
+  cloudAdminEdit.rawOpen = open === undefined ? !cloudAdminEdit.rawOpen : !!open;
+  cloudNotify();
+  return cloudAdminEdit.rawOpen;
+}
+
+/** 把列表里那一行的摘要换成刚写完的（省一次网络往返） */
+function adminEditApplySummary(edit, save) {
+  if (!edit || !save) return;
+  const row = cloudAdminUsers.find((u) => String(u.username).toLowerCase() === edit.username.toLowerCase());
+  if (!row) return;
+  const s = save.summary && typeof save.summary === 'object' ? save.summary : {};
+  row.save = {
+    version: Number(save.version) || 0,
+    updatedAt: save.updatedAt || '',
+    bytes: Number(save.bytes) || 0,
+    summary: {
+      games: Number(s.games) || 0,
+      wins: Number(s.wins) || 0,
+      perf: Number(s.perf) || 0,
+      gold: Number(s.gold) || 0,
+    },
+  };
+}
+
+/** 保存数值表单：只提交**表单上有的那几个字段**，别的字段服务端原样保留 */
+function adminEditSave() {
+  const edit = cloudAdminEdit;
+  if (!edit) return Promise.resolve({ ok: false, message: '没有在编辑任何用户' });
+  if (!cloudIsAdmin()) {
+    edit.error = '需要管理员权限';
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: edit.error });
+  }
+  if (edit.loading || edit.saving) return Promise.resolve({ ok: false, busy: true });
+  const patch = {};
+  for (const key of Object.keys(edit.form)) patch[key] = Number(edit.form[key]) || 0;
+  return cloudRun(async () => {
+    edit.saving = true;
+    edit.error = '';
+    edit.hint = '';
+    cloudNotify();
+    const result = await cloudRequest('POST', '/api/admin/save', { username: edit.username, patch });
+    edit.saving = false;
+    if (!result.ok) {
+      edit.error = result.message || '保存失败，请稍后重试';
+      cloudNotify();
+      return result;
+    }
+    const save = result.data && result.data.save ? result.data.save : null;
+    adminEditFill(edit, save);
+    adminEditApplySummary(edit, save);
+    edit.hint = '已写入云端 v' + (save ? save.version : edit.version)
+      + '。玩家下次同步时选「用云端」即可生效（他那边的本地值会被这份覆盖）。';
+    cloudNotice = '已修改「' + edit.username + '」的数据';
+    loadAdminLog();
+    cloudNotify();
+    return { ok: true, save };
+  });
+}
+
+/** 高级：整份 JSON 替换（客户端先解析，格式错就不发请求） */
+function adminEditSaveRaw(text) {
+  const edit = cloudAdminEdit;
+  if (!edit) return Promise.resolve({ ok: false, message: '没有在编辑任何用户' });
+  if (!cloudIsAdmin()) {
+    edit.error = '需要管理员权限';
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: edit.error });
+  }
+  if (edit.loading || edit.saving) return Promise.resolve({ ok: false, busy: true });
+  let data;
+  try {
+    data = JSON.parse(String(text === undefined || text === null ? '' : text));
+  } catch (err) {
+    edit.error = 'JSON 格式不对：' + (err && err.message ? err.message : '解析失败');
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: edit.error });
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    edit.error = '最外层必须是一个 JSON 对象（{ … }）';
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: edit.error });
+  }
+  return cloudRun(async () => {
+    edit.saving = true;
+    edit.error = '';
+    edit.hint = '';
+    cloudNotify();
+    const result = await cloudRequest('POST', '/api/admin/save', { username: edit.username, data });
+    edit.saving = false;
+    if (!result.ok) {
+      edit.error = result.message || '保存失败，请稍后重试';
+      cloudNotify();
+      return result;
+    }
+    const save = result.data && result.data.save ? result.data.save : null;
+    adminEditFill(edit, save);
+    adminEditApplySummary(edit, save);
+    edit.hint = '整份存档已替换（v' + (save ? save.version : edit.version) + '）。';
+    cloudNotice = '已整份替换「' + edit.username + '」的存档';
+    loadAdminLog();
+    cloudNotify();
+    return { ok: true, save };
+  });
+}
+
+/** 一键清空这个人的全部强化 / 精通（最常用的「重来」） */
+function adminEditClearForge() {
+  const edit = cloudAdminEdit;
+  if (!edit) return Promise.resolve({ ok: false, message: '没有在编辑任何用户' });
+  if (!cloudIsAdmin()) {
+    edit.error = '需要管理员权限';
+    cloudNotify();
+    return Promise.resolve({ ok: false, message: edit.error });
+  }
+  if (edit.loading || edit.saving) return Promise.resolve({ ok: false, busy: true });
+  return cloudRun(async () => {
+    edit.saving = true;
+    edit.error = '';
+    edit.hint = '';
+    cloudNotify();
+    const result = await cloudRequest('POST', '/api/admin/save', {
+      username: edit.username,
+      patch: { forge: { v: 1, cards: {} } },
+    });
+    edit.saving = false;
+    if (!result.ok) {
+      edit.error = result.message || '清空强化失败，请稍后重试';
+      cloudNotify();
+      return result;
+    }
+    const save = result.data && result.data.save ? result.data.save : null;
+    adminEditFill(edit, save);
+    adminEditApplySummary(edit, save);
+    edit.hint = '已清空全部强化 / 精通（云端 v' + (save ? save.version : edit.version) + '）。';
+    cloudNotice = '已清空「' + edit.username + '」的强化';
+    loadAdminLog();
+    cloudNotify();
+    return { ok: true, save };
+  });
+}
+
+/**
+ * 自检 / 截图用：把「管理员后台」摆成一个确定的样子（不发任何请求）。
+ *
+ * 门禁的 DOM 桩没有真网络，而管理后台要先「登录成管理员 + 拉到用户列表」才画得出来 ——
+ * 真跑一遍会把别的分组的假 fetch 抢掉（已经踩过）。这里直接给状态，确定性更好。
+ */
+function adminDemo() {
+  cloudAuth = { token: 'demo-admin', user: { username: '123', role: 'admin' }, savedAt: Date.now() };
+  cloudBusy = false;
+  cloudError = '';
+  cloudNotice = '';
+  cloudAdminError = '';
+  cloudAdminLoading = false;
+  cloudConfirmDelete = '';
+  cloudAdminUsers = [
+    {
+      username: 'alice', role: 'user',
+      createdAt: '2026-10-02T10:00:00.000Z', updatedAt: '', lastLoginAt: '2026-10-22T21:10:00.000Z',
+      save: {
+        version: 4, updatedAt: '2026-10-22T21:10:00.000Z', bytes: 186,
+        summary: { games: 12, wins: 7, perf: 640, gold: 120 },
+      },
+    },
+    {
+      username: 'bob', role: 'user',
+      createdAt: '2026-10-03T09:00:00.000Z', updatedAt: '', lastLoginAt: '2026-10-20T08:00:00.000Z',
+      save: null,
+    },
+    {
+      username: '123', role: 'admin',
+      createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '', lastLoginAt: '2026-10-23T09:00:00.000Z',
+      save: null,
+    },
+  ];
+  cloudAdminLog = [{
+    at: '2026-10-23T09:12:00.000Z', by: '123', username: 'alice',
+    fields: ['gold', 'perf'], version: 4,
+  }];
+  cloudNotify();
+  return cloudStatus();
+}
+
+/** 自检用：最后一次真发出去的请求 */
+function lastCloudRequest() {
+  return cloudLastRequest;
+}
+
+/** 自检用：最近的请求（新的在后），用于「找到那条 POST」这类断言 */
+function cloudRequests() {
+  return cloudRequestLog.slice();
+}
+
+/**
+ * 把「改数据」面板直接摆成某一份存档的样子（不发请求）。
+ * 自检与截图用：DOM 桩里没有真网络，靠它才能把每个分支（读到 / 已写入 / 出错 / JSON）
+ * 都渲染出来看一遍。
+ */
+function adminEditShow(username, save) {
+  const name = String(username || '').trim();
+  if (!name) return null;
+  cloudAdminEdit = {
+    username: name,
+    loading: false,
+    saving: false,
+    error: '',
+    hint: '',
+    rawOpen: false,
+    version: 0,
+    exists: false,
+    forgeCount: 0,
+    form: { gold: 0, dust: 0, perf: 0, games: 0, wins: 0, losses: 0, draws: 0 },
+    raw: '{}',
+  };
+  adminEditFill(cloudAdminEdit, save || null);
+  cloudNotify();
+  return cloudAdminEdit;
+}
+
+/** 自检用：直接把面板改到某个状态（出错 / 已写入 / 展开 JSON…） */
+function adminEditPatchState(patch) {
+  if (!cloudAdminEdit) return null;
+  Object.assign(cloudAdminEdit, patch && typeof patch === 'object' ? patch : {});
+  cloudNotify();
+  return cloudAdminEdit;
+}
+
+/** 读最近的管理操作（归档在服务端 meta:adminlog，最多 20 条） */
+function loadAdminLog() {
+  if (!cloudIsAdmin()) return Promise.resolve({ ok: false });
+  return cloudRequest('GET', '/api/admin/log').then((result) => {
+    if (result.ok) {
+      const list = result.data && Array.isArray(result.data.log) ? result.data.log : [];
+      cloudAdminLog = list.filter((e) => e && typeof e === 'object').slice(0, 20);
+      cloudNotify();
+      return { ok: true, log: cloudAdminLog };
+    }
+    return result;
+  }).catch(() => ({ ok: false }));
+}
+
 /** 删除按钮的两步确认（第一次点进确认态，不直接删） */
 function setConfirmDelete(username) {
   cloudConfirmDelete = username ? String(username) : '';
@@ -911,5 +1278,9 @@ export {
   init, login, register, logout, changePassword,
   pushLocal, pullRemote, useLocal, useCloud,
   loadAdminUsers, deleteUser, resetPassword, setConfirmDelete,
+  // 改玩家数据（0.69.0）
+  adminEditOpen, adminEditClose, adminEditSetField, adminEditToggleRaw,
+  adminEditSave, adminEditSaveRaw, adminEditClearForge, loadAdminLog,
+  adminEditShow, adminEditPatchState, lastCloudRequest, cloudRequests, adminDemo,
   cloudStatus,
 };

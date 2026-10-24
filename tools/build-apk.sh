@@ -46,8 +46,8 @@ PLATFORM="${PLATFORM:-android-34}"
 # ── 默认参数 ──────────────────────────────────────────────
 # 这两个值必须和 android/app/AndroidManifest.xml 里的 versionCode/versionName、
 # 以及 app/js/screens.js 里的 APP_VERSION 保持一致，[0] 会做三处对账。
-VERSION_NAME="0.68.0"
-VERSION_CODE=73
+VERSION_NAME="0.69.0"
+VERSION_CODE=74
 MIN_SDK=24
 TARGET_SDK=34
 KEYSTORE_PASS="kapai123"

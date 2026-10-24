@@ -117,6 +117,22 @@
       const info = window.__watchDemo(Number(p.get('turn') || 4), Number(p.get('side') || 0));
       document.title = 'demo: ' + JSON.stringify(info) + ' side=' + window.__watchSide(Number(p.get('side') || 0));
       window.__revealAll();
+    } else if (demo === 'adminEdit') {
+      // 管理后台「改数据」：管理员 + 三个用户 + 一条审计，再把 alice 的面板摊开
+      window.__adminDemo();
+      const shown = window.__adminEditShow('alice', {
+        data: {
+          v: 2, gold: 120, dust: 30, perf: 640, games: 12, wins: 7, losses: 5, draws: 0,
+          forge: { v: 1, cards: { U01: { lvl: 9, masteries: ['w_atk'] }, U02: { lvl: 3, masteries: [] } } },
+        },
+        version: 4, updatedAt: '2026-10-22T21:10:00.000Z', bytes: 186,
+        summary: { games: 12, wins: 7, perf: 640, gold: 120 },
+      });
+      window.__go('admin');
+      if (p.get('raw')) window.__adminEditState({ rawOpen: true });
+      if (p.get('saved')) window.__adminEditState({ hint: '已写入云端 v5。玩家下次同步时选「用云端」即可生效。', version: 5 });
+      document.title = 'demo: adminEdit ' + (shown ? 'ok' : 'fail');
+      window.__revealAll();
     } else if (demo === 'sbfaction') {
       // 靶场换阵营：手里的旧阵营牌要被收走，只留新阵营那一整套
       window.__sandbox();

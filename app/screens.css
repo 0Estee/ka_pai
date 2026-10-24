@@ -4271,3 +4271,98 @@ body::before, body::after { content: none; }
 }
 /* 观战者没有手牌区，棋盘往下让出的那一截不留给空气 —— 五行格子各长一点 */
 .hand-wrap:empty { display: none; }
+
+/* ══════════════════════════════════════════════════════════
+   0.69 管理后台：改玩家数据
+   ──────────────────────────────────────────────────────────
+   一块「正在编辑」的抽屉，长在用户卡片里（不是弹窗：改数据前要先看清这个人）。
+   只有一条金边 —— 和 .cloud-note / .unit-info 同一套信号：
+   界面里「金」只表示「你正在看的/选中的这一块」。其余全是 1px 发丝线。
+   ══════════════════════════════════════════════════════════ */
+.cloud-admin-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #4a3d34);
+  border-left: 2px solid var(--gold, #d5ac62);
+  border-radius: var(--scr-r-sm);
+  background: var(--panel-2, #1b2431);
+}
+.cloud-admin-edit-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.cloud-admin-edit-head b {
+  font-family: var(--font-title, inherit);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #f0e7d8);
+}
+.cloud-edit-version {
+  font-size: 11px;
+  color: var(--dim, #a3927f);
+  font-variant-numeric: tabular-nums;
+}
+/* 七个数字字段：两列排（手机上每行两个才好按），宽屏才排三列 */
+.cloud-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+@media (min-width: 420px) {
+  .cloud-edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.cloud-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cloud-edit-label {
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--dim, #a3927f);
+}
+.cloud-edit-input {
+  min-height: 38px;
+  font-variant-numeric: tabular-nums;
+}
+/* 上限 / 等级这类「这一格的意义」，比标签更淡，别和输入值抢注意力 */
+.cloud-edit-tip {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--dim, #a3927f);
+  opacity: .8;
+}
+/* 整份 JSON：等宽字体 + 横向滚动，别折行（折了就看不出结构） */
+.cloud-raw {
+  width: 100%;
+  min-height: 150px;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+  resize: vertical;
+}
+.cloud-admin-log { margin-top: 14px; }
+.cloud-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+.cloud-log-list li {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--dim, #a3927f);
+}

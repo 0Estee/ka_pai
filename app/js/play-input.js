@@ -999,16 +999,56 @@ function handleAction(act, el) {
   if (act === 'cloud-admin-open') {
     screen = 'admin';
     Cloud.loadAdminUsers();
+    Cloud.loadAdminLog();
     refresh();
     return;
   }
-  if (act === 'cloud-admin-refresh') { Cloud.loadAdminUsers(); return; }
+  if (act === 'cloud-admin-refresh') { Cloud.loadAdminUsers(); Cloud.loadAdminLog(); return; }
   if (act === 'cloud-admin-back') { screen = 'account'; refresh(); return; }
   if (act === 'cloud-admin-delete') { Cloud.setConfirmDelete(el.dataset.user || ''); return; }
   if (act === 'cloud-admin-delete-cancel') { Cloud.setConfirmDelete(''); return; }
   if (act === 'cloud-admin-delete-confirm') { Cloud.deleteUser(el.dataset.user || ''); return; }
   if (act === 'cloud-admin-reset') {
     Cloud.resetPassword(el.dataset.user || '', inputValue('cloud-admin-pass'));
+    return;
+  }
+  // ── 管理员改玩家数据（0.69.0）
+  if (act === 'cloud-admin-edit') {
+    Cloud.adminEditOpen(el.dataset.user || '');
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-edit-close') {
+    Cloud.adminEditClose();
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-save') {
+    /**
+     * ⚠ 顺序要紧：先把输入框里的数**落进状态**，再触发保存。
+     * 保存一开始就会重绘（saving=true），重绘是从 edit.form 画的 ——
+     * 直接从 DOM 读的旧写法会在这一刻把玩家刚敲进去的数冲回原值。
+     */
+    for (const field of ['gold', 'dust', 'perf', 'games', 'wins', 'losses', 'draws']) {
+      Cloud.adminEditSetField(field, inputValue('admin-' + field));
+    }
+    Cloud.adminEditSave();
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-clear-forge') {
+    Cloud.adminEditClearForge();
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-raw') {
+    Cloud.adminEditToggleRaw();
+    refresh();
+    return;
+  }
+  if (act === 'cloud-admin-save-raw') {
+    Cloud.adminEditSaveRaw(inputValue('admin-raw'));
+    refresh();
     return;
   }
   if (act === 'back-home') {

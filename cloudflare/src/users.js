@@ -40,6 +40,26 @@ const DEFAULT_ADMIN_USERNAME = '123';
 const DEFAULT_ADMIN_PASSWORD = '1145145';
 /** 管理员保留名：即使 ADMIN_USERNAME 被改成别的，123 也不允许注册（协议 §1.4） */
 const RESERVED_ADMIN_USERNAME = '123';
+/**
+ * 管理员能**直接改**的数值字段（0.69.0，协议 §1.6）。
+ *
+ * 为什么要有范围：客户端的 normalizeProfile / capGold 会把这些数再夹一次 ——
+ * 管理员在云端写 999999 金币，玩家那边一读就被「熔成星尘、星尘封顶 500」，
+ * 看起来就像没改成功。所以这里先在服务端夹到位，并把夹过的事告诉调用方。
+ */
+const ADMIN_NUMBER_LIMITS = {
+  gold: [0, 1000],          // 客户端 GOLD_CAP（超出部分熔成星尘，没意义）
+  dust: [0, 500],           // 客户端 DUST_CAP
+  perf: [0, 10000000],      // 表现分（等级由它推算）
+  lifetimeGold: [0, 10000000],
+  games: [0, 1000000],
+  wins: [0, 1000000],
+  losses: [0, 1000000],
+  draws: [0, 1000000],
+};
+/** 管理操作审计日志保留多少条 */
+const ADMIN_LOG_MAX = 50;
+
 /** 用户名规则：2~20 个字符，只允许中文 / 字母 / 数字 / 下划线（大小写不敏感） */
 const USERNAME_RE = /^[\u4e00-\u9fff\u3400-\u4dbfA-Za-z0-9_]{2,20}$/u;
 
@@ -178,6 +198,51 @@ function summarize(data) {
   const d = data && typeof data === 'object' ? data : {};
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   return { games: num(d.games), wins: num(d.wins), perf: num(d.perf), gold: num(d.gold) };
+}
+
+/** 一份「空档案」，和客户端 store.defaultProfile 同形（管理员给没存档的用户补数据时用） */
+function emptySaveData() {
+  return {
+    v: 2,
+    gold: 0,
+    dust: 0,
+    perf: 0,
+    lifetimeGold: 0,
+    games: 0,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    forge: { v: 1, cards: {} },
+  };
+}
+
+/** 夹到 [lo, hi] 的整数；不是有限数就当 lo */
+function clampInt(value, range) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n)) return range[0];
+  return Math.max(range[0], Math.min(range[1], n));
+}
+
+/**
+ * 校验并重写强化表：{ v:1, cards:{ [cardId]: { lvl:0..9, masteries:[...] } } }。
+ *
+ * 和客户端 store.normalizeProfile 的口径一致（lvl 0~9、mastery 最多 2 个字符串、
+ * 空的直接丢掉）—— 两边对不上的话，管理员写进去的东西玩家一读就变形了。
+ */
+function cleanForge(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const srcCards = src.cards && typeof src.cards === 'object' && !Array.isArray(src.cards) ? src.cards : {};
+  const cards = {};
+  for (const [id, rec] of Object.entries(srcCards)) {
+    if (!id || typeof rec !== 'object' || rec === null || Array.isArray(rec)) continue;
+    const lvl = Math.max(0, Math.min(9, Math.floor(Number(rec.lvl) || 0)));
+    const masteries = Array.isArray(rec.masteries)
+      ? rec.masteries.filter((s) => typeof s === 'string').slice(0, 2)
+      : [];
+    if (!lvl && !masteries.length) continue;
+    cards[id] = { lvl, masteries };
+  }
+  return { v: 1, cards };
 }
 
 /** 读 JSON 体；读不出来 / 不是对象都当坏请求 */
@@ -551,6 +616,144 @@ export class Users {
     return json({ ok: true });
   }
 
+  /**
+   * 管理操作留痕：谁、什么时候、改了谁、改了哪些字段。
+   * 只留最近 ADMIN_LOG_MAX 条（写满就顶掉最旧的），不进用户列表响应。
+   */
+  async appendAudit(entry) {
+    const prev = await this.storage.get('meta:adminlog');
+    const list = Array.isArray(prev) ? prev : [];
+    list.push(entry);
+    await this.storage.put('meta:adminlog', list.slice(-ADMIN_LOG_MAX));
+  }
+
+  /**
+   * 管理员读某个玩家的**完整**存档（协议 §1.6）。
+   *
+   * 普通接口 /api/save 只回自己那一份；改数据前得先看清现在是什么，
+   * 所以给管理员开一个「看指定用户的 data」的口子。响应里依旧不含 salt / hash。
+   */
+  async handleAdminGetSave(request) {
+    const auth = await this.requireAdmin(request);
+    if (auth.error) return auth.error;
+    const username = String(new URL(request.url).searchParams.get('username') || '').trim();
+    if (!username) return fail('bad-request', '请填写用户名', 400);
+    const lower = username.toLowerCase();
+    const record = await this.storage.get(userKey(lower));
+    if (!record) return fail('not-found', '用户不存在', 404);
+    const save = await this.storage.get(saveKey(lower));
+    return json({
+      ok: true,
+      username: record.username,
+      save: save
+        ? {
+          data: save.data,
+          version: save.version,
+          updatedAt: save.updatedAt,
+          bytes: save.bytes,
+          summary: summarize(save.data),
+        }
+        : null,
+    });
+  }
+
+  /**
+   * 管理员改某个玩家的存档（协议 §1.6）。两种模式，二选一：
+   *   · patch —— 只改白名单里的数值（金币 / 星尘 / 表现分 / 对局数…）与 forge（强化表）；
+   *   · data  —— 整份替换（高级编辑，前端先校验一遍，这里再兜一层）。
+   *
+   * 每次改动 version + 1。玩家设备下次上传会拿到 409 冲突，
+   * 在「选择保留哪一份」里点「用云端」即可采纳 —— 管理员的改动不会被静默覆盖。
+   */
+  async handleAdminSetSave(request) {
+    const auth = await this.requireAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    if (!body) return fail('bad-json', '请求体不是合法的 JSON 对象', 400);
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    if (!username) return fail('bad-request', '请填写用户名', 400);
+    const hasPatch = body.patch !== undefined && body.patch !== null;
+    const hasData = body.data !== undefined && body.data !== null;
+    if (hasPatch === hasData) return fail('bad-request', 'patch 与 data 必须二选一', 400);
+
+    const lower = username.toLowerCase();
+    const record = await this.storage.get(userKey(lower));
+    if (!record) return fail('not-found', '用户不存在', 404);
+
+    const key = saveKey(lower);
+    const current = await this.storage.get(key);
+    const baseData = current && current.data && typeof current.data === 'object' && !Array.isArray(current.data)
+      ? current.data
+      : emptySaveData();
+
+    const fields = [];
+    let nextData;
+    if (hasPatch) {
+      const patch = body.patch;
+      if (typeof patch !== 'object' || Array.isArray(patch)) return fail('bad-patch', 'patch 必须是对象', 400);
+      nextData = JSON.parse(JSON.stringify(baseData));
+      for (const [field, range] of Object.entries(ADMIN_NUMBER_LIMITS)) {
+        const v = patch[field];
+        if (v === undefined || v === null || v === '') continue;
+        if (typeof v !== 'number' && typeof v !== 'string') continue;
+        nextData[field] = clampInt(v, range);
+        fields.push(field);
+      }
+      if (patch.forge !== undefined) {
+        if (!patch.forge || typeof patch.forge !== 'object' || Array.isArray(patch.forge)) {
+          return fail('bad-patch', 'forge 必须是对象', 400);
+        }
+        nextData.forge = cleanForge(patch.forge);
+        fields.push('forge');
+      }
+      if (!fields.length) {
+        return fail('bad-patch', 'patch 里没有可改的字段（支持 '
+          + Object.keys(ADMIN_NUMBER_LIMITS).concat('forge').join(' / ') + '）', 400);
+      }
+    } else {
+      const data = body.data;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return fail('bad-data', 'data 必须是 JSON 对象', 400);
+      }
+      nextData = JSON.parse(JSON.stringify(data));
+      // 手写的 JSON 里强化表可能有怪形状：统一过一遍再落库
+      nextData.forge = cleanForge(nextData.forge);
+      fields.push('data');
+    }
+
+    let bytes;
+    try { bytes = encoder.encode(JSON.stringify(nextData)).length; } catch { return fail('bad-data', '数据无法序列化', 400); }
+    if (bytes > SAVE_MAX_BYTES) {
+      return fail('save-too-large', '存档不能超过 ' + SAVE_MAX_BYTES / 1024 + ' KB', 413);
+    }
+
+    const now = new Date().toISOString();
+    const version = (current ? Number(current.version) || 0 : 0) + 1;
+    const next = { data: nextData, version, updatedAt: now, bytes, summary: summarize(nextData) };
+    await this.storage.put(key, next);
+    await this.appendAudit({
+      at: now,
+      by: auth.user.username,
+      username: record.username,
+      fields,
+      version,
+      note: typeof body.note === 'string' ? body.note.slice(0, 200) : '',
+    });
+    return json({
+      ok: true,
+      save: { data: nextData, version, updatedAt: now, bytes, summary: next.summary },
+    });
+  }
+
+  /** 最近的管理操作（倒序，最多 20 条） */
+  async handleAdminLog(request) {
+    const auth = await this.requireAdmin(request);
+    if (auth.error) return auth.error;
+    const prev = await this.storage.get('meta:adminlog');
+    const log = Array.isArray(prev) ? prev.slice(-20).reverse() : [];
+    return json({ ok: true, log });
+  }
+
   // ── HTTP 入口 ───────────────────────────────────────────
 
   async fetch(request) {
@@ -590,6 +793,13 @@ export class Users {
           return method === 'POST' ? await this.handleAdminResetPassword(request) : fail('need-post', '该接口只支持 POST', 405);
         case '/api/admin/delete':
           return method === 'POST' ? await this.handleAdminDelete(request) : fail('need-post', '该接口只支持 POST', 405);
+        // 改玩家数据（0.69.0）：GET 看、POST 改
+        case '/api/admin/save':
+          if (method === 'GET') return await this.handleAdminGetSave(request);
+          if (method === 'POST') return await this.handleAdminSetSave(request);
+          return fail('need-get-or-post', '该接口只支持 GET 或 POST', 405);
+        case '/api/admin/log':
+          return method === 'GET' ? await this.handleAdminLog(request) : fail('need-get', '该接口只支持 GET', 405);
         default:
           return fail('not-found', '接口不存在', 404);
       }
