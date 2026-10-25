@@ -132,6 +132,14 @@
   line-height: 1.4;
   color: var(--foe, #ff6b6b);
 }
+/* 「不可能」的信息优势：同一行版式、不同颜色 —— 数值优势是红的（它在改规则），
+   信息优势是淡的（它只多知道，不改规则）。作者 2026-10-24。 */
+.diff-insight {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+}
 
 /* 「开始对战」必须一眼看到 —— 它曾经根本不存在，
    于是「开始游戏 → AI 对决 → 选难度」绕回二级菜单，永远开不了局。 */
@@ -3490,6 +3498,7 @@ body::before, body::after { content: none; }
 .diff-row.on .diff-name { font-weight: 600; }
 .diff-tag { margin-top: 3px; font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
 .diff-cheat { margin-top: 4px; font-size: 11px; color: var(--ink-faint); }
+.diff-insight { margin-top: 3px; font-size: 11px; color: var(--ink-faint); }
 .fac-row .diff-tag { display: none; }
 .fac-row { min-height: 54px; }
 .diff-row::before, .diff-row::after { content: none; display: none; }

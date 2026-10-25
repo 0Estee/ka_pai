@@ -162,6 +162,11 @@ export const DIFFICULTIES = [
     jitter: 0,
     lookahead: false,
     bonus: null,
+    // 作者 2026-10-24：这一档还要**看得到对手手牌和双方下一次抽到的牌**。
+    // 这是**信息型**优势，不是数值优势 —— 手牌张数 / 费用 / 国王血量仍然和玩家完全一样，
+    // 但和「噩梦」的数值优势一样，必须在选难度界面逐条写明（screens.js 的 diff-insight），
+    // 门禁 09 会对账，不允许偷偷开。关掉它做对照：传 params { insight: null }。
+    insight: { hand: true, deck: true },
     planner: 'rollout',   // 打开模拟前瞻
     // 留手也交给推演决定（agent 2026-10 的实测改动，见 aiTakeTurn 里的 rolloutPass 分支）。
     // 原来是「贪心分低于 -1 就不出牌」，手调的常数 —— 实测它才是这一档最大的短板：
@@ -258,6 +263,141 @@ function opponentBestReply(state, side, lane, def) {
   return worst;
 }
 
+// ── 「不可能」的信息优势：对手手牌 + 双方下一抽（作者 2026-10-24）──
+/**
+ * 「不可能」看得到两样东西：**对手手上的牌**和**牌库顶（双方下一次各抽到什么）**。
+ *
+ * 这是**信息型**优势，不是数值优势：手牌张数、费用、国王血量和玩家完全一样。
+ * 但和「噩梦」的数值优势一样，它必须**在选难度界面逐条写明**（screens.js 的 diff-insight），
+ * 门禁 09 会逐条对账 —— 这里没有偷偷给。
+ *
+ * 三条自我约束（和推演同一套纪律）：
+ *   1. 只读：不写任何 state 字段、不推进 rng、不改牌序；
+ *   2. 只在 P.insight 打开时生效，其余四档 AI 走的还是原来的路径；
+ *   3. 全部走函数参数，不做全局状态，回放 / 联机锁步不受影响。
+ *
+ * 关掉它做对照：aiTakeTurn 传 params { insight: null }。
+ */
+function insightOn(P) {
+  return !!(P && P.insight);
+}
+
+/** 一张手牌「大概值多少」—— 只看卡面，不模拟。单位看身材，锦囊看效果。 */
+function cardHandValue(def) {
+  if (!def) return 0;
+  if (def.type === 'unit') return (def.atk || 0) * 0.9 + (def.hp || 0) * 0.5 + (def.cost || 0) * 0.2;
+  let v = (def.cost || 0) * 0.2;
+  for (const a of def.actions || []) {
+    const amt = typeof a.amount === 'number' ? a.amount : 2;
+    switch (a.op) {
+      case 'damage': v += amt * 0.7; break;
+      case 'destroy': v += 4.0; break;
+      case 'control': v += 4.5; break;
+      case 'stealToHand': v += 4.0; break;
+      case 'draw': v += amt * 1.8; break;
+      case 'heal': v += amt * 0.4; break;
+      case 'buffAtk':
+      case 'buffMaxHp':
+      case 'modifyStats': v += amt * 0.9; break;
+      case 'summon':
+      case 'summonRandomToken': v += 2.2; break;
+      case 'seal':
+      case 'freeze':
+      case 'bounce': v += 1.6; break;
+      default: v += 0.6;
+    }
+  }
+  return v;
+}
+
+/** 对手手上的「解牌」：能打到最大多少血的单位，有没有硬解 / 控制 */
+function removalInHand(state, foe) {
+  const hand = (state.players[foe] && state.players[foe].hand) || [];
+  let maxDmg = 0;
+  let hasHard = false;
+  for (const hc of hand) {
+    const def = state.cardLib[hc.cardId];
+    if (!def || def.type !== 'spell') continue;
+    for (const a of def.actions || []) {
+      if (a.op === 'damage') {
+        // 只算指向「敌方单位」的伤害；只打国王的那种不能解场
+        const spec = a.target || {};
+        if (spec.kind === 'chosenKing' || spec.kind === 'enemyKing') continue;
+        const amt = typeof a.amount === 'number' ? a.amount : 2;
+        if (amt > maxDmg) maxDmg = amt;
+      } else if (a.op === 'destroy' || a.op === 'control' || a.op === 'stealToHand') {
+        hasHard = true;
+      }
+    }
+  }
+  return { maxDmg, hasHard };
+}
+
+/**
+ * 这一方**下一次**抽牌会抽到的卡面。
+ * 抽牌顺序是后手先抽、先手后抽（engine/src/turns.js 的 onTurnStart），
+ * 所以后手拿 deck[0]、先手拿 deck[1]；deck 空则没有下一抽。
+ */
+function nextDrawCard(state, side) {
+  const deck = state.deck;
+  if (!deck || deck.length === 0) return null;
+  const first = state.firstPlayer === 0 ? 0 : 1;
+  const idx = side === 1 - first ? 0 : 1;
+  const id = deck[idx];
+  return id ? state.cardLib[id] || null : null;
+}
+
+/** 手牌总价值（只在「不可能」打开 insight 时用） */
+function handValue(state, side) {
+  const hand = (state.players[side] && state.players[side].hand) || [];
+  let v = 0;
+  for (const hc of hand) v += cardHandValue(state.cardLib[hc.cardId]);
+  return v;
+}
+
+/**
+ * 某一方手牌里**能直接打到对方国王**的伤害合计（只数锦囊，单位要下场才算）。
+ * 对**对手**用这个函数，就是「不可能」的信息优势本体：
+ * 玩家看不到 AI 的手牌，AI 看得到玩家的 —— 于是它知道对面手里压着几点斩杀。
+ */
+function kingDamageInHand(state, side) {
+  const hand = (state.players[side] && state.players[side].hand) || [];
+  let sum = 0;
+  for (const hc of hand) {
+    const def = state.cardLib[hc.cardId];
+    if (!def || def.type !== 'spell') continue;
+    for (const a of def.actions || []) {
+      if (a.op !== 'damage') continue;
+      const spec = a.target || {};
+      const canHitKing =
+        spec.kind === 'enemyKing' ||
+        spec.kind === 'chosenKing' ||
+        spec.kind === 'king' ||
+        (spec.kind === 'chosenEnemyTarget' && spec.allowKing !== false);
+      if (!canHitKing) continue;
+      sum += typeof a.amount === 'number' ? a.amount : 2;
+    }
+  }
+  return sum;
+}
+
+/**
+ * 「对面下一回合能打掉我多少国王血」= 他手上的直伤 + 他空线白打脸的攻击力。
+ * 只有打开 insight 才会读**对方**手牌；不打开时这个函数根本不会被调用。
+ */
+function incomingThreat(state, side) {
+  const foe = 1 - side;
+  const mine = state.players[side];
+  const burst = kingDamageInHand(state, foe) + freeLaneDamage(state, foe);
+  const kingHp = (mine && mine.kingHp) || 1;
+  return { burst, lethal: burst >= kingHp, half: burst * 2 >= kingHp };
+}
+
+/** 我这一回合能打掉对面多少国王血（手牌直伤 + 空线白打脸）—— 用来判断能不能一波斩杀 */
+function myBurst(state, side) {
+  return kingDamageInHand(state, side) + freeLaneDamage(state, side);
+}
+
 // ── 单位落点评分 ──────────────────────────────────────────
 
 function scoreUnitPlacement(state, side, def, lane, row, P) {
@@ -293,6 +433,31 @@ function scoreUnitPlacement(state, side, def, lane, row, P) {
   // 预判：算一下对面最狠的反击值多少
   if (P.lookahead) {
     score -= opponentBestReply(state, side, lane, def) * P.wLookahead;
+  }
+
+  // 「不可能」看得到对手手牌 → 知道对面手上压着什么解牌。
+  // 这里只做一件事：被一张牌就能点掉的血量，别主动送到前排去换；
+  // 反过来，一张牌解不掉的血线，前排的阻挡价值更值钱。**不改任何规则，只改选择。**
+  if (insightOn(P)) {
+    const rm = removalInHand(state, 1 - side);
+    const hp = def.hp || 0;
+    if (row === 'front') {
+      if (hp <= rm.maxDmg) score -= 2.4;
+      else if (rm.maxDmg > 0) score += 1.2;
+      if (rm.hasHard && hp <= 3) score -= 1.4;   // 硬解 / 控制牌对小块头也有威胁
+    } else if (rm.hasHard && hp >= 5) {
+      score -= 1.0;                              // 后排躲不过硬解，别把大单位当安全牌堆在后排
+    }
+
+    // 它还算得出「对面下回合能不能一波打死我」。能打死的时候先堵枪眼：
+    // 这一路对面本来可以白打脸多少攻击力，挡住它就值多少。
+    const threat = P.insightBlock === false ? { lethal: false, half: false } : incomingThreat(state, side);
+    if (threat.lethal || threat.half) {
+      const free = laneFreeDamage(state, 1 - side, lane);
+      if (row === 'front' && free > 0) {
+        score += free * (threat.lethal ? 0.8 : 0.3) + (threat.lethal ? 2.0 : 0.6);
+      }
+    }
   }
 
   // 尽量均匀分布，避免一路堆满
@@ -360,6 +525,13 @@ function bestSpellTarget(state, side, def, P) {
       let s = damageAmount * 0.9;                                  // 打脸的直接价值
       if (damageAmount >= kingHp) s += 25;                         // 能直接斩杀
       else if (kingHp - damageAmount <= 3) s += 5;                 // 接近斩杀
+      // insight：AI 知道自己手上还有几点直伤、场上还有几路白打脸。
+      // 这一手能凑成斩杀就全力打脸，差一点点就先打脸压血线。
+      if (insightOn(P) && P.insightBurst !== false) {
+        const burst = myBurst(state, side);                        // 含这张牌自己
+        if (burst >= kingHp) s += 16;
+        else if (burst + 3 >= kingHp) s += 4;
+      }
       scored.push({ target: { king: true, side: foe }, score: s });
     }
 
@@ -382,6 +554,12 @@ function bestSpellTarget(state, side, def, P) {
       if (wantsHeal) s = (u.maxHp - u.hp) * 2.0 - u.hp * 0.1;
       else if (wantsSacrifice) s = -(u.atk * 1.0 + u.hp * 0.6);    // 献祭最没用的
       else s = u.atk * 1.0 + u.hp * 0.5;
+      // insight：对面手里有解牌，就越不值得把强化堆在它身上
+      if (insightOn(P) && !wantsSacrifice) {
+        const rmFoe = removalInHand(state, foe);
+        if (rmFoe.hasHard && u.hp >= 4) s -= 3.0;
+        else if (rmFoe.maxDmg >= u.hp) s -= 1.5;
+      }
       if (s > bestScore) { bestScore = s; best = u; }
     }
     return { uid: best.uid };
@@ -396,6 +574,9 @@ function scoreSpell(state, side, def, target, P) {
   // 它读的是手牌实例上的费用修正（costOf）。AI 不会因为这里读卡面值而出非法牌。
   let score = -(def.cost || 0) * 0.35;
   const units = allUnits(state);
+  // 「不可能」看得到对手手牌：他手上有几点直伤、场上还有几路白打脸，
+  // 合起来已经够打死我的时候，能解场的牌现在就得用掉，不能再攒。
+  const threat = (insightOn(P) && P.insightSpell !== false) ? incomingThreat(state, side) : null;
   // 动态数值（{perOwnUnit:2} 之类）在评估阶段没有目标上下文，用一个保守估计，
   // 否则 a.amount 是对象、参与算术会变成 NaN，整张牌的评分直接坏掉。
   const amt = (a) => (typeof a.amount === 'number' ? a.amount : 2);
@@ -412,11 +593,15 @@ function scoreSpell(state, side, def, target, P) {
         } else if (target) {
           const t = units.find((u) => u.uid === target.uid);
           if (t && amt(a) >= t.hp) score += 4.0;
+          if (threat && threat.lethal) score += 2.0;   // 快被打死了，解场优先
+          else if (threat && threat.half) score += 0.8;
         }
         break;
       }
       case 'destroy':
         score += 6.5;
+        if (threat && threat.lethal) score += 2.5;     // 斩杀线上，硬解就是保命
+        else if (threat && threat.half) score += 1.0;
         break;
       case 'draw':
         score += amt(a) * 2.6;
@@ -708,21 +893,25 @@ function cloneValue(v) {
   return o;
 }
 
+/** 单条线「对面没有阻挡」时，attSide 在这条线上能直接打到国王的攻击力 */
+function laneFreeDamage(state, attSide, lane) {
+  const row = state.board[lane] && state.board[lane].units;
+  if (!row) return 0;
+  const mine = row[attSide];
+  const theirs = row[1 - attSide];
+  if (!mine || !theirs) return 0;
+  if (theirs.front || theirs.back) return 0;   // 对面有单位，不算白打脸
+  let sum = 0;
+  for (const u of [mine.front, mine.back]) {
+    if (u && !u.removed) sum += effectiveAtk(state, u) || 0;
+  }
+  return sum;
+}
+
 /** 各条线「对面没有阻挡」时，attSide 能直接打到国王的攻击力合计 */
 function freeLaneDamage(state, attSide) {
-  const defSide = 1 - attSide;
   let sum = 0;
-  for (const lane of LANES) {
-    const row = state.board[lane] && state.board[lane].units;
-    if (!row) continue;
-    const mine = row[attSide];
-    const theirs = row[defSide];
-    if (!mine || !theirs) continue;
-    if (theirs.front || theirs.back) continue;
-    for (const u of [mine.front, mine.back]) {
-      if (u && !u.removed) sum += effectiveAtk(state, u) || 0;
-    }
-  }
+  for (const lane of LANES) sum += laneFreeDamage(state, attSide, lane);
   return sum;
 }
 
@@ -764,6 +953,15 @@ function evalPosition(state, side, W) {
   // 下个回合谁能直接打卡牌脸，权重最高  这是这套游戏真正的胜负来源
   v += freeLaneDamage(state, side) * (W.wFreeMine === undefined ? 1.0 : W.wFreeMine);
   v -= freeLaneDamage(state, foe) * (W.wFreeFoe === undefined ? 1.6 : W.wFreeFoe);
+
+  // 「不可能」的信息优势：手牌不再只按**张数**算，而是按卡面估出来的**价值**算；
+  // 双方**下一次各会抽到什么**也一并算进局面（牌库顶是双方共享的，它本来就该是已知信息）。
+  if (insightOn(W) && W.insightEval !== false) {
+    v += (handValue(state, side) - handValue(state, foe))
+      * (W.wHandValue === undefined ? 0.5 : W.wHandValue);
+    v += (cardHandValue(nextDrawCard(state, side)) - cardHandValue(nextDrawCard(state, foe)))
+      * (W.wNextDraw === undefined ? 0.4 : W.wNextDraw);
+  }
   return v;
 }
 

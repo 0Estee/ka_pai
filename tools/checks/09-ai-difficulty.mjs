@@ -120,6 +120,146 @@ check('「不可能」的推演不污染共享卡库，也不影响别的难度�
   }
 });
 
+// ── 「不可能」的信息优势：看得到对手手牌 + 双方下一抽（作者 2026-10-24）──
+// 这是**信息型**优势，不是数值优势：手牌张数、费用、国王血量和玩家完全一样，
+// 它只是多知道了两样玩家看不到的东西。和噩梦的数值优势同一套纪律 —— 必须写在选难度
+// 界面上，而且只有这一档有。四条断言分别盯：位置（只开这一档）、界面（逐条写明）、
+// 只读（推演与联机锁步都依赖这一点）、以及它真的接进了决策（不是摆设）。
+check('「不可能」的信息优势只开在这一档，并且逐条写在选难度界面上', () => {
+  const imp = api.difficultyByKey('impossible');
+  if (!imp.insight || imp.insight.hand !== true || imp.insight.deck !== true) {
+    throw new Error('「不可能」没有打开信息优势（insight 应为 { hand: true, deck: true }）');
+  }
+  // 数值方面仍然一点不加 —— 两条必须同时成立，否则就成了「拿数值优势冒充信息优势」
+  if (imp.bonus !== null) throw new Error('「不可能」的 bonus 不是 null，数值优势和信息优势混在一起了');
+  for (const key of api.__difficulties()) {
+    if (key === 'impossible') continue;
+    if (api.difficultyByKey(key).insight) throw new Error(key + ' 也带上了信息优势（只有「不可能」该有）');
+  }
+  // 界面：渲染成文字，玩家在选难度时就看得到，不在代码注释里
+  const rows = api.__difficulties().map((k) => api.difficultyByKey(k));
+  const html = api.difficultyHTML({ current: 'impossible', difficulties: rows, faction: null, factions: [], mode: 'ai' });
+  for (const need of ['信息优势', '看得到你的手牌', '双方下一次各抽到什么']) {
+    if (!html.includes(need)) throw new Error('选难度界面没有写出信息优势的「' + need + '」');
+  }
+  // 底下那句总说明也不许再说「不加任何优势」：它现在不加数值，但多看得到东西
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'screens.js'), 'utf8');
+  if (!src.includes('不会多一张牌、多一费、多一点血')) {
+    throw new Error('screens.js 的难度说明没写清「不可能」不加数值优势、但看得到手牌与下一抽');
+  }
+});
+
+check('「不可能」看得到双方下一抽：口径与引擎真实抽牌一致', () => {
+  // 抽牌顺序是后手先抽、先手后抽（engine/src/turns.js 的 onTurnStart），
+  // 所以后手拿 deck[0]、先手拿 deck[1]。这里不抄实现，直接拿引擎的 drawCards
+  // 走一遍，把 nextDrawCard 的预测和实际抽到的牌逐张对账 —— 抽牌顺序哪天改了，这条先炸。
+  api.__go('home');
+  api.__newGame();
+  const st = api.__game();
+  st.humanSide = -1;
+  st.autoResolveChoices = true;
+  let ok = 0;
+  for (let i = 0; i < 8; i++) {
+    if (st.winner !== null || st.deck.length < 3) break;
+    let actor = null;
+    try { actor = api.getActor(st); } catch { break; }
+    if (actor === null) { try { api.advance(st); } catch { break; } continue; }
+    try { api.aiTakeTurn(st, actor, { difficulty: 'normal' }); } catch { break; }
+    const want = [api.nextDrawCard(st, 0), api.nextDrawCard(st, 1)];
+    const before = [st.players[0].hand.map((h) => h.cardId), st.players[1].hand.map((h) => h.cardId)];
+    const first = st.firstPlayer;
+    api.drawCards(st, 1 - first, 1);
+    api.drawCards(st, first, 1);
+    for (const side of [0, 1]) {
+      if (!want[side]) continue;
+      // 不能只取「手牌最后一张」：炼金阵营抽牌会顺手把原料牌塞进手牌（factions.js 的
+      // alchemyOnDraw），最后一张未必就是这一抽抽到的那张。这里按「这一抽新出现的 cardId」
+      // 来对账 —— 预测的那张必须在新出现的牌里。
+      const prev = before[side].slice();
+      const fresh = [];
+      for (const h of st.players[side].hand) {
+        const idx = prev.indexOf(h.cardId);
+        if (idx >= 0) prev.splice(idx, 1);
+        else fresh.push(h.cardId);
+      }
+      if (!fresh.includes(want[side].id)) {
+        throw new Error('下一抽预测错了：side' + side + ' 预测 ' + want[side].id
+          + '，这一抽实际新到手的牌是 ' + JSON.stringify(fresh));
+      }
+      ok++;
+    }
+    try { api.advance(st); } catch { break; }
+  }
+  if (ok < 6) throw new Error('下一抽只对账了 ' + ok + ' 次，样本太少（这条检查失去意义）');
+});
+
+check('信息优势的几个函数是只读的：不改牌序、不推随机源、不改手牌', () => {
+  api.__go('home');
+  api.__newGame();
+  const st = api.__game();
+  const fp = () => JSON.stringify({
+    deck: st.deck.slice(0, 6),
+    rng: st.rng.state,
+    hand0: st.players[0].hand.map((h) => h.iid),
+    hand1: st.players[1].hand.map((h) => h.iid),
+  });
+  const before = fp();
+  const P = api.difficultyByKey('impossible');
+  const unitId = Object.keys(st.cardLib).find((id) => st.cardLib[id] && st.cardLib[id].type === 'unit');
+  if (!unitId) throw new Error('卡库里找不到单位牌，这条检查失去意义');
+  for (const side of [0, 1]) {
+    api.nextDrawCard(st, side);
+    api.handValue(st, side);
+    api.removalInHand(st, side);
+    api.kingDamageInHand(st, side);
+    api.incomingThreat(st, side);
+    api.myBurst(st, side);
+  }
+  api.evalPosition(st, 0, P);
+  for (const lane of ['mountain', 'plainL', 'plainR', 'water']) {
+    api.scoreUnitPlacement(st, 0, st.cardLib[unitId], lane, 'front', P);
+  }
+  if (fp() !== before) throw new Error('信息优势读着读着把对局状态改了（它必须是纯读的）');
+});
+
+check('关掉信息优势会真的改变决策（不是摆设），且默认开着', () => {
+  // 判据故意不用胜率：这一档已接近瓶颈，信息优势的可测强度差在 n=240 也只有 ±3 个点，
+  // 拿它做门禁只会得到一条随机失败的检查。这里用**可复现的分歧率**：
+  // 同一局面跑两次（只差 insight 开关），比对两边实际打出的牌序列。种子写死，任何机器结果一样。
+  const src = fs.readFileSync(path.join(ROOT, 'app', 'js', 'ai.js'), 'utf8');
+  if (!src.includes('insight: { hand: true, deck: true }')) {
+    throw new Error('ai.js 里「不可能」档没有默认打开 insight');
+  }
+  const lib = api.__game().cardLib;
+  let total = 0;
+  let diff = 0;
+  for (const seed of [1, 4, 6]) {
+    const deck = api.buildTestDeck(80, seed);
+    const st = api.createGame({ seed, firstPlayer: seed % 2, deck, cardLib: lib });
+    api.startGame(st);
+    st.humanSide = -1;
+    st.autoResolveChoices = true;
+    for (let step = 0; step < 34; step++) {
+      if (st.winner !== null) break;
+      let actor = null;
+      try { actor = api.getActor(st); } catch { break; }
+      if (actor === null) { try { api.advance(st); } catch { break; } continue; }
+      let plays;
+      try { plays = api.getLegalPlays(st, actor); } catch { break; }
+      if (plays.length > 0) {
+        const on = api.aiTakeTurn(api.cloneForSim(st), actor, { difficulty: 'impossible', params: { planBudgetMs: 0 } });
+        const off = api.aiTakeTurn(api.cloneForSim(st), actor, { difficulty: 'impossible', params: { planBudgetMs: 0, insight: null } });
+        total++;
+        if (JSON.stringify(on.actions) !== JSON.stringify(off.actions)) diff++;
+      }
+      try { api.aiTakeTurn(st, actor, { difficulty: 'impossible', params: { planBudgetMs: 0 } }); } catch { break; }
+      try { api.advance(st); } catch { break; }
+    }
+  }
+  if (total < 20) throw new Error('分歧率样本只有 ' + total + ' 个决策点，太少（局面没跑起来）');
+  if (diff === 0) throw new Error('关掉信息优势后 ' + total + ' 个决策点一手都没变 —— 它没接进决策');
+});
+
 // ── 推演的成本：两份「只写不读」的流水账不再深拷贝 ──────────
 // 作者 2026-10：`cloneForSim` 现在把 `log`（战报）与 `choiceLog`（裁定流水）交给
 // 克隆体一个**空数组**，而不是递归深拷贝 —— 这两个是只增不减的历史，

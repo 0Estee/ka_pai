@@ -22,7 +22,7 @@ import { esc } from './ui.js';
 import { levelFor } from './economy.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.70.0';
+export const APP_VERSION = '0.71.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -139,12 +139,21 @@ export function difficultyHTML({ current, difficulties, faction, factions, mode,
         d.bonus.kingHp ? `国王 +${d.bonus.kingHp} 生命上限` : '',
       ].filter(Boolean).join('  ')}</div>`
       : '';
+    // 信息型优势（作者 2026-10-24）：和数值优势同一套纪律 —— 逐条写在选难度界面上。
+    // 目前只有「不可能」有；别的档 d.insight 是空的，这一行不渲染。
+    const insight = d.insight
+      ? `<div class="diff-insight">信息优势：${[
+        d.insight.hand ? '看得到你的手牌' : '',
+        d.insight.deck ? '看得到双方下一次各抽到什么' : '',
+      ].filter(Boolean).join('  ·  ')}</div>`
+      : '';
     return `
       <button class="diff-row ${on ? 'on' : ''}" data-act="set-difficulty" data-key="${d.key}">
         <div class="diff-main">
           <div class="diff-name">${esc(d.name)}</div>
           <div class="diff-tag">${esc(d.tagline)}</div>
           ${cheat}
+          ${insight}
         </div>
       </button>`;
   }).join('');
@@ -190,7 +199,7 @@ export function difficultyHTML({ current, difficulties, faction, factions, mode,
       ? '<div class="forge-mode-tip">强化模式：本局你会用强化 / 精通后的卡牌；AI 也会按难度强化它的牌。</div>'
       : ''}
     <div class="diff-list">${rows}</div>
-    <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>）；<b>不可能</b>不加任何优势，只是会真的推演后面几步，已在上方逐条写明。</div>
+    <div class="set-tip">难度主要影响 AI 的决策水平。<b>困难和噩梦</b>另外会多几张起手牌、国王血量更高（<b>但不会多费用</b>）；<b>不可能</b>不会多一张牌、多一费、多一点血，但它看得到<b>你的手牌</b>和<b>双方下一次各抽到什么</b>，还会真的推演后面几步 —— 已在上方逐条写明。</div>
     ${facBlock}
     <button class="hm-btn hm-primary diff-go" data-act="start-ai">
       <span class="hm-ico"></span>
