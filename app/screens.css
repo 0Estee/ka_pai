@@ -4375,3 +4375,360 @@ body::before, body::after { content: none; }
   line-height: 1.55;
   color: var(--dim, #a3927f);
 }
+
+/* ══════════════════════════════════════════════════════════
+   0.74 弹层补完 —— 0.64 漏掉的那几个「浮在屏幕上的层」
+
+   0.64 那一层把「每一屏」都换成了账本，但**浮层**没跟：
+   单位详情、中途反问、精通三选一、对局结算、对局菜单 还留在 0.62 的
+   「卷轴与黄铜」里 —— 木纹渐变 + 金边 + 3px 硬投影 + 一个套一个的小方框
+   （见上面 `.result, .choice-box, .unit-info .ui-card, .menu-panel` 那一条）。
+
+   这里按同一套五条规则补完：
+     · 底还是那张近黑的纸（--panel），没有渐变、没有投影；
+     · 分块靠 1px 头发丝线（--hair）+ 留白，不再「每个块都想说话」；
+     · 标题用衬线，层级靠字号；
+     · 每个浮层只有一个实心块 —— 主按钮（--pill-bg / --pill-ink）。
+   全部只读语义变量，所以浅色 / 玻璃主题自动跟着走，不用再写一遍。
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 浮层外壳（三处共用）：纸 + 一条线 ─────────────────── */
+.unit-info .ui-card,
+.choice-box,
+.result {
+  background: var(--panel);
+  background-image: none;
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-r);
+  box-shadow: none;
+  color: var(--ink);
+}
+
+/* ── 单位详情（点场上的卡弹出来的长文面板）─────────────── */
+.unit-info .ui-card { padding: 16px 16px 14px; }
+.unit-info .ui-name {
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.unit-info .ui-where { font-size: 11px; color: var(--ink-faint); }
+.unit-info .ui-stats {
+  margin: 8px 0 10px;
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* 攻击 / 生命不再各给一个色：数字是主角，靠位置读，不靠颜色抢 */
+.unit-info .ui-atk, .unit-info .ui-hp { color: var(--ink); }
+.unit-info .ui-base { font-size: 11px; color: var(--ink-faint); opacity: 1; }
+.unit-info .ui-marks { color: var(--ink-dim); font-weight: 400; }
+/* 词条：一行一条，靠头发丝线分块（原来是每条一个圆角小方块 + 金边） */
+.unit-info .ui-kws { gap: 0; margin: 0 0 12px; }
+.unit-info .ui-kws li {
+  padding: 8px 0;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.unit-info .ui-kws li:first-child { border-top: 1px solid var(--hair); }
+.unit-info .ui-kws li b { color: var(--ink); font-weight: 600; }
+.unit-info .ui-kws li span { color: var(--ink-faint); }
+.unit-info .ui-effect {
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--desc-text);
+}
+/* 「打出:」这类前置小标签：原来是金底黑字的实心块，改成金色小字 */
+.unit-info .ui-label {
+  padding: 0;
+  margin-right: 6px;
+  border-radius: 0;
+  background: none;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.unit-info .ui-line { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
+.unit-info .ui-line b { color: var(--ink); }
+/* 唯一的实心块 */
+.unit-info .ui-close {
+  margin-top: 14px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--scr-pill);
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.unit-info .ui-close:active { opacity: .85; background: var(--pill-bg); }
+
+/* ── 中途反问（开战选目标 / 抉择 / 弃哪张牌 / 召唤落点）── */
+.choice-box { padding: 18px; }
+.choice-title {
+  margin-bottom: 4px;
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .02em;
+  text-align: left;
+}
+.choice-sub { margin-bottom: 10px; font-size: 11.5px; line-height: 1.5; color: var(--ink-faint); }
+/* 选项：一行一条，头发丝线分隔（原来是每个一个描边圆角块） */
+.choice-list { gap: 0; }
+.choice-opt {
+  padding: 13px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.choice-list .choice-opt:first-child { border-top: 1px solid var(--hair); }
+.choice-opt:active { background: var(--row-bg); border-color: var(--hair); }
+/* 召唤落点用的是底部条（不遮棋盘），同样换成一条线 + 无框选项 */
+.choice-bar {
+  background: var(--panel);
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-r);
+  box-shadow: none;
+  color: var(--ink);
+}
+.choice-bar .choice-title { width: 100%; font-size: 12.5px; color: var(--ink-dim); }
+.choice-bar .choice-opt { padding: 8px 4px; }
+
+/* ── 精通三选一（强化工坊）─────────────────────────────── */
+/* 档位颜色只留给名字旁边那一小段字：它是信息，不是装饰。
+   原来每个选项整条描一圈档位色，三个选项就把整屏染花了。 */
+.skill-list { gap: 0; }
+.skill-opt {
+  padding: 13px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+}
+.skill-list .skill-opt:first-child { border-top: 1px solid var(--hair); }
+.skill-opt:active { background: var(--row-bg); }
+.skill-rar {
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--rar, var(--ink-faint));
+}
+.skill-name { color: var(--ink); font-weight: 600; }
+.skill-text { color: var(--ink-faint); }
+
+/* ── 对局结算（打完弹出来的那一屏）────────────────────── */
+.result { padding: 26px 24px 22px; }
+.result h2 {
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .04em;
+}
+.result.win h2 { color: var(--ok); }
+.result.lose h2 { color: var(--danger); }
+.result.draw h2 { color: var(--ink-dim); }
+.result p { font-size: 11.5px; color: var(--ink-faint); }
+/* 奖励那一块原来是「框里再套一个框」，改成一条线 + 留白 */
+.reward {
+  margin: 12px 0 14px;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+}
+.reward-gold { font-family: var(--font-title); font-size: 22px; font-weight: 600; color: var(--gold); }
+.reward-total { color: var(--ink-faint); }
+.reward-lines { color: var(--ink-dim); }
+.reward-sub { color: var(--ink-faint); }
+.reward-levelup { color: var(--gold); font-weight: 600; }
+/* 结算的两个按钮：再来一局 = 唯一实心块；认输 = 一行字 */
+.btn-restart, .btn-surrender {
+  border-radius: var(--scr-pill);
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.btn-restart { border: 0; background: var(--pill-bg); color: var(--pill-ink); }
+.btn-restart:active { opacity: .85; }
+.btn-surrender { border: 1px solid var(--hair); background: none; color: var(--danger); }
+.btn-surrender:active { background: var(--row-bg); }
+
+/* ── 对局中的「菜单」整屏面板 ────────────────────────── */
+.menu-panel {
+  background: var(--bg);
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--ink);
+}
+.menu-head { padding: 14px 18px; border-bottom: 1px solid var(--hair); }
+.menu-head h3 {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.btn-close {
+  padding: 7px 14px;
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-pill);
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 12px;
+}
+.btn-close:active { background: var(--row-bg); }
+.menu-body { padding: 10px 18px; color: var(--desc-text); }
+.menu-foot { padding: 12px 18px; border-top: 1px solid var(--hair); }
+
+/* ── 云存档「改数据」抽屉：撤掉那道金框 ──────────────────
+   0.64 的口径是「提示条改成一行字 + 一条竖线」，这里同样只留一条线。 */
+.cloud-admin-edit {
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+}
+.cloud-admin-edit-head b { color: var(--ink); }
+.cloud-edit-version, .cloud-edit-label, .cloud-edit-tip { color: var(--ink-faint); }
+/* 输入框：一块淡淡的底，不描亮边（三处输入框统一成同一个样子） */
+.cloud-edit-input, .rp-input, .lan-input {
+  background: var(--field-bg);
+  border: 1px solid var(--hair);
+  border-radius: var(--scr-r-sm);
+  color: var(--ink);
+}
+.cloud-edit-input:focus, .rp-input:focus, .lan-input:focus {
+  border-color: var(--ink-faint);
+  outline: none;
+}
+/* 次要动作一律是**字**，不是框（账本第 2、4 条：一屏只有一个实心块，其余都是字和线）。
+   回放列表那排「回放 / 备注 / 删除」、云存档与工坊的小按钮都归这一条：
+   去掉描边和底色，只留一行字；按下给一层极淡的底。 */
+.rp-mini, .cloud-btn, .fc-btn {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--scr-r-sm);
+  background: none;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  box-shadow: none;
+}
+.rp-mini:active, .cloud-btn:active, .fc-btn:active {
+  background: var(--row-bg);
+  color: var(--ink);
+  transform: none;
+}
+/* 「删除」这类：只让**字**变红，不再描一圈红边 */
+.rp-mini.danger { color: var(--danger); border: 0; }
+.rp-mini:disabled { opacity: .38; }
+.cloud-btn.primary,
+.fc-btn-mast {
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  border: 0;
+  padding: 9px 16px;
+  font-weight: 600;
+}
+.cloud-btn.primary:active,
+.fc-btn-mast:active { background: var(--pill-bg); opacity: .85; color: var(--pill-ink); }
+.fc-btn-wash { color: var(--ink-faint); }
+
+/* ══════════════════════════════════════════════════════════
+   顶栏 / 状态条 / 阶段条：不许溢出
+
+   三处都是「一行 flex + 若干 nowrap 的文字」。以前谁都不许缩，
+   于是内容一多就顶出屏幕右边 —— 观战页多一个「视角：玩家1」、
+   靶场牌库变成三位数、阶段条状态文字变长，都会把最右边的
+   菜单 / 结束阶段挤掉一半（作者 2026-10-25 报的）。
+   这里给每一段「可以让步」的文字加上收缩 + 省略号：
+   数字（牌库/原料/异火）和按钮永不缩，标题与状态文字先让步。
+   ══════════════════════════════════════════════════════════ */
+.topbar > *, .statusbar > *, .phasebar > * { min-width: 0; }
+
+/* 让步顺序：**标题先缩**（省略号），数字和按钮一个都不许挤掉。
+   观战页多一个「视角」、靶场牌库三位数，都靠这一条兜住。 */
+.topbar .turn {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar .deck-left,
+.topbar .raw-left,
+.topbar .pile,
+.topbar .turn-num {
+  flex: 0 0 auto;
+  margin-left: 0;
+  white-space: nowrap;
+}
+.topbar .btn-menu { flex: 0 0 auto; margin-left: 10px; }
+/* 观战页的「视角」按钮：最多占 40%，超了就把名字省略掉 */
+.topbar .btn-watch {
+  flex: 0 0 auto;
+  max-width: 40%;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+/* 状态条：名字可以省略，王血 / 手牌 / 水晶永远留在屏幕上 */
+.statusbar .sb-side,
+.statusbar .sb-hand,
+.statusbar .sb-role {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statusbar .sb-king,
+.statusbar .sb-mana,
+.statusbar .pips {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* 阶段条：状态文字先缩，结束阶段永远完整 */
+.phase-name { flex: 0 0 auto; white-space: nowrap; }
+.phase-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phasebar .btn-end { flex: 0 0 auto; margin-left: auto; }
