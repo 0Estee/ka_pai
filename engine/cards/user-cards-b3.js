@@ -183,7 +183,7 @@ export const USER_CARDS_B3 = [
     "atk": 4,
     "hp": 3,
     "keywords": [
-      "fuse"
+      "evolve"
     ],
     "text": "有单位被弹射时获得+1⚔+1♥；融合进化:弹射一名敌人",
     "effects": [
@@ -530,7 +530,7 @@ export const USER_CARDS_B3 = [
     "atk": 6,
     "hp": 6,
     "keywords": [
-      "fuse"
+      "evolve"
     ],
     "text": "融合进化打出时，这张牌获得双重打击",
     "effects": [
@@ -642,7 +642,7 @@ export const USER_CARDS_B3 = [
     "text": "每扣除1♥，便对指定单位造成1点伤害；打出:获得-2♥",
     "effects": [
       {
-        "trigger": "onDamaged",
+        "trigger": "onHpLost",
         "repeat": "damageAmount",
         "actions": [
           {
@@ -788,7 +788,7 @@ export const USER_CARDS_B3 = [
     "keywords": [
       "aquatic"
     ],
-    "text": "回合开始:消灭自己和相邻线上的所有敌人",
+    "text": "回合开始:消灭自己线上和相邻线上的所有敌人",
     "effects": [
       {
         "trigger": "onTurnStart",
@@ -796,13 +796,8 @@ export const USER_CARDS_B3 = [
           {
             "op": "destroy",
             "target": {
-              "kind": "adjacentEnemyUnits"
-            }
-          },
-          {
-            "op": "destroy",
-            "target": {
-              "kind": "self"
+              "kind": "adjacentEnemyUnits",
+              "includeSelf": true
             }
           }
         ]
@@ -4646,7 +4641,7 @@ export const USER_CARDS_B3 = [
     "hp": 3,
     "faction": "frost",
     "keywords": [
-      "fuse"
+      "evolve"
     ],
     "text": "有敌人被冻结时:获得+2攻击力+1生命。融合进化:冻结1个敌方单位。",
     "effects": [
@@ -5350,16 +5345,6 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
-
-  // ─────────────────────────────────────────────────────────
-  // 心驭阵营（作者 2026-10-24）：控制机制的五张超能力
-  //
-  //   共同点：把敌人**拉到自己这一侧**（换主人 + 搬位置，见 board.js 的 controlUnit）。
-  //   被控制的单位挂 charmed 标记，界面画「被控制」+ 粉红纹路，此后算我方单位：
-  //   交战时打它原来的队友、能被献祭、也能当自己的牌用。
-  //   控制的目标选择器都带 controlRoom: true —— 我这边没地方落脚时不列出这些敌人，
-  //   玩家不会点了白打一张牌。
-  // ─────────────────────────────────────────────────────────
   {
     "id": "U478",
     "name": "恶堕の催眠",
@@ -5483,5 +5468,4 @@ export const USER_CARDS_B3 = [
       }
     ]
   },
-
 ];

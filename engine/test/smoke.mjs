@@ -2370,6 +2370,9 @@ test('生灵之焱 U470 陷阱：国王受致命伤时免除、回 3 点、弃�
   assert.equal(trapsOf(s, 0)[0].trap.revealed, true, '触发后揭示');
   G.flushTriggers(s);
   assert.equal(king(s, 0), 8, '免除之后回复 3 点');
+  // 「弃置一张手牌」现在**会问真人**（作者 2026-10-25：弃牌要自己选），这里替玩家点第一项
+  assert.ok(s.pending && s.pending.request.type === 'chooseHandCard', '应当挂起问「弃哪一张」');
+  G.resolveChoice(s, s.pending.request.options[0]);
   assert.equal(s.players[0].hand.length, hand - 1, '选择并弃置了一张手牌');
 });
 
@@ -2706,51 +2709,53 @@ test('心驭阵营：四张超能力进抽取池，令牌不进', () => {
 });
 
 // ══════════════════════════════════════════════════════════
-// 融合（作者 2026-10-25 重做口径，裁决 D78）
+// 融合 / 融合进化（作者 2026-10-25：这是**两条词条**，不是一条）
+//   融合      = D78 的新口径：带融合的那张算作被消灭，另一边留在场上
+//   融合进化  = D34 的原口径：队友「消失」（不触发任何被消灭效果），新牌顶替
 // ══════════════════════════════════════════════════════════
-group('§ 融合（作者 2026-10-25：融合牌自己被消灭，队友留在场上）');
+group('§ 融合 / 融合进化（两条词条：融合 = D78 新口径，融合进化 = D34 原口径）');
 
-test('D78-A：把带融合的牌打在队友身上 —— 队友留在场上，融合牌进弃牌堆', () => {
+/** 造一张观察「融合后效果落在谁身上」的测试牌：融合时 +2 攻（目标是自己，没有交互） */
+function fuseProbe(id, keyword) {
+  return {
+    id, name: '测试融合体' + id, type: 'unit', cost: 1, atk: 1, hp: 1,
+    keywords: [keyword],
+    effects: [{ trigger: 'onPlay', when: 'fused', actions: [{ op: 'buffAtk', amount: 2, target: { kind: 'self' } }] }],
+  };
+}
+
+test('融合-A：把带「融合」的牌打在队友身上 —— 队友留在场上、融合牌被消灭', () => {
   const s = game();
-  // 先摆一个队友（雪人走后排在平地上）
+  s.cardLib.TF2 = fuseProbe('TF2', 'fuse');
   const mate = deploy(s, 0, 'U461', 'plainL', 'front');
+  const atk0 = mate.atk;
   const k0 = s.stats.unitsDestroyed;
-  // 雪人 U456 带融合，打在队友身上
-  playUnit(s, 0, 'U456', 'plainL', 'front');
+  playUnit(s, 0, 'TF2', 'plainL', 'front');
   assert.equal(at(s, 'plainL', 0, 'front').uid, mate.uid, '留在场上的必须是原来那个队友');
-  assert.ok(s.discard.indexOf('U456') >= 0, '融合牌自己算作被消灭（进弃牌堆）');
+  assert.equal(mate.atk, atk0 + 2, '融合后效果结算在留场的队友上');
+  assert.ok(s.discard.indexOf('TF2') >= 0, '融合牌自己被消灭（进弃牌堆）');
   assert.equal(s.stats.unitsDestroyed, k0 + 1, '消灭计数 +1');
 });
 
-test('D78-A：融合后效果结算在留场的队友身上（雪人 → 冻结敌人）', () => {
-  const s = game({ factions: ['frost', 'frost'] });
-  deploy(s, 0, 'U461', 'mountain', 'front');
-  const foe = deploy(s, 1, 'U461', 'plainL', 'front');
-  playUnit(s, 0, 'U456', 'mountain', 'front');
-  assert.ok(isFrozen(foe), '融合后效果（冻结一名敌人）生效了');
-});
-
-test('D78-B：把普通牌打在带融合的队友身上 —— 新牌留下，融合牌被消灭', () => {
-  const s = game({ factions: ['frost', 'frost'] });
-  const fusee = playUnit(s, 0, 'U456', 'plainL', 'front');
-  const foe = deploy(s, 1, 'U461', 'mountain', 'front');
+test('融合-B：把普通牌打在带「融合」的队友身上 —— 新牌留下、融合牌被消灭', () => {
+  const s = game();
+  s.cardLib.TF2 = fuseProbe('TF2', 'fuse');
+  const fusee = playUnit(s, 0, 'TF2', 'plainL', 'front');
   playUnit(s, 0, 'U461', 'plainL', 'front');
   const now = at(s, 'plainL', 0, 'front');
   assert.ok(now && now.uid !== fusee.uid, '融合牌不该留在场上');
-  assert.ok(s.discard.indexOf('U456') >= 0, '带融合的那张被消灭');
-  assert.ok(isFrozen(foe), '融合后效果仍然结算（落在新打出的那张牌上）');
+  assert.ok(s.discard.indexOf('TF2') >= 0, '带融合的那张被消灭');
+  assert.equal(now.atk, s.cardLib.U461.atk + 2, '融合后效果落在新打出的那张牌上');
 });
 
-test('D78：融合牌「被消灭」走的是真正的被消灭（触发它自己的「被消灭:」）', () => {
+test('融合：融合牌「被消灭」走的是真正的被消灭（触发它自己的「被消灭:」）', () => {
   const s = game();
-  // 造一张「被消灭: 抽一张牌」的融合测试卡
   s.cardLib.TF1 = {
     id: 'TF1', name: '测试融合体', type: 'unit', cost: 1, atk: 1, hp: 1,
     keywords: ['fuse'],
     effects: [{ trigger: 'onDeath', actions: [{ op: 'draw', amount: 1 }] }],
   };
   deploy(s, 0, 'U461', 'plainL', 'front');
-  // 自己发牌，好在「打出之前」量一次手牌数
   forcePhase(s, 0, 'deploy');
   const hc = give(s, 0, 'TF1');
   const before = s.players[0].hand.length;
@@ -2759,19 +2764,32 @@ test('D78：融合牌「被消灭」走的是真正的被消灭（触发它自�
   assert.equal(s.players[0].hand.length, before, '融合牌自己的「被消灭:抽一张」生效了');
 });
 
-test('D78：留场的队友不会因为融合而触发「进入一条线」或「被消灭」', () => {
+test('融合：留场的队友不会因为融合而触发「进入一条线」或「被消灭」', () => {
   const s = game();
-  s.cardLib.TF2 = {
-    id: 'TF2', name: '测试标记体', type: 'unit', cost: 1, atk: 1, hp: 1,
-    keywords: ['fuse'],
-    effects: [{ trigger: 'onPlay', when: 'fused', actions: [{ op: 'buffAtk', amount: 2, target: { kind: 'self' } }] }],
-  };
   const mate = deploy(s, 0, 'U461', 'plainL', 'front');
-  const atk0 = mate.atk;
+  const k0 = s.stats.unitsDestroyed;
+  s.cardLib.TF2 = fuseProbe('TF2', 'fuse');
   playUnit(s, 0, 'TF2', 'plainL', 'front');
   assert.equal(at(s, 'plainL', 0, 'front').uid, mate.uid, '队友还在');
-  assert.equal(mate.atk, atk0 + 2, '融合后效果按队友结算（+2 攻）');
-  assert.equal(s.stats.unitsDestroyed, 1, '只有融合牌被消灭，队友没被消灭');
+  assert.equal(s.stats.unitsDestroyed, k0 + 1, '只有融合牌被消灭，队友没被消灭');
+});
+
+test('融合进化：队友「消失」、新牌顶替 —— 而且**不算**被消灭（D34）', () => {
+  const s = game();
+  const mate = deploy(s, 0, 'U461', 'plainL', 'front');
+  const k0 = s.stats.unitsDestroyed;
+  playUnit(s, 0, 'U456', 'plainL', 'front');     // 雪人带「融合进化」
+  const now = at(s, 'plainL', 0, 'front');
+  assert.ok(now && now.uid !== mate.uid, '新牌顶替了队友的位置');
+  assert.ok(s.discard.indexOf('U461') >= 0, '被顶掉的队友进弃牌堆（它确实离场了）');
+  assert.equal(s.stats.unitsDestroyed, k0, '「消失」不算被消灭（不触发任何被消灭效果）');
+});
+
+test('融合进化：卡面「融合进化:…」的那一条落在**新打出的那张牌**上（霸王龙）', () => {
+  const s = game();
+  deploy(s, 0, 'U461', 'plainL', 'front');
+  const trex = playUnit(s, 0, 'U66', 'plainL', 'front');
+  assert.ok(hasKw(trex, 'doubleStrike'), '霸王龙获得双重打击（效果在本牌身上）');
 });
 
 // ══════════════════════════════════════════════════════════
@@ -2936,6 +2954,97 @@ test('effect.oncePerTurn：开战按 4 条线路触发时，每回合只结算�
   for (const lane of LANES) M.queueTrigger(s, u, 'onCombatStart', { lane });
   G.flushTriggers(s);
   assert.equal(s.players[0].hand.length, n0 + 1, '四条线路只抽到一张');
+});
+
+// ══════════════════════════════════════════════════════════
+// 作者 2026-10-25 报的六条问题（0.73.0）
+// ══════════════════════════════════════════════════════════
+group('§ 0.73.0：作者 2026-10-25 报的六条');
+
+test('第5伞兵旅 U35：弃哪张手牌要问真人，不能默默弃最左边那张', () => {
+  const s = game();
+  s.humanSide = 0;
+  s.autoResolveChoices = true;          // 自动代答开着也必须问（noAuto）
+  deploy(s, 0, 'U35', 'mountain', 'front');
+  while (s.players[0].hand.length < 3) give(s, 0, 'W01');
+  G.enterPhase(s, 'TURN_START');        // 回合开始 → 抽 2 张 → 弃 1 张
+  assert.ok(s.pending && s.pending.request.type === 'chooseHandCard', '应当挂起问「弃哪一张」');
+  const opts = s.pending.request.options;
+  assert.ok(opts.length >= 2, '选项至少两张');
+  const wanted = opts[1].iid;           // 故意挑第 2 张，验证真的按点的那张弃
+  G.resolveChoice(s, opts[1]);
+  const log = s.log.filter((e) => e.type === 'discard').pop();
+  assert.equal(log && log.iid, wanted, '弃掉的正是玩家点的那一张');
+});
+
+test('沧龙 U104：回合开始清掉「自己线 + 相邻线」的敌人，自己不消灭', () => {
+  const s = game();
+  const mo = deploy(s, 0, 'U104', 'water', 'front');   // 水生 → 只在水路
+  mo.hp = 99; mo.maxHp = 99;
+  const same = deploy(s, 1, 'W05', 'water', 'front');  // 同一条线
+  const adj = deploy(s, 1, 'W05', 'plainR', 'front');  // 相邻线
+  const far = deploy(s, 1, 'W05', 'mountain', 'front');
+  nextTurn(s);
+  assert.equal(mo.removed, false, '沧龙自己不消灭');
+  assert.equal(same.removed, true, '自己这一路的敌人被消灭');
+  assert.equal(adj.removed, true, '相邻线路的敌人被消灭');
+  assert.equal(far.removed, false, '隔一条线的敌人不受影响');
+});
+
+test('红火蚁 U72：打出时扣的 -2♥ 也算「扣除♥」，触发它自己的异能', () => {
+  const s = game();
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  const hp0 = foe.hp;
+  playUnit(s, 0, 'U72', 'mountain', 'front');
+  assert.equal(at(s, 'mountain', 0, 'front').hp, 3, '自己 5♥ → 3♥');
+  assert.equal(foe.hp, hp0 - 2, '掉了 2 点 ♥ → 砸 2 点出去（每次 1 点）');
+});
+
+test('开战：狙击手的一击要等玩家选完目标，才打这一线', () => {
+  const s = game();
+  s.humanSide = 0;
+  deploy(s, 0, 'U287', 'mountain', 'front');        // 狙击手 3/3
+  const foe = deploy(s, 1, 'W04', 'mountain', 'front');
+  const hp0 = foe.hp;
+  let guard = 0;
+  while (s.phase !== 'COMBAT' && !G.isOver(s) && guard++ < 20) G.advance(s);
+  assert.ok(s.pending && s.pending.request.type === 'chooseEnemyTarget', '开战前应当挂起问打谁');
+  assert.equal(s.log.filter((e) => e.type === 'lane-combat').length, 0, '还没开打（这条线等着）');
+  assert.equal(foe.hp, hp0, '选之前谁都没掉血');
+  G.resolveChoice(s, s.pending.request.options[0]);
+  assert.equal(s.log.filter((e) => e.type === 'lane-combat').length, 1, '答完之后这条线才开打');
+  assert.ok(foe.hp <= hp0 - 2, '狙击手的 2 点伤害落在了选中的目标上');
+});
+
+test('狂热：这一次额外攻击又消灭了敌人 → 再触发一次（作者修订 B10）', () => {
+  const s = game();
+  const me = deploy(s, 0, 'W04', 'mountain', 'front');
+  me.atk = 9; me.hp = 20; me.maxHp = 20;
+  me.keywords.push({ id: 'frenzy', x: 0 });
+  const e1 = deploy(s, 1, 'W05', 'mountain', 'front');
+  e1.hp = 1; e1.maxHp = 1;
+  const e2 = deploy(s, 1, 'W05', 'mountain', 'back');
+  e2.hp = 1; e2.maxHp = 1;
+  const king0 = king(s, 1);
+  combat(s);
+  assert.equal(e1.removed, true, '前排被打死');
+  assert.equal(e2.removed, true, '额外攻击又打死了后排');
+  assert.equal(king(s, 1), king0 - 9, '第二次额外攻击打了国王（连锁成立）');
+  assert.equal(s.log.filter((e) => e.type === 'extra-attack' && e.uid === me.uid).length, 2, '额外攻击两次');
+});
+
+test('双重打击：打死人也不会连锁（连锁只属于狂热）', () => {
+  const s = game();
+  const me = deploy(s, 0, 'W04', 'mountain', 'front');
+  me.atk = 9; me.hp = 20; me.maxHp = 20;
+  me.keywords.push({ id: 'doubleStrike', x: 0 });
+  const e1 = deploy(s, 1, 'W05', 'mountain', 'front');
+  e1.hp = 1; e1.maxHp = 1;
+  const e2 = deploy(s, 1, 'W05', 'mountain', 'back');
+  e2.hp = 1; e2.maxHp = 1;
+  combat(s);
+  assert.equal(s.log.filter((e) => e.type === 'extra-attack' && e.uid === me.uid).length, 1, '双重打击只额外一次');
+  assert.equal(king(s, 1), 20, '没有第三击');
 });
 
 console.log('\n' + BAR);

@@ -1128,7 +1128,10 @@ window.__resolveChoice = (idx) => {
  * 作者 2026-10-25 的新口径（裁决 D78）：融合牌自己算作被消灭，队友留在场上。
  * 所以这里断言的是「队友还在」而不是「换人了」。
  */
-window.__demoFuse = () => {
+window.__demoFuse = (kind) => {
+  // 'evolve' = 融合进化（D34 原口径：队友消失、新牌顶替）
+  // 其余      = 融合（D78 新口径：队友留下、融合牌被消灭）
+  const evolve = kind === 'evolve';
   startNewGame();
   screen = 'game';
   paused = true;
@@ -1147,9 +1150,22 @@ window.__demoFuse = () => {
   const before = state.board.mountain.units[me()].front;
   if (!before) return { error: '队友没放上去' };
 
-  // 2) 手上给一张带融合的牌，选中它
-  const fuserId = Object.values(TEST_CARD_LIB).find((c) => (c.keywords || []).includes('fuse')).id;
-  const hc = { iid: state.nextIid++, cardId: fuserId };
+  /**
+   * 2) 手上给一张带融合 / 融合进化的牌，选中它。
+   *
+   * ⚠ 「融合」是 2026-10-25 才拆出来的新词条，卡池里**还没有**这种牌
+   *   （原来的三张「融合进化:…」保留在 evolve 上）。所以这里给本局临时造一张……
+   *   `__demoFuse('evolve')` 时也一样：要验的是**打法**，不是某张具体牌的异能。
+   */
+  const cardId = evolve ? '__demo_evolve' : '__demo_fuse';
+  if (!state.cardLib[cardId]) {
+    state.cardLib[cardId] = {
+      id: cardId, name: evolve ? '演示融合进化体' : '演示融合体',
+      type: 'unit', cost: 0, atk: 1, hp: 1,
+      keywords: [evolve ? 'evolve' : 'fuse'], effects: [],
+    };
+  }
+  const hc = { iid: state.nextIid++, cardId };
   p.hand.push(hc);
   state.phase = me() === state.firstPlayer ? 'DEPLOY_FIRST' : 'DEPLOY_SECOND';
   p.manaCap = 20;
@@ -1168,9 +1184,12 @@ window.__demoFuse = () => {
     highlighted,
     beforeName: before.name,
     afterName: after ? after.name : null,
-    // 新口径：队友留下 = 同一个 uid；融合牌进了弃牌堆
+    kind: evolve ? 'evolve' : 'fuse',
+    // 融合（D78）：队友留下 = 同一个 uid；融合牌进了弃牌堆
     keptAlly: !!after && after.uid === before.uid,
-    fuseCardDiscarded: state.discard.includes(fuserId),
+    fuseCardDiscarded: state.discard.includes(cardId),
+    // 融合进化（D34）：队友「消失」进弃牌堆，新牌顶替
+    allyVanished: state.discard.includes('W01'),
     error: view.hint || '',
   };
 };

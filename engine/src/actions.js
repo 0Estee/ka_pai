@@ -7,7 +7,7 @@
  * 依赖方向：mechanics/auras ← amounts/targets ← actions
  */
 
-import { LANES, ADJACENT_LANES, LANE_NAME } from './constants.js';
+import { LANES, ADJACENT_LANES, LANE_NAME, fixNum } from './constants.js';
 import { isFrozen, KEYWORD_DEFS } from './keywords.js';
 import { hasRooted, getKeyword, effectiveAtk } from './auras.js';
 import {
@@ -16,7 +16,7 @@ import {
   canMoveTo, moveUnitToLane, grantKeyword, vanishUnit, bounceUnit, setUnitStats,
   controlUnit, returnControlledUnit,
   sealUnit, returnCardsToDeck, advanceStatStep, addDamageCap, revokeKeyword, transformUnit,
-  buffKeywordX, lockAtk,
+  buffKeywordX, lockAtk, queueTrigger,
 } from './mechanics.js';
 import { resolveTargets } from './targets.js';
 import { resolveAmount, resolveSide } from './amounts.js';
@@ -29,6 +29,23 @@ import { nextInt } from './rng.js';
  * 判据与 targets.js 的 askHumanFor 一致：这一方是真人 -> 带 noAuto 挂起等人，
  * AI 那一侧照旧取第一个选项（回放/锁步两边永远走同一条路）。
  */
+/**
+ * 「每扣除 1♥，便…」（卡牌「红火蚁：每扣除1♥,便对指定单位造成1点伤害」）。
+ *
+ * 作者 2026-10-25 澄清：**打出时扣的血也要触发**。也就是「数值修改扣掉的生命」
+ * 同样算「扣除♥」—— 不只是挨打。
+ *
+ * ⚠ 播的是 `onHpLost`，不是 `onDamaged`：数值修改不是伤害（裁决 D25），
+ *   装甲 / 祝福 / 荆棘 / 「有敌人受到伤害时」的观察者一律不惊动。
+ * ⚠ 单位被扣死时不播 —— 它已经走了，走的是「被消灭:」那条路。
+ */
+function queueHpLost(state, unit, hpBefore) {
+  if (!unit || unit.removed || unit.hp >= hpBefore) return;
+  const lost = fixNum(hpBefore - unit.hp);
+  if (lost <= 0) return;
+  queueTrigger(state, unit, 'onHpLost', { amount: lost, hpLoss: true });
+}
+
 function* askSummonCell(ctx, side, cardId, prompt) {
   const cells = ctx.api && ctx.api.legalSummonCells ? ctx.api.legalSummonCells(ctx.state, side, cardId) : [];
   if (cells.length === 0) return null;
@@ -322,9 +339,11 @@ export function* execAction(state, ctx, action) {
         if (t.kind !== 'unit' || t.unit.removed) continue;
         const atk = resolveAmount(state, ctx, action.atk, t);
         const maxHp = resolveAmount(state, ctx, action.maxHp, t);
+        const hpBefore = t.unit.hp;
         if (atk) buffAtk(state, t.unit, atk);
         if (maxHp > 0) buffMaxHp(state, t.unit, maxHp);
         else if (maxHp < 0) debuffMaxHp(state, t.unit, -maxHp);
+        queueHpLost(state, t.unit, hpBefore);
       }
       break;
     }
@@ -338,11 +357,13 @@ export function* execAction(state, ctx, action) {
       const targets = yield* resolveTargets(state, ctx, action.target);
       for (const t of targets) {
         if (t.kind !== 'unit' || t.unit.removed) continue;
+        const hpBefore = t.unit.hp;
         setUnitStats(state, t.unit, {
           hp: action.hp !== undefined ? resolveAmount(state, ctx, action.hp, t) : undefined,
           maxHp: action.maxHp !== undefined ? resolveAmount(state, ctx, action.maxHp, t) : undefined,
           atk: action.atk !== undefined ? resolveAmount(state, ctx, action.atk, t) : undefined,
         });
+        queueHpLost(state, t.unit, hpBefore);
       }
       break;
     }
@@ -787,10 +808,20 @@ export function* execAction(state, ctx, action) {
         if (!p.hand.length) break;
         let pickedIid = null;
         if (p.hand.length > 1) {
+          /**
+           * 真人那一侧**必须自己选**（作者 2026-10-25：「弃置手牌时应该是选择一张手牌」）。
+           *
+           * 自动代答的口径是「取第一个选项」，于是「弃置一张手牌」实际变成了
+           * 「弃掉手牌最左边那张」——玩家从头到尾没被问过。
+           * 判据与 askSummonCell / targets.js 的 askHumanFor 同源：
+           * 真人 → 带 noAuto 挂起等人；AI 那一侧照旧取第一张（回放/锁步同一条路）。
+           */
+          const humanSide = state.humanSide === undefined ? 0 : state.humanSide;
           const answer = yield {
             type: 'chooseHandCard',
             side,
             prompt: action.prompt || '选择要弃置的手牌',
+            noAuto: side === humanSide || undefined,
             options: p.hand.map((c) => ({
               iid: c.iid,
               label: (state.cardLib[c.cardId] && state.cardLib[c.cardId].name) || c.cardId,

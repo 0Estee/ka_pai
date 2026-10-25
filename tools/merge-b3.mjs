@@ -23,7 +23,8 @@ import url from 'node:url';
 const ROOT = path.resolve(url.fileURLToPath(new URL('..', import.meta.url)));
 const SRC = path.join(ROOT, 'data', '_transcribe');
 const OUT = path.join(ROOT, 'engine', 'cards', 'user-cards-b3.js');
-const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'];
+// W = 心驭阵营的五张超能力（原本直接写在产物里，见 data/_transcribe/_cards_W.js 的说明）
+const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W'];
 // 允许部分合并（某一个片段还没生成就先跳过），方便边录边验；
 // 但**至少要有 A~D** —— 那是最初那 65 张，少了它们就是在往回退。
 const REQUIRED = ['A', 'B', 'C', 'D'];
@@ -59,6 +60,22 @@ for (const g of GROUPS) {
     if (seen.has(card.id)) problems.push(`${card.id} 在 ${seen.get(card.id)} 与 ${g} 之间重复`);
     seen.set(card.id, g);
     all.push(card);
+  }
+}
+
+/**
+ * 防「静默丢卡」：合并产物里可能有**片段里没有**的卡
+ * （心驭阵营 U478~U482 就是直接写在产物里的）。
+ * 合并会从零重建产物，这些卡就**无声消失**了 —— 抽不到、也没有任何报错。
+ * 所以先比一遍 id，只要有一张会消失就中止，让人先把它补进片段。
+ */
+if (fs.existsSync(OUT)) {
+  const prev = await import(url.pathToFileURL(OUT).href + '?prev=' + Date.now());
+  const nextIds = new Set(all.map((c) => c.id));
+  const dropped = (prev.USER_CARDS_B3 || []).map((c) => c.id).filter((id) => !nextIds.has(id));
+  if (dropped.length) {
+    problems.push(`这些卡在合并产物里、但片段里没有，合并会把它们丢掉：${dropped.join(', ')}`
+      + '（把它们补进 data/_transcribe 对应片段，或干脆删掉片段目录、改为直接维护产物）');
   }
 }
 

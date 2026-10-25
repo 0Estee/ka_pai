@@ -271,7 +271,7 @@ export const CARDS_A = [
     cost: 4,
     atk: 4,
     hp: 3,
-    keywords: ['fuse'],
+    keywords: ['evolve'],
     text: '有单位被弹射时获得+1⚔+1♥；融合进化:弹射一名敌人',
     effects: [
       {

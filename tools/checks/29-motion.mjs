@@ -132,6 +132,11 @@ check('铺开由 JS 推进：动画只能来自属性翻转，渲染出的 HTML 
   if (!js.includes('function startBoardReveal(')) throw new Error('render.js 里没有 startBoardReveal');
   if (!js.includes('function boardRevealStep(')) throw new Error('render.js 里没有 boardRevealStep');
   if (js.includes('boardFxUntil')) throw new Error('render.js 里还留着 700ms 窗口的 boardFxUntil');
+  // 槽位数必须按真实 DOM 行数算：写死会让「手牌」那一步永远轮不到
+  //（作者 2026-10-25 报的「先手开局看不到手牌」—— 棋盘多了一行 .board-row.lane-head，
+  //  6 步正好被 6 行吃光，手牌停在 data-in="0" 既看不见也点不动）
+  if (!js.includes('rows.length + 1')) throw new Error('铺开没按真实行数算（手牌那一步会永远轮不到）');
+  if (!js.includes('const isLast = slot >= boardReveal.total - 1;')) throw new Error('铺开没有「最后一步一定是手牌」的口径');
   const ui = read('app/js/ui.js');
   // 只看代码：注释里可以出现这个字面量，不算渲染出来的 HTML
   const uiCode = ui.split('\n').filter((l) => { const s = l.trim(); return !s.startsWith('//') && !s.startsWith('*') && !s.startsWith('/*'); }).join('\n');

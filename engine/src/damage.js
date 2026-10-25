@@ -308,6 +308,12 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
     //    防死循环：由 onDamaged 异能自己造成的伤害不再触发 onDamaged。
     if (!opts.noDamagedTrigger) {
       queueTrigger(state, unit, 'onDamaged', { amount: finalAmount, sourceUid: source ? source.uid : null });
+      /**
+       * 「每扣除 1♥，便…」（卡牌「红火蚁」）—— 挨打当然也算「扣除♥」。
+       * 数值修改那条路走的是 actions.js 的 queueHpLost，两条路播的是同一个触发，
+       * 所以这只会让「挨打」也触发它一次，不会重复。
+       */
+      queueTrigger(state, unit, 'onHpLost', { amount: finalAmount, sourceUid: source ? source.uid : null });
     }
 
     // ── 「有敌人受到伤害时」的观察者（鲨鱼 / 怨魂）

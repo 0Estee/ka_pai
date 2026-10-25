@@ -18,7 +18,7 @@ import * as M from './mechanics.js';
 import { hasKeyword, getKeyword, syncStatAuras } from './auras.js';
 import { instantiateUnit, attackPower, probeFromDef } from './setup.js';
 import { isOver, checkGameOver, endTurnNow } from './turns.js';
-import { flushTriggers, flushTriggersGen } from './choices.js';
+import { flushTriggersGen } from './choices.js';
 import { resolveHunt, canPlaceUnit, legalPlacements } from './play.js';
 
 // ══════════════════════════════════════════════════════════
@@ -218,12 +218,17 @@ export function* resolveLane(state, lane) {
   const kills = [];
   if (firstStrikers.length > 0) {
     M.log(state, { type: 'first-strike', lane, uids: firstStrikers.map((u) => u.uid) });
-    kills.push(...applyAttackBatch(state, lane, firstStrikers));
+    kills.push(...(yield* applyAttackBatch(state, lane, firstStrikers)));
   }
   const survivors = normalAttackers.filter((u) => !u.removed);
-  if (survivors.length > 0) kills.push(...applyAttackBatch(state, lane, survivors));
+  if (survivors.length > 0) kills.push(...(yield* applyAttackBatch(state, lane, survivors)));
 
-  // ── 额外攻击（裁决 B10：每个单位每回合最多一次）
+  // ── 额外攻击（裁决 B10，作者 2026-10-25 修订：狂热靠「消灭」连锁）
+  /**
+   * 一次性防呆：狂热理论上可以一直连（打死一个就再打一次），但真出无限连锁时
+   * 一局会卡死。正常的连锁在打不死人时自然停下，这个上限只是兜底。
+   */
+  const MAX_EXTRA_PER_TURN = 8;
   const killedBy = new Set(kills.map((k) => k.killerUid));
   for (const u of attackers) {
     if (u.removed || isOver(state)) continue;
@@ -231,26 +236,48 @@ export function* resolveLane(state, lane) {
 
     const doubleStrike = hasKeyword(state, u, 'doubleStrike');
     const frenzy = hasKeyword(state, u, 'frenzy');
-    const didKill = killedBy.has(u.uid);
-    if (!doubleStrike && !(frenzy && didKill)) continue;
+    let quota = 0;
+    if (doubleStrike) quota = 1;
+    else if (frenzy && killedBy.has(u.uid)) quota = 1;
+    if (quota === 0) continue;
 
-    if (doubleStrike && frenzy && didKill) {
-      M.log(state, {
-        type: 'extra-attack-capped', uid: u.uid,
-        note: '双重打击+狂热同时满足，仍只额外攻击一次（裁决 B10）',
-      });
-    }
     state.extraAttackUsed[u.uid] = true;
-    M.log(state, { type: 'extra-attack', uid: u.uid, lane });
-    // ⚠ 追击**不再问一次**目标：上面 askCombatTargets 已经问过，combatPlans 里
-    //   存着答案，collectAttackEvents 会继续用它。这里如果 try 再问一次，
-    //   会踩到一个真实的坑 —— 卡牌效果触发的额外攻击（咖啡豆 / 狂犬病 / 黑龙）
-    //   走的是 api.extraAttack，它的调用点只 `yield` 本身、不把嵌套的 yield
-    //   往上传（只 `yield* execActions`），挂起请求会被丢掉。
-    applyAttackBatch(state, lane, [u]);
-    // 「有队友额外攻击时:」（派对客）—— 双重打击/狂热的追击也算额外攻击，
-    // 同样要广播；否则队友靠追击出手时派对客不会抽牌。
-    notifyAllyExtraAttack(state, u);
+    /**
+     * 额度怎么发（作者 2026-10-25 原话：「拥有狂热的单位额外攻击如果消灭敌人
+     * 应该触发狂热」）：
+     *   · 双重打击 → 每回合 1 次，不看有没有打死人（老口径不变）；
+     *   · 狂热     → 打死了敌方单位才给 1 次；**这一次额外攻击又打死了人，就再给 1 次**。
+     *     以前被 B10 的「每单位每回合最多额外攻击一次」硬阀门压着，狂热永远连不起来。
+     * `state.extraAttackUsed` 仍然置位 —— 卡牌效果发起的额外攻击（咖啡豆 / 狂犬病）
+     * 依旧按「每回合一次」的老口径走，不参与这里的连锁。
+     */
+    let extraDone = 0;
+    while (quota > 0 && !u.removed && !isOver(state)) {
+      if (extraDone >= MAX_EXTRA_PER_TURN) {
+        M.log(state, {
+          type: 'extra-attack-capped', uid: u.uid,
+          note: `额外攻击达到防呆上限 ${MAX_EXTRA_PER_TURN} 次，停止连锁`,
+        });
+        break;
+      }
+      M.log(state, {
+        type: 'extra-attack', uid: u.uid, lane,
+        chain: extraDone > 0 || undefined,
+      });
+      // ⚠ 追击**不再问一次**目标：上面 askCombatTargets 已经问过，combatPlans 里
+      //   存着答案，collectAttackEvents 会继续用它。这里如果 try 再问一次，
+      //   会踩到一个真实的坑 —— 卡牌效果触发的额外攻击（咖啡豆 / 狂犬病 / 黑龙）
+      //   走的是 api.extraAttack，它的调用点只 `yield` 本身、不把嵌套的 yield
+      //   往上传（只 `yield* execActions`），挂起请求会被丢掉。
+      const moreKills = yield* applyAttackBatch(state, lane, [u]);
+      quota -= 1;
+      extraDone += 1;
+      // 「有队友额外攻击时:」（派对客）—— 双重打击/狂热的追击也算额外攻击，
+      // 同样要广播；否则队友靠追击出手时派对客不会抽牌。
+      notifyAllyExtraAttack(state, u);
+      // 狂热：这一击又消灭了敌方单位 → 再发一次额度（这就是连锁）
+      if (frenzy && moreKills.some((k) => k.killerUid === u.uid)) quota += 1;
+    }
 
     /**
      * 「连击」（精通技能，作者 2026-10-24）：
@@ -264,7 +291,7 @@ export function* resolveLane(state, lane) {
         state.comboStrikeUsed = state.comboStrikeUsed || {};
         state.comboStrikeUsed[u.uid] = state.turn;
         M.log(state, { type: 'combo-strike', uid: u.uid, lane, spells });
-        applyAttackBatch(state, lane, [u]);
+        yield* applyAttackBatch(state, lane, [u]);
         notifyAllyExtraAttack(state, u);
       }
     }
@@ -274,8 +301,16 @@ export function* resolveLane(state, lane) {
 /**
  * 执行一批攻击：先收集全部伤害事件，再「同时」结算。
  * 同线路内同时造成的伤害 = 即使某单位被打死，它本回合的攻击仍然生效。
+ *
+ * ⚠ 是 **generator**（作者 2026-10-25 报的「开战时有需要选择的效果，应该等选完
+ *   再打这条线」）。以前批末用的是同步的 `flushTriggers`：挨打触发的异能里
+ *   一有要问人的（红火蚁「每扣除1♥便对指定单位造成1点伤害」、狙击手的开战一击），
+ *   挂起请求就被吞在 flushTriggers 内部，`resolveLane` 照旧往下打 ——
+ *   玩家看到的是「这一线先打完，面板才弹出来」，选完目标时那人早就死了。
+ *   改成 `yield*` 之后 PENDING 会一路传回 runCombat → driveGenerator，
+ *   `state.pending.gen` 指向整条开战链，玩家答完再继续这一线。
  */
-export function applyAttackBatch(state, lane, attackers) {
+export function* applyAttackBatch(state, lane, attackers) {
   const events = [];
   for (const u of attackers) collectAttackEvents(state, lane, u, events);
 
@@ -313,7 +348,7 @@ export function applyAttackBatch(state, lane, attackers) {
   // 轻灵的状态检查（生命变动后可能淹死）
   for (const unit of M.allUnits(state)) M.checkNimble(state, unit);
 
-  flushTriggers(state);
+  yield* flushTriggersGen(state);
   return kills;
 }
 
@@ -494,7 +529,7 @@ export function apiFor(state) {
       if (st.extraAttackUsed[unit.uid]) return false;
       st.extraAttackUsed[unit.uid] = true;
       M.log(st, { type: 'extra-attack', uid: unit.uid, lane: unit.lane, source: 'effect' });
-      applyAttackBatch(st, unit.lane, [unit]);
+      yield* applyAttackBatch(st, unit.lane, [unit]);
       notifyAllyExtraAttack(st, unit);
       checkGameOver(st);
       return true;

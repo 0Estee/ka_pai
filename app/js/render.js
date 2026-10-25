@@ -425,8 +425,16 @@ let navTimer = null;
  *    重绘出来的 HTML 永远不带 data-in="1"：入场动画只能由这一次属性翻转产生，
  *     从根上杜绝「重绘把动画重放一遍」。
  */
-const REVEAL_STEP_MS = 90;   // 每格之间的间隔；一共 5 行棋盘 + 1 步手牌
-const REVEAL_TOTAL = 6;      // 铺开槽位：0..4 是棋盘行（从上到下），5 是手牌
+const REVEAL_STEP_MS = 90;   // 每格之间的间隔
+/**
+ * 铺开的槽位数：**最后一步永远是手牌**，前面每一步对应一行 `.board-row`。
+ *
+ * 这里只是「DOM 还数不出来时」的默认值（6 行棋盘 + 手牌）。真正用哪一份
+ * 以 boardRevealStep 里数出来的行数为准 —— 以前把这个数写死成 6，
+ * 而棋盘后来多了一行线路表头（`.board-row.lane-head`），于是 6 行棋盘
+ * 正好把「手牌」那一步挤掉：手牌停在 data-in="0"，看不见也点不了。
+ */
+const REVEAL_TOTAL = 6;      // 默认值（5 行棋盘 + 1 步手牌）；真实行数在 boardRevealStep 里数
 
 let boardReveal = null;      // { shown, total, timer }；null = 不在铺开（渲染成全部可见）
 
@@ -446,14 +454,25 @@ function boardRevealStep() {
   if (!boardReveal) return;
   boardReveal.timer = null;
   if (screen !== 'game') { stopBoardReveal(); return; }
-  const slot = boardReveal.shown;      // 这一步要露出的格子
+  const slot = boardReveal.shown;      // 这一步要露出的槽位
   boardReveal.shown += 1;
   let flipped = false;
   try {
     const stage = document.getElementById('stage');
     if (stage && typeof stage.querySelectorAll === 'function') {
       const rows = stage.querySelectorAll('.board-row');
-      if (slot < rows.length) rows[slot].setAttribute('data-in', '1');
+      /**
+       * 槽位数**按真实 DOM 数**算：棋盘有几行就铺几步，最后再铺「手牌」一步。
+       *
+       * 踩过的坑（作者 2026-10-25：「先手开局看不到手牌，出不了牌」）：
+       * 棋盘是 6 行（1 行线路表头 + 5 行棋盘），而总数被写死成 6 步 ——
+       * 于是最后一步翻的是「我 后排」，**手牌那一步永远轮不到**。
+       * 手牌卡在 data-in="0"（opacity:0 + visibility:hidden）：既看不见也点不动。
+       * 先手开局正好没有任何一次重绘来纠正它，所以只有先手会卡住。
+       */
+      if (rows.length > 0) boardReveal.total = rows.length + 1;
+      const isLast = slot >= boardReveal.total - 1;
+      if (!isLast && slot < rows.length) rows[slot].setAttribute('data-in', '1');
       else for (const c of stage.querySelectorAll('.hand .card')) c.setAttribute('data-in', '1');
       flipped = true;
     }

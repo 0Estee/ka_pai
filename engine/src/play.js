@@ -121,8 +121,9 @@ export function getLegalPlays(state, side) {
 
 export function legalPlacements(state, side, def) {
   const probe = probeFromDef(def);
-  // 「融合进化」：允许把这张牌打在**已有友方单位的位置上**（那个单位会消失）
-  const fuse = hasKw(probe, 'fuse');
+  // 「融合」/「融合进化」：都允许把这张牌打在**已有友方单位的位置上**。
+  // 区别只在结算（融合 = 本牌被消灭，融合进化 = 队友消失、本牌顶替），见 playCard。
+  const fuse = hasKw(probe, 'fuse') || hasKw(probe, 'evolve');
   const places = [];
   for (const lane of LANES) {
     if (!canPlaceInLane(probe, lane)) continue;
@@ -138,8 +139,9 @@ export function legalPlacements(state, side, def) {
  *   每路每方默认只能放 1 个（任选前排或后排）；
  *   已有单位带「组合」，或新单位带「组合」时，可放第 2 个（前后排各 1）。
  *
- * opts.allowFuse = true（这张牌自己带「融合」）：格子上有己方单位也算合法 ——
- *   那名队友留在场上，这张牌自己被消灭（裁决 D78）。
+ * opts.allowFuse = true（这张牌自己带「融合」或「融合进化」）：格子上有己方单位也算合法。
+ *   带「融合」→ 那名队友留在场上、这张牌自己被消灭（裁决 D78）；
+ *   带「融合进化」→ 那名队友「消失」、这张牌顶替它的位置（裁决 D34）。
  *
  * 反方向（作者 2026-10-25：卡面有融合的友方单位在场时，可以把友方单位打到它身上）
  * 不需要任何选项：格子里站着的是**带融合的己方单位**时永远合法，
@@ -273,6 +275,8 @@ export function playCard(state, side, iid, opts = {}) {
     // 地形限制（水生 / 两栖 / 轻灵）与占位限制都要过
     const legalTerrain = sandbox || canPlaceInLane(probe, lane);
     const fuse = hasKw(probe, 'fuse');
+    // 「融合进化」是另一条词条（裁决 D34 的旧口径，与 D78 的「融合」并存）
+    const evolve = hasKw(probe, 'evolve');
     const occupant = state.board[lane].units[placeSide][row];
     /**
      * 靶场：**任意格子都能放**（作者 2026-10-23 第 3 条）。
@@ -287,7 +291,7 @@ export function playCard(state, side, iid, opts = {}) {
     const legalRow = row === 'front' || row === 'back';
     const legalSlot = sandbox
       ? legalRow
-      : (legalTerrain && canPlaceUnit(state, side, probe, lane, row, { allowFuse: fuse }));
+      : (legalTerrain && canPlaceUnit(state, side, probe, lane, row, { allowFuse: fuse || evolve }));
     if (!legalSlot) {
       // 回滚，避免出现「付了费但没落地」的坏状态
       p.hand.splice(idx, 0, handCard);
@@ -307,16 +311,21 @@ export function playCard(state, side, iid, opts = {}) {
      *   A. 把带融合的牌打在队友身上 → 队友留在场上，融合牌被消灭，效果给队友
      *   B. 把普通牌打在带融合的队友身上 → 新牌留在场上，融合牌被消灭，效果给新牌
      *
-     * 与旧口径的区别（旧的见 D34，已作废）：
-     *   旧：队友「消失」（不触发任何被消灭效果），新牌顶替它的位置。
-     *   新：被消灭的是**带融合的那张**，而且走的是真正的「被消灭」
-     *       （触发它自己的「被消灭:」与国王的「友方单位被消灭时」被动）。
+     * ⚠ 这一条只管词条 **`fuse`（融合）**。原来的口径（D34：队友「消失」、新牌顶替）
+     *   没有作废，它被拆成了**另一条词条 `evolve`（融合进化）**，见下面 evolvingPlayed。
+     *   两条的唯一区别就是「谁被消灭」：
+     *     · 融合      → 带融合的那张被消灭，走真正的「被消灭」（触发 onDeath 与国王被动）
+     *     · 融合进化  → 队友被「消失」（vanishUnit：不触发任何被消灭效果），新牌顶替
      */
     const fusingPlayed = !!(fuse && occupant && !occupant.removed);
     const fusingOcc = !fusingPlayed && !!occupant && !occupant.removed
       && placeSide === side && hasKeyword(state, occupant, 'fuse');
     // 靶场顶掉：格子里原本那张牌「消失」，不触发被打死 / 被消灭的任何效果
-    const replaced = sandbox && !!occupant && !occupant.removed && !fusingPlayed && !fusingOcc;
+    // 「融合进化」：这张牌自己带 evolve，打在队友身上的位置上
+    const evolvingPlayed = !fusingPlayed && !fusingOcc
+      && !!(evolve && occupant && !occupant.removed);
+    const replaced = sandbox && !!occupant && !occupant.removed
+      && !fusingPlayed && !fusingOcc && !evolvingPlayed;
     if (replaced) {
       M.vanishUnit(state, occupant, 'sandbox-replace');
     }
@@ -363,6 +372,19 @@ export function playCard(state, side, iid, opts = {}) {
       notifyAllyPlayed(state, unit, side);
       resolveHunt(state, unit);
     } else {
+      /**
+       * 「融合进化」（词条 `evolve`，裁决 D34 的原口径）：先把那名队友**「消失」** ——
+       * 离场、进弃牌堆，但**不触发任何被消灭效果**（它的 onDeath、国王的
+       * 「友方单位被消灭时」被动都不惊动，见 board.js 的 vanishUnit）。
+       * 然后这张牌照常落地，且带 `fused: true` —— 卡面写「融合进化:…」的那一条会发动。
+       */
+      if (evolvingPlayed) {
+        M.vanishUnit(state, occupant, `evolve-by-${def.id}`);
+        M.log(state, {
+          type: 'fuse', side: placeSide, cardId: def.id, name: def.name,
+          into: occupant.cardId, intoUid: occupant.uid, direction: 'evolve',
+        });
+      }
       const unit = instantiateUnit(state, def, placeSide, lane, row);
       applyHandStatDelta(state, unit, handCard);
       // 这张牌打出来时，手牌上挂着多少**费用修正**。僵尸换代时要继承它再加 1
@@ -370,8 +392,8 @@ export function playCard(state, side, iid, opts = {}) {
       unit.paidCostDelta = handCard.costDelta || 0;
       state.board[lane].units[placeSide][row] = unit;
       ctx.source = unit;
-      M.log(state, { type: 'deploy', uid: unit.uid, cardId: def.id, name: def.name, side: placeSide, lane, row, fused: false });
-      M.queueTrigger(state, unit, 'onPlay', { fused: false, lane });
+      M.log(state, { type: 'deploy', uid: unit.uid, cardId: def.id, name: def.name, side: placeSide, lane, row, fused: !!evolvingPlayed });
+      M.queueTrigger(state, unit, 'onPlay', { fused: !!evolvingPlayed, lane });
       // 「进入一条线:」异能 —— 打出也算「进入」这条线路（与移动同一个触发）
       M.queueTrigger(state, unit, 'onEnterLane', { from: null, lane });
       // 「有队友被打出时:」（卡牌「人间大炮」）—— 播给同侧的其他单位

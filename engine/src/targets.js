@@ -136,9 +136,16 @@ function* resolveTargetsInner(state, ctx, selector) {
     }
 
     case 'adjacentEnemyUnits': {
+      /**
+       * 相邻线路的敌方单位。
+       *
+       * `includeSelf: true` 时**连自己这一路也算**（卡牌「沧龙」：回合开始消灭
+       * 自己线上和相邻线上的所有敌人 —— 作者 2026-10-25）。自己这一路排最前面。
+       */
       const lane = ctx.chosenLane;
       if (!lane) yield* requireLane(ctx, selector);
       const out = [];
+      if (selector.includeSelf) out.push(...laneUnits(state, ctx.chosenLane, foe));
       for (const adj of ADJACENT_LANES[ctx.chosenLane]) out.push(...laneUnits(state, adj, foe));
       return batch(out);
     }

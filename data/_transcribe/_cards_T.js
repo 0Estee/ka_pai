@@ -216,7 +216,7 @@ export const CARDS_T = [
     atk: 1,
     hp: 3,
     faction: 'frost',
-    keywords: ['fuse'],
+    keywords: ['evolve'],
     text: '有敌人被冻结时:获得+2攻击力+1生命。融合进化:冻结1个敌方单位。',
     effects: [
       {
