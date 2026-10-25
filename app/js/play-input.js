@@ -48,6 +48,8 @@ const NO_CHOICE_TARGET_KINDS = new Set([
   // 极寒 / 罪恶新增的批量与择优选择器（引擎自己挑，不需要点选）
   'allFrozenEnemyUnits',
   'highestAtkEnemyUnit',
+  // 「随机 N 名敌方单位」（精通技能「奥义」）：引擎用 rng 自己抽
+  'randomEnemyUnits',
   // 选线由 chooseLanes 动作在前一步问过，这里不再点选
   'chosenLanesEnemyUnits',
   // ?????????compound op??????????????????
@@ -845,7 +847,7 @@ function forgeAction(act, cardId) {
       return;
     }
     // 单位：抽三个技能给他选，选完才真正扣星尘
-    view.forgePick = { cardId, name: def.name, options: Enh.drawSkills() };
+    view.forgePick = { cardId, name: def.name, options: Enh.drawSkills(), locked: [] };
     view.forgeHint = '';
     refresh();
     return;
@@ -858,9 +860,27 @@ function forgeAction(act, cardId) {
   }
 }
 
-/** 三选一里点了某个技能 */
-function forgePickSkill(skillId) {
+/**
+ * 「重抽」（作者 2026-10-24）：三选一不满意可以花星尘再抽一次。
+ * 与「再想想」的区别：再想想 = 什么都不变、不花钱；重抽 = 扣星尘换三个新的。
+ */
+function forgeRedraw() {
   const pick = view.forgePick;
+  if (!pick) return;
+  const cost = Enh.REFRESH_DUST_COST;
+  const dust = Number(profile && profile.dust) || 0;
+  if (dust < cost) {
+    view.forgeHint = `星尘不足（重抽要 ${cost} 星尘）`;
+    refresh();
+    return;
+  }
+  pick.options = Enh.redrawSkills(pick.options, pick.locked || []);
+  const next = Object.assign({}, profile, { dust: dust - cost });
+  commitForge(next, `重抽三选一（−${cost} 星尘）`);
+}
+
+/** 三选一里点了某个技能 */
+function forgePickSkill(skillId) {  const pick = view.forgePick;
   if (!pick) return;
   const def = TEST_CARD_LIB[pick.cardId];
   const r = Enh.applyMastery(profile, def, pick.cardId, skillId);
@@ -1128,6 +1148,7 @@ function handleAction(act, el) {
   }
   if (act === 'forge-pick') { forgePickSkill(el.dataset.skill); return; }
   if (act === 'forge-pick-cancel') { view.forgePick = null; refresh(); return; }
+  if (act === 'forge-redraw') { forgeRedraw(); return; }
   if (act === 'forge-buy-dust') {
     const r = Eco.buyDust(profile, 1);
     if (!r.ok) { view.forgeHint = r.reason; refresh(); return; }
@@ -1254,3 +1275,14 @@ export {
   handleSlotClick, handleUnitClick, handleKingClick, handleAction, toggleBrewPick,
   canDragCard, beginCardDrag, updateCardDrag, endCardDrag, cancelCardDrag, abortCardDrag, applyDragHit,
 };
+
+// ── 精通技能的调试钩子（给 tools/checks/50-forge-skills.mjs 用）
+// 断言「28 个技能每一个都会产出引擎增量」—— 防的是「技能表里写了一条、
+// 但引擎/翻译层不认，玩家选了等于没选」这种静默失效。
+window.__forgeSkillIds = () => Enh.SKILLS.map((s) => s.id);
+window.__forgeDelta = (cardId, skillId) => {
+  const profile = { forge: { v: 1, cards: { [cardId]: { lvl: 0, masteries: [skillId] } } } };
+  const out = Enh.buildSideEnhance(TEST_CARD_LIB, profile) || {};
+  return out[cardId] || null;
+};
+window.__forgeRarity = () => Object.keys(Enh.RARITY);

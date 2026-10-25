@@ -93,7 +93,7 @@ check('单位精通：失去强化数值换技能，星尘 20/40，最多 2 次�
   const def = lib[unitId];
   let p = fresh(1000, 100);
   for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, unitId).profile;
-  const r1 = api.applyMastery(p, def, unitId, 'w_atk');
+  const r1 = api.applyMastery(p, def, unitId, 'w_temper');
   if (!r1.ok) throw new Error('首次精通失败：' + r1.reason);
   p = r1.profile;
   if (p.dust !== 80) throw new Error('首次精通应扣 20 星尘，余 ' + p.dust);
@@ -102,7 +102,7 @@ check('单位精通：失去强化数值换技能，星尘 20/40，最多 2 次�
   if (st.atk !== (Number(def.atk) || 0) + 1) throw new Error('精通后应只剩技能 +1 攻，实际 ' + st.atk);
   if (api.canMaster(p, def, unitId).ok) throw new Error('刚精通完不该马上能再精通（强化已清零）');
   for (let i = 0; i < 9; i++) p = api.applyEnhance(p, def, unitId).profile;
-  const r2 = api.applyMastery(p, def, unitId, 'g_hp');
+  const r2 = api.applyMastery(p, def, unitId, 'w_tough');
   if (!r2.ok) throw new Error('第二次精通失败：' + r2.reason);
   if (r2.cost !== 40) throw new Error('第二次精通应扣 40 星尘，实际 ' + r2.cost);
   p = r2.profile;

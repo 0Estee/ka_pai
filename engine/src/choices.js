@@ -17,6 +17,19 @@ import { execActions } from './effects.js';
 import { PENDING } from './setup.js';
 import { apiFor } from './combat.js';
 
+/**
+ * 「每回合只发动一次」的判定（作者 2026-10-24 精通技能「兼爱」）。
+ *
+ * 记在单位身上：`unit.onceTurn = { [effectKey]: turn }`，回合号一对就跳过。
+ * key 用「触发名 + 在异能表里的下标」，同一张牌两条 onCombatStart 也不会互相盖掉。
+ */
+function oncePerTurnBlocked(unit, key, turn) {
+  if (!unit.onceTurn) unit.onceTurn = {};
+  if (unit.onceTurn[key] === turn) return true;
+  unit.onceTurn[key] = turn;
+  return false;
+}
+
 // ══════════════════════════════════════════════════════════
 // 交互挂起（generator 驱动）
 // ══════════════════════════════════════════════════════════
@@ -177,7 +190,8 @@ function* runTriggeredEffects(state, unit, triggerName, payload = {}, override =
    */
   const list = (override && override.effects ? override.effects : (unit.effects || []))
     .filter((e) => e.trigger === triggerName);
-  for (const effect of list) {
+  for (let ei = 0; ei < list.length; ei++) {
+    const effect = list[ei];
     /**
      * effect.when 是**附加条件**，不满足就跳过这条异能：
      *   'fused'              只有「用融合进化打出」时才发动（卡牌「霸王龙」）
@@ -185,6 +199,8 @@ function* runTriggeredEffects(state, unit, triggerName, payload = {}, override =
      *   { deathsAtLeast: 4 } 全场累计被消灭数达到 N 时才发动（卡牌「卫兵」）
      */
     if (!whenMet(state, effect.when, payload)) continue;
+    // 「每回合只发动一次」（精通技能「兼爱」）：开战按线路触发 4 次，这里压成 1 次
+    if (effect.oncePerTurn && oncePerTurnBlocked(unit, triggerName + ':' + ei, state.turn)) continue;
 
     const ctx = {
       state,
@@ -221,6 +237,8 @@ function whenMet(state, when, payload) {
   if (typeof when === 'object') {
     if (when.lane !== undefined && payload.lane !== when.lane) return false;
     if (when.deathsAtLeast !== undefined && (state.stats.unitsDestroyed || 0) < when.deathsAtLeast) return false;
+    // 「若回合数 ≥ N」（精通技能「奥义」，作者 2026-10-24）
+    if (when.turnAtLeast !== undefined && state.turn < when.turnAtLeast) return false;
     return true;
   }
   throw new Error(`未知的 effect.when: ${JSON.stringify(when)}`);

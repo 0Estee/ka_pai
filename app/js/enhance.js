@@ -9,7 +9,8 @@
  *        · 锦囊：费用 −1（原费 ≤2 的只 −0.25），最多 2 次
  *        每张牌最多精通 2 次；洗掉只撤掉**最近一次**精通，强化次数不退还，
  *        要重新练 9 次才能再精通。
- *  技能：白 / 绿 / 金 / 彩 四档，抽取权重 50 / 30 / 15 / 5，三选一。
+ *  技能：白 / 绿 / 橙 / 紫 / 彩 五档，档位权重 50 / 30 / 15 / 4.5 / 0.5，三选一。
+ *        （作者 2026-10-24 改版：旧 16 个技能全部作废，改用新表。）
  *
  * ── 存档形状（profile.forge）────────────────────────────
  *   { v:1, cards: { [cardId]: { lvl:0..9, masteries:['w_atk', ...] } } }
@@ -67,12 +68,16 @@ export function enhanceValue(lvl) {
 // 技能表
 // ══════════════════════════════════════════════════════════
 
-/** 四档稀有度：抽取权重依次降低，效果依次增强 */
+/**
+ * 五档稀有度（作者 2026-10-24 改版）：抽取权重依次降低，效果依次增强。
+ * 权重是**档位**的权重，同档内每个技能等概率。
+ */
 export const RARITY = {
   white: { key: 'white', name: '白', label: '普通', weight: 50, color: '#c9d1dc' },
   green: { key: 'green', name: '绿', label: '优秀', weight: 30, color: '#5fd39a' },
-  gold: { key: 'gold', name: '金', label: '稀有', weight: 15, color: '#e8c46a' },
-  rainbow: { key: 'rainbow', name: '彩', label: '传说', weight: 5, color: '#c58bff' },
+  orange: { key: 'orange', name: '橙', label: '稀有', weight: 15, color: '#e8a34a' },
+  purple: { key: 'purple', name: '紫', label: '史诗', weight: 4.5, color: '#b082ff' },
+  rainbow: { key: 'rainbow', name: '彩', label: '传说', weight: 0.5, color: '#ff6fb5' },
 };
 
 /**
@@ -81,28 +86,186 @@ export const RARITY = {
  * 只有单位卡能挂技能 —— 锦囊精通走减费，不抽技能。
  */
 export const SKILLS = [
-  { id: 'w_atk', rarity: 'white', name: '锋锐', text: '攻击 +1', atk: 1 },
-  { id: 'w_hp', rarity: 'white', name: '坚韧', text: '生命 +1', hp: 1 },
-  { id: 'w_armor', rarity: 'white', name: '铁甲', text: '装甲 1', kw: [{ id: 'armor', x: 1 }] },
-  { id: 'w_first', rarity: 'white', name: '抢攻', text: '先制', kw: [{ id: 'firstStrike', x: 0 }] },
+  // ── 白（档位权重 50）────────────────────────────────────
+  { id: 'w_temper', rarity: 'white', name: '淬身', text: '+1 攻击 +1 生命', atk: 1, hp: 1 },
+  { id: 'w_fury', rarity: 'white', name: '狂暴', text: '暴击 2', kw: [{ id: 'crit', x: 2 }] },
+  { id: 'w_precise', rarity: 'white', name: '精准', text: '若有暴击效果，则必定触发', flags: { critAlways: true } },
+  { id: 'w_tough', rarity: 'white', name: '强体', text: '+2.4 生命', hp: 2.4 },
+  { id: 'w_venom', rarity: 'white', name: '恶毒', text: '淬毒 1', kw: [{ id: 'poison', x: 1 }] },
+  { id: 'w_holy', rarity: 'white', name: '圣光', text: '祝福 3', kw: [{ id: 'blessing', x: 3 }] },
 
-  { id: 'g_atk', rarity: 'green', name: '利刃', text: '攻击 +2', atk: 2 },
-  { id: 'g_hp', rarity: 'green', name: '厚甲', text: '生命 +2', hp: 2 },
-  { id: 'g_thorns', rarity: 'green', name: '荆棘', text: '荆棘 1', kw: [{ id: 'thorns', x: 1 }] },
-  { id: 'g_crit', rarity: 'green', name: '会心', text: '暴击 1', kw: [{ id: 'crit', x: 1 }] },
+  // ── 绿（档位权重 30）────────────────────────────────────
+  {
+    id: 'g_plenty', rarity: 'green', name: '富足', text: '打出:抽一张牌',
+    fx: [{ trigger: 'onPlay', actions: [{ op: 'draw', amount: 1 }] }],
+  },
+  {
+    id: 'g_bloodthirst', rarity: 'green', name: '嗜血', text: '造成伤害:友方国王回复 1.5 生命',
+    fx: [{ trigger: 'onDealDamage', actions: [{ op: 'heal', amount: 1.5, target: { kind: 'ownKing' } }] }],
+  },
+  { id: 'g_evolve', rarity: 'green', name: '进化', text: '两栖，+1 生命', hp: 1, kw: [{ id: 'amphibious', x: 0 }] },
+  {
+    id: 'g_unyielding', rarity: 'green', name: '不屈', text: '装甲 1，受到的来自锦囊的伤害 -1',
+    kw: [{ id: 'armor', x: 1 }], flags: { spellDamageReduce: 1 },
+  },
+  {
+    id: 'g_twist', rarity: 'green', name: '扭曲', text: '+1 攻击 +1 生命，交换攻击数值和生命数值',
+    atk: 1, hp: 1, flags: { swapStats: true },
+  },
+  {
+    id: 'g_brutal', rarity: 'green', name: '残暴', text: '暴击 3，暴击触发概率设为 65%',
+    kw: [{ id: 'crit', x: 3 }], flags: { critChance: 0.65 },
+  },
 
-  { id: 'k_atk', rarity: 'gold', name: '杀意', text: '攻击 +3', atk: 3 },
-  { id: 'k_hp', rarity: 'gold', name: '铁壁', text: '生命 +3', hp: 3 },
-  { id: 'k_splash', rarity: 'gold', name: '横扫', text: '溅射 1', kw: [{ id: 'splash', x: 1 }] },
-  { id: 'k_pierce', rarity: 'gold', name: '贯穿', text: '穿透 1', kw: [{ id: 'pierce', x: 1 }] },
+  // ── 橙（档位权重 15）────────────────────────────────────
+  { id: 'o_stealth', rarity: 'orange', name: '隐蔽', text: '锦囊免疫', kw: [{ id: 'spellImmune', x: 0 }] },
+  { id: 'o_teamwork', rarity: 'orange', name: '协作', text: '减少等同于场上队友数的费用', flags: { costPerAlly: 1 } },
+  {
+    id: 'o_sacred', rarity: 'orange', name: '圣洁', text: '祝福 2。在场:友方国王获祝福 2',
+    kw: [{ id: 'blessing', x: 2 }], kingAura: { blessing: 2 },
+  },
+  {
+    id: 'o_arcane', rarity: 'orange', name: '奥义',
+    text: '回合开始:若回合数≥4，随机对两名敌人造成 3 点伤害，对敌方国王造成 2 点伤害',
+    fx: [{
+      trigger: 'onTurnStart',
+      when: { turnAtLeast: 4 },
+      actions: [
+        { op: 'damage', amount: 3, target: { kind: 'randomEnemyUnits', count: 2 } },
+        { op: 'damage', amount: 2, target: { kind: 'enemyKing' } },
+      ],
+    }],
+  },
+  {
+    id: 'o_almighty', rarity: 'orange', name: '全能',
+    text: '随机获得[穿透1][疾病][暴击1][祝福3][溅射1]中的两个，增加等同于词条数的攻击',
+    expand: 'almighty',
+  },
 
-  { id: 'r_atk', rarity: 'rainbow', name: '屠戮', text: '攻击 +5', atk: 5 },
-  { id: 'r_double', rarity: 'rainbow', name: '连击', text: '双重打击', kw: [{ id: 'doubleStrike', x: 0 }] },
-  { id: 'r_frenzy', rarity: 'rainbow', name: '狂热', text: '狂热', kw: [{ id: 'frenzy', x: 0 }] },
-  { id: 'r_invincible', rarity: 'rainbow', name: '不灭', text: '无敌', kw: [{ id: 'invincible', x: 0 }] },
+  // ── 紫（档位权重 4.5）───────────────────────────────────
+  {
+    id: 'p_eternal', rarity: 'purple', name: '永恒',
+    text: '-2 攻击。开战回合:获得无敌。锦囊牌回合:获得锦囊免疫',
+    atk: -2,
+    fx: [
+      { trigger: 'onCombatStart', actions: [{ op: 'grantKeyword', keyword: 'invincible', untilTurnEnd: true }] },
+      { trigger: 'onEnemyCastSpell', actions: [{ op: 'grantKeyword', keyword: 'spellImmune', untilTurnEnd: true }] },
+    ],
+  },
+  {
+    id: 'p_combo', rarity: 'purple', name: '连击',
+    text: '-1 攻击，双重打击。[双重打击]触发后，若本回合友方打出过 2 张锦囊，额外攻击一次',
+    atk: -1, kw: [{ id: 'doubleStrike', x: 0 }], flags: { comboStrike: true },
+  },
+  {
+    id: 'p_undying', rarity: 'purple', name: '不灭', text: '装甲 2。在场:友方国王生命至少为 1',
+    kw: [{ id: 'armor', x: 2 }], kingAura: { hpFloor: 1 },
+  },
+  {
+    id: 'p_focus', rarity: 'purple', name: '会心',
+    text: '穿透 2。若回合数≥9，获得暴击 20。暴击触发概率设为 10%',
+    kw: [{ id: 'pierce', x: 2 }], flags: { critChance: 0.1, critAfterTurn: { turn: 9, x: 20 } },
+  },
+  {
+    id: 'p_devour', rarity: 'purple', name: '吞噬', text: '打出:消灭一名敌人',
+    fx: [{ trigger: 'onPlay', actions: [{ op: 'destroy', reason: '吞噬', target: { kind: 'lowestHpEnemyUnit' } }] }],
+  },
+  {
+    id: 'p_trick', rarity: 'purple', name: '戏法', text: '打出:把所有敌人变为兔子',
+    fx: [{ trigger: 'onPlay', actions: [{ op: 'transform', cardId: 'U329', target: { kind: 'allEnemyUnits' } }] }],
+  },
+  {
+    id: 'p_clone', rarity: 'purple', name: '复制', text: '打出:在场上召唤本单位的同名卡牌',
+    fx: [{ trigger: 'onPlay', actions: [{ op: 'summonSelf' }] }],
+  },
+  {
+    id: 'p_universal', rarity: 'purple', name: '兼爱',
+    text: '开战回合开始前，双方国王和所有单位回复 10 点生命',
+    fx: [{
+      trigger: 'onCombatStart',
+      oncePerTurn: true,
+      actions: [
+        { op: 'heal', amount: 10, target: { kind: 'allUnits' } },
+        { op: 'heal', amount: 10, target: { kind: 'ownKing' } },
+        { op: 'heal', amount: 10, target: { kind: 'enemyKing' } },
+      ],
+    }],
+  },
+
+  // ── 彩（档位权重 0.5）───────────────────────────────────
+  {
+    id: 'u_annihilate', rarity: 'rainbow', name: '湮灭',
+    text: '打出:弃置敌方手中的单位牌，消灭所有敌人',
+    fx: [{
+      trigger: 'onPlay',
+      actions: [
+        { op: 'discardHandUnits', target: { kind: 'opponentHand' } },
+        { op: 'destroy', reason: '湮灭', target: { kind: 'allEnemyUnits' } },
+      ],
+    }],
+  },
+  {
+    id: 'u_heatDeath', rarity: 'rainbow', name: '热寂', text: '打出:若回合数≥12，消灭敌方国王',
+    fx: [{
+      trigger: 'onPlay',
+      actions: [{
+        op: 'conditional', if: { turnAtLeast: 12 },
+        then: [{ op: 'destroy', allowKing: true, reason: '热寂', target: { kind: 'enemyKing' } }],
+      }],
+    }],
+  },
+  {
+    id: 'u_endless', rarity: 'rainbow', name: '无尽', text: '打出:若友方国王生命为 1，将友方国王生命设为 99',
+    fx: [{
+      trigger: 'onPlay',
+      actions: [{
+        op: 'conditional', if: { ownKingHpAtMost: 1 },
+        then: [{ op: 'setKingHp', amount: 99, target: { kind: 'ownKing' } }],
+      }],
+    }],
+  },
 ];
 
 export const SKILL_BY_ID = Object.fromEntries(SKILLS.map((s) => [s.id, s]));
+
+/**
+ * 「全能」的随机池（作者 2026-10-24）：随机拿其中两个，攻击力再涨拿到几个。
+ * 抽取必须**可复现**（联机锁步 / 回放 / 云存档），所以不用 Math.random，
+ * 而是对 cardId 做 FNV-1a 散列取分数 —— 同一张牌永远拿同样的两个词条。
+ */
+const ALMIGHTY_POOL = [
+  { id: 'pierce', x: 1 },
+  { id: 'disease', x: 0 },
+  { id: 'crit', x: 1 },
+  { id: 'blessing', x: 3 },
+  { id: 'splash', x: 1 },
+];
+
+/** 把「全能」展开成两个词条 + 攻击加成（返回 {kw:[], atk}） */
+function expandAlmighty(cardId) {
+  const pool = ALMIGHTY_POOL.slice();
+  const picked = [];
+  const h = hash32('almighty:' + String(cardId || ''));
+  for (let i = 0; i < 2 && pool.length > 0; i++) {
+    const idx = Math.floor(frac(h, i) * pool.length) % pool.length;
+    picked.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return { kw: picked, atk: picked.length };
+}
+
+/** 刷新三选一的花费（星尘）。作者 2026-10-24：再想想不再重抽，重抽要花星尘。 */
+export const REFRESH_DUST_COST = 10;
+
+/** 刷新一次三选一（locked 里的技能 id 保留不动，其余重抽） */
+export function redrawSkills(current, lockedIds, rand = Math.random, n = 3) {
+  const locked = (current || []).filter((s) => (lockedIds || []).indexOf(s.id) >= 0);
+  const need = Math.max(0, n - locked.length);
+  const rest = drawSkills(rand, need + locked.length).filter(
+    (s) => (lockedIds || []).indexOf(s.id) < 0 && !locked.some((l) => l.id === s.id),
+  );
+  return locked.concat(rest.slice(0, need));
+}
 
 /** 从给定池子里按稀有度权重抽一个下标（r ∈ [0,1)） */
 function pickWeighted(pool, r) {
@@ -171,10 +334,17 @@ export function isForgeable(def) {
 }
 
 /**
- * 卡牌在**当前强化状态**下的实际数值（给界面显示、AI 估值用）。
+ * 卡牌在**当前强化状态**下的实际数值（给界面显示、AI 估值、AI 的强化表用）。
  *
  * 单位：攻/血 = 卡面 + 强化累计 + 技能加成；cost 不变
  * 锦囊：cost = 卡面 − 精通次数 ×（原费 ≤2 时 0.25，否则 1）；没有攻/血
+ *
+ * 除了数值，还会把技能带来的三类**机制**原样带出来（作者 2026-10-24 五档技能表）：
+ *   keywords  走引擎的 KEYWORD_DEFS（暴击 / 装甲 / 祝福…）
+ *   fx        触发式异能（打出:抽一张、造成伤害:回血…），直接挂到单位身上
+ *   flags     单位级的开关（暴击概率 / 攻血交换 / 锦囊减伤…）
+ *   kingAura  「在场时给友方国王的被动」（祝福上限 / 生命下限）
+ *   expand    「全能」这种随机展开成词条 + 攻击的，在这里就地展开
  */
 export function statsFor(def, rec) {
   const r = rec || EMPTY_REC;
@@ -186,7 +356,7 @@ export function statsFor(def, rec) {
       atk: null,
       hp: null,
       cost: round2(Math.max(0, baseCost - masteries.length * per)),
-      keywords: [],
+      keywords: [], fx: [], flags: {}, kingAura: null,
       masteries: masteries.length,
       lvl: Number(r.lvl) || 0,
     };
@@ -195,18 +365,30 @@ export function statsFor(def, rec) {
   let atk = (Number(def.atk) || 0) + add;
   let hp = (Number(def.hp) || 0) + add;
   const keywords = [];
+  const fx = [];
+  const flags = {};
+  let kingAura = null;
   for (const id of masteries) {
     const s = SKILL_BY_ID[id];
     if (!s) continue;
     atk += s.atk || 0;
     hp += s.hp || 0;
     for (const k of s.kw || []) keywords.push({ id: k.id, x: k.x });
+    for (const e of s.fx || []) fx.push(e);
+    if (s.flags) Object.assign(flags, s.flags);
+    if (s.kingAura) kingAura = Object.assign(kingAura || {}, s.kingAura);
+    // 「全能」：随机两个词条 + 攻击加成（同一张牌永远展开成同样的结果）
+    if (s.expand === 'almighty') {
+      const ex = expandAlmighty(def && def.id);
+      atk += ex.atk;
+      for (const k of ex.kw) keywords.push({ id: k.id, x: k.x });
+    }
   }
   return {
     atk: round1(atk),
     hp: round1(hp),
     cost: Number(def.cost) || 0,
-    keywords,
+    keywords, fx, flags, kingAura,
     masteries: masteries.length,
     lvl: Number(r.lvl) || 0,
   };
@@ -305,8 +487,9 @@ export function applyWash(profile, def, cardId) {
 /**
  * 把档案里的强化记录翻译成引擎的「每方增量表」。
  *
- * 只输出与卡面不同的部分：atk/hp 差值、cost 差值、技能词条。
- * 引擎在 costOf 与 instantiateUnit 里读它，所以**单位攻/血、锦囊费用**
+ * 只输出与卡面不同的部分：atk/hp 差值、cost 差值、技能词条，
+ * 以及技能带来的 `fx`（触发式异能）、`flags`（单位级开关）、`kingAura`（国王被动）。
+ * 引擎在 costOf 与 instantiateUnit 里读它，所以**单位攻/血、锦囊费用、技能机制**
  * 会按方生效，而名字/效果/阵营继续读基础卡牌库。
  */
 export function buildSideEnhance(cardLib, profile) {
@@ -322,7 +505,12 @@ export function buildSideEnhance(cardLib, profile) {
       cost: round2(st.cost - (Number(def.cost) || 0)),
       kw: st.keywords,
     };
-    if (delta.atk || delta.hp || delta.cost || delta.kw.length) out[cardId] = delta;
+    if (st.fx && st.fx.length) delta.fx = st.fx;
+    if (st.flags && Object.keys(st.flags).length) delta.flags = st.flags;
+    if (st.kingAura) delta.kingAura = st.kingAura;
+    if (delta.atk || delta.hp || delta.cost || delta.kw.length || delta.fx || delta.flags || delta.kingAura) {
+      out[cardId] = delta;
+    }
   }
   return out;
 }

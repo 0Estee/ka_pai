@@ -202,6 +202,8 @@ export function* execAction(state, ctx, action) {
           noDamagedTrigger: !!action.noDamagedTrigger || !!ctx.noDamagedTriggerForDamage,
           // 受伤原因（作者 2026-10-22：每次卡牌受伤都写明是谁 / 哪张牌）
           reason: ctx.card && ctx.card.name ? '「' + ctx.card.name + '」' : (action.reason || '效果伤害'),
+          // 「受到的来自锦囊的伤害 -1」（精通技能「不屈」）：这次伤害来自锦囊牌
+          fromSpell: !!(ctx.card && ctx.card.type === 'spell'),
         });
         // 「视为攻击」（卡牌「橄榄球」：锦囊带「溅射1」）——
         // 锦囊本身不进行攻击，所以溅射要靠这个开关显式打开：
@@ -1175,6 +1177,56 @@ export function* execAction(state, ctx, action) {
       }
       break;
     }
+    /**
+     * 「复制」（精通技能，作者 2026-10-24）：打出时，在场上召唤本单位的同名卡牌。
+     * 只召唤**不出**打出效果 —— 否则复制出来的那张又带「复制」，会无限繁殖。
+     */
+    case 'summonSelf': {
+      const src = ctx.source;
+      if (!src || src.removed) break;
+      if (!ctx.api || !ctx.api.summonToken) throw new Error('缺少 summonToken api');
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      const unit = ctx.api.summonToken(state, {
+        cardId: src.cardId, side, lane: src.lane, row: src.row, silent: true,
+      });
+      log(state, { type: 'summon-self', side, cardId: src.cardId, uid: unit ? unit.uid : null });
+      break;
+    }
+
+    /** 「无尽」（精通技能）：把友方国王的生命**设为** amount（作者 2026-10-24） */
+    case 'setKingHp': {
+      const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
+      const p = state.players[side];
+      const v = resolveAmount(state, ctx, action.amount === undefined ? 1 : action.amount);
+      p.kingHp = Math.max(0, Math.min(p.kingMaxHp || 20, Number(v) || 0));
+      log(state, { type: 'set-king-hp', side, hp: p.kingHp });
+      break;
+    }
+
+    /**
+     * 「湮灭」（精通技能）：弃置**敌方手中**所有的单位牌（作者 2026-10-24）。
+     * 只弃单位牌，锦囊留着。
+     */
+    case 'discardHandUnits': {
+      const side = resolveSide(action.side === undefined ? 'opponent' : action.side, me);
+      const p = state.players[side];
+      const keep = [];
+      let n = 0;
+      for (const c of p.hand) {
+        const d = state.cardLib[c.cardId];
+        if (d && d.type === 'unit') {
+          state.discard.push(c.cardId);
+          n++;
+          log(state, { type: 'discard', side, cardId: c.cardId, iid: c.iid, from: 'fuse-hand' });
+        } else {
+          keep.push(c);
+        }
+      }
+      p.hand = keep;
+      log(state, { type: 'discard-hand-units', side, count: n });
+      break;
+    }
+
     default:
       throw new Error(`未知的效果 op: ${action.op}`);
   }
@@ -1184,6 +1236,10 @@ export function* execAction(state, ctx, action) {
 export function evalCondition(state, ctx, cond) {  if (!cond) return false;
   if (typeof cond === 'function') return !!cond(state, ctx);
   const me = ctx.controller;
+  // 「若回合数 ≥ N」/「若友方国王生命 ≤ N」（精通技能，作者 2026-10-24）——
+  // 这两个不看 compare，直接按字段判定
+  if (cond.turnAtLeast !== undefined) return state.turn >= cond.turnAtLeast;
+  if (cond.ownKingHpAtMost !== undefined) return state.players[me].kingHp <= cond.ownKingHpAtMost;
   const own = allUnits(state).filter((u) => u.side === me).length;
   const foe = allUnits(state).filter((u) => u.side !== me).length;
   switch (cond.compare) {
@@ -1206,6 +1262,10 @@ export function evalCondition(state, ctx, cond) {  if (!cond) return false;
     case 'enemiesGEAllies': return foe >= own;
     case 'enemiesGTAllies': return foe > own;
     case 'handCountLE': return state.players[me].hand.length <= (cond.n === undefined ? 7 : cond.n);
+    /** 「若回合数 ≥ N」（精通技能「热寂 / 奥义」，作者 2026-10-24） */
+    case 'turnAtLeast': return state.turn >= (cond.n === undefined ? 1 : cond.n);
+    /** 「若友方国王生命 ≤ N」（精通技能「无尽」） */
+    case 'ownKingHpAtMost': return state.players[me].kingHp <= (cond.n === undefined ? 1 : cond.n);
     default: throw new Error(`未知的 conditional 条件: ${JSON.stringify(cond)}`);
   }
 }

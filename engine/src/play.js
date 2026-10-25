@@ -62,7 +62,17 @@ export function costOf(state, handCard) {
   // 强化工坊的「精通」减费（锦囊）：按这边自己的强化表算 —— 双方牌库共享，
   // 同一张锦囊在两人手里可以是不同费用。
   const enhanceCost = owner ? enhanceFor(state, owner.side, def.id).cost : 0;
-  return Math.max(0, def.cost + enhanceCost + (handCard.costDelta || 0) + handDelta + perUse);
+  // 「协作」（精通技能）：费用减少等同于**场上队友数**（作者 2026-10-24）
+  let perAlly = 0;
+  if (owner) {
+    const enh = enhanceFor(state, owner.side, def.id);
+    const flag = enh.flags && enh.flags.costPerAlly;
+    if (flag) {
+      const allies = M.allUnits(state).filter((u) => !u.removed && u.side === owner.side).length;
+      perAlly = -Math.min(allies, Math.max(0, def.cost)) * flag;
+    }
+  }
+  return Math.max(0, def.cost + enhanceCost + perAlly + (handCard.costDelta || 0) + handDelta + perUse);
 }
 
 /**
@@ -396,6 +406,8 @@ export function playCard(state, side, iid, opts = {}) {
       };
     }
     M.log(state, { type: 'cast', cardId: def.id, name: def.name, side, lane: ctx.chosenLane });
+    // 「本回合友方打出过几张锦囊」（精通技能「连击」要读它，作者 2026-10-24）
+    p.spellsThisTurn = (p.spellsThisTurn || 0) + 1;
     // 「对方打出锦囊牌时:」（卡牌「拳击手」「苍耳」）
     notifyEnemyCastSpell(state, def, side);
     // 打出锦囊期间的记账（科学超能力「克隆」U419 要重新结算「上一张锦囊」）：

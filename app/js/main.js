@@ -632,6 +632,13 @@ window.__nav = (act, dataset) => {
  * 拿不到打包作用域里的 `G`（`const G = {...}` 不是 window 属性）。
  * 所以由界面自己开这个口子，而不是让测试去猜内部名字。
  */
+/**
+ * 自检用：直接拿到卡牌库（**不动对局状态**）。
+ * 给门禁 50 用 —— 它要是靠「开一局」来取卡库，会把别的用例正在 await 的
+ * 对局像换掉（20-combat-suspend 就是在顶层 await 里跑场景的）。
+ */
+window.__cardLib = () => TEST_CARD_LIB;
+
 window.__place = (side, cardId, lane, row) => {
   if (!state) startNewGame();
   const s = Number(side) === 1 ? 1 : 0;
@@ -653,8 +660,7 @@ window.__place = (side, cardId, lane, row) => {
   return u ? { uid: u.uid, name: u.name, atk: u.atk, hp: u.hp } : null;
 };
 
-/** 自检 / 截图用：把阶段停在某个阶段（不改别的） */
-window.__setPhase = (phase) => { if (state) state.phase = phase; return state ? state.phase : null; };
+/** 自检 / 截图用：把阶段停在某个阶段（不改别的） */window.__setPhase = (phase) => { if (state) state.phase = phase; return state ? state.phase : null; };
 
 /**
  * 自检 / 截图用：推进一个阶段（走和对局完全相同的通道，会记回放、会刷新界面）。

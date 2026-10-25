@@ -100,12 +100,16 @@ export function advance(state) {
 function onTurnStart(state) {
   state.extraAttackUsed = {};
   state._pendingDeaths = [];
+  // 「连击」（精通技能）：每回合每单位只能追加一次
+  state.comboStrikeUsed = {};
 
   // 费用重置（规则书 §6）：上限 = 回合数 + 本回合的临时加成 + 固定加成
   // flatManaBonus 是给「噩梦难度 AI」这类需要每回合稳定多几点费用的场景用的，
   // 普通对局里它始终是 0（见 app/js/ai.js 的 applyDifficultyBonus）。
   for (const p of state.players) {
     p.manaCapBonus = 0;
+    // 「本回合打出过几张锦囊」（精通技能「连击」）
+    p.spellsThisTurn = 0;
     // 「对方下回合少 1 费」（卡牌「盗贼」）：上回合记下的欠费在这一刻结清，然后清零。
     // 必须在**重置费用时**扣 —— 减在别处会被这次重置直接覆盖掉。
     const penalty = p.manaPenalty || 0;

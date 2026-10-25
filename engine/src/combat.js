@@ -251,6 +251,23 @@ export function* resolveLane(state, lane) {
     // 「有队友额外攻击时:」（派对客）—— 双重打击/狂热的追击也算额外攻击，
     // 同样要广播；否则队友靠追击出手时派对客不会抽牌。
     notifyAllyExtraAttack(state, u);
+
+    /**
+     * 「连击」（精通技能，作者 2026-10-24）：
+     * 双重打击触发之后，若**本回合友方打出过 2 张锦囊**，额外再攻击一次。
+     * 这是明确写出来的例外，不受「每单位每回合最多一次」的限制（裁决 B10 只管双重/狂热叠加）。
+     */
+    if (doubleStrike && u.comboStrike && !u.removed && !isOver(state)
+        && (state.comboStrikeUsed || {})[u.uid] !== state.turn) {
+      const spells = (state.players[u.side] && state.players[u.side].spellsThisTurn) || 0;
+      if (spells >= 2) {
+        state.comboStrikeUsed = state.comboStrikeUsed || {};
+        state.comboStrikeUsed[u.uid] = state.turn;
+        M.log(state, { type: 'combo-strike', uid: u.uid, lane, spells });
+        applyAttackBatch(state, lane, [u]);
+        notifyAllyExtraAttack(state, u);
+      }
+    }
   }
 }
 
@@ -422,7 +439,7 @@ export function apiFor(state) {
       }));
     },
 
-    summonToken(st, { cardId, side, lane, row, modify }) {
+    summonToken(st, { cardId, side, lane, row, modify, silent }) {
       const def = st.cardLib[cardId];
       if (!def) throw new Error(`召唤失败：卡牌库缺少 ${cardId}`);
       const probe = probeFromDef(def);
@@ -439,8 +456,9 @@ export function apiFor(state) {
       applySummonModify(st, unit, modify);
       st.board[spot.lane].units[side][spot.row] = unit;
       M.log(st, { type: 'summon', uid: unit.uid, cardId, side, lane: spot.lane, row: spot.row });
-      // 「免费打出」→ 打出效果照常触发
-      M.queueTrigger(st, unit, 'onPlay', {});
+      // 「免费打出」→ 打出效果照常触发。
+      // silent（精通技能「复制」）不出：复制品若带「复制」会无限繁殖。
+      if (!silent) M.queueTrigger(st, unit, 'onPlay', {});
       M.queueTrigger(st, unit, 'onEnterLane', { from: null, lane: spot.lane });
       resolveHunt(st, unit);
       syncStatAuras(st);

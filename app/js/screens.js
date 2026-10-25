@@ -12,6 +12,7 @@
 import { incompatibleReason } from './replay.js';
 import {
   fmtNum, enhanceGoldCost, masteryDustCost, ENHANCE_MAX, MASTERY_MAX, SKILL_BY_ID, RARITY,
+  REFRESH_DUST_COST,
 } from './enhance.js';
 /**
  * HTML 转义只有一个实现，在 ui.js —— 打包器把各模块拍进同一作用域，
@@ -22,7 +23,7 @@ import { esc } from './ui.js';
 import { levelFor } from './economy.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.71.0';
+export const APP_VERSION = '0.72.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
@@ -1057,6 +1058,7 @@ function forgePickHTML(pick) {
         <h2>选一个技能</h2>
         <p>${esc(pick.name)} 精通：失去全部强化数值，永久获得所选技能</p>
         <div class="skill-list">${opts}</div>
+        <button class="fc-btn fc-btn-buy" data-act="forge-redraw">重抽（${REFRESH_DUST_COST} 星尘）</button>
         <button class="btn-home" data-act="forge-pick-cancel">再想想</button>
       </div>
     </div>`;

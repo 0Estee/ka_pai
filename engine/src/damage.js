@@ -131,9 +131,19 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
   let amount = incoming;
   if (source && !opts.noCrit && !opts.noKeywords) {
     const crit = getKw(source, 'crit');
-    if (crit && crit.x > 0 && chance(state.rng, 0.5)) {
-      amount += crit.x;
-      log(state, { type: 'crit', uid: source.uid, x: crit.x, lane: source.lane });
+    // 技能改写的暴击（作者 2026-10-24）：
+    //   critChance      把默认的 50% 换掉（残暴 65% / 会心 10%）
+    //   critAlways      只要有暴击词条就必定触发（精准）
+    //   critAfterTurn   回合数 ≥ N 时**额外**获得 X 点暴击（会心：第 9 回合起 +20）
+    let critX = crit ? crit.x : 0;
+    const after = source.critAfterTurn;
+    if (after && state.turn >= after.turn) critX += after.x || 0;
+    if (critX > 0) {
+      const p = source.critAlways ? 1 : (source.critChance === undefined ? 0.5 : source.critChance);
+      if (chance(state.rng, p)) {
+        amount += critX;
+        log(state, { type: 'crit', uid: source.uid, x: critX, lane: source.lane });
+      }
     }
   }
 
@@ -144,9 +154,12 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
    * 而 computeFinalDamage 只拿得到单位。算好塞进 opts 传下去（裁决 D62）。
    */
   const sealed = !isKing && (!!target.unit.sealed || isSealedByAura(state, target.unit));
+  // 「受到的来自锦囊的伤害 -1」（不屈）：opts.fromSpell 由 actions.js 的 damage 动作带上
+  const spellReduce = (!isKing && opts.fromSpell && target.unit.spellDamageReduce)
+    ? target.unit.spellDamageReduce : 0;
   const finalAmount = isKing
     ? amount
-    : computeFinalDamage(target.unit, amount, { ...opts, sealed });
+    : computeFinalDamage(target.unit, amount, { ...opts, sealed, spellReduce });
 
   if (finalAmount <= 0) {
     log(state, { type: 'damage-blocked', target: isKing ? `king${target.side}` : target.unit.uid, raw: amount });
@@ -182,6 +195,15 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
      * 作者 2026-10 口径明确：祈祷的 -2 **先扣**，再看「神使」转不转移。
      */
     let kingAmount = finalAmount;
+    /**
+     * 「在场:友方国王获祝福 X」（精通技能「圣洁」）：与单位词条「祝福」同口径 ——
+     * 伤害大于 X 就设为 X。放在这里最先扣，后面所有减伤再往下降。
+     */
+    const aura = kingAuraFor(state, target.side);
+    if (aura.blessing !== null && !(opts && opts.unpreventable) && kingAmount > aura.blessing) {
+      log(state, { type: 'king-blessing', side: target.side, from: kingAmount, to: aura.blessing });
+      kingAmount = aura.blessing;
+    }
     const reduce = p.kingDamageReduce;
     if (reduce && reduce.turn === state.turn && !(opts && opts.unpreventable)) {
       const after = Math.max(0, kingAmount - (reduce.amount || 0));
@@ -213,6 +235,15 @@ function dealDamageCore(state, source, target, raw, opts = {}) {
      * 然后把这张牌的卡面效果排进触发队列（回复 + 弃一张手牌）。
      * 弃牌要问人 → 必须走 generator 触发链，所以这里只做「揭示 + 免除 + 入队」。
      */
+    // 「在场:友方国王生命至少为 X」（精通技能「不灭」）：先抬底，
+    // 这样后面「致命伤害」的判定就不会被触发（作者 2026-10-24）
+    if (aura.hpFloor > 0 && !(opts && opts.unpreventable) && kingAmount > 0) {
+      const room = p.kingHp - aura.hpFloor;
+      if (kingAmount > room) {
+        log(state, { type: 'king-hpfloor', side: target.side, from: kingAmount, to: Math.max(0, room), floor: aura.hpFloor });
+        kingAmount = Math.max(0, room);
+      }
+    }
     if (!(opts && opts.unpreventable) && kingAmount > 0 && p.kingHp - kingAmount <= 0) {
       const fatal = findFatKingTrap(state, target.side);
       if (fatal) {
@@ -566,8 +597,28 @@ function findKingGuard(state, side) {
 }
 
 /**
- * 「这次伤害是谁打的 / 为什么」（作者 2026-10-22：每次卡牌受伤都要写明原因）。
+ * 「在场:友方国王…」（精通技能「圣洁 / 不灭」，作者 2026-10-24）。
  *
+ * 带 kingAura 的**己方单位**在场时，国王获得对应被动：
+ *   blessing  受到的伤害若大于 X 则设为 X（与单位词条「祝福」同一口径）
+ *   hpFloor   国王生命至少为 X（伤害再大也留 X 点，不会被打到 0）
+ * 多个来源取「最有利」的那个：blessing 取最小值、hpFloor 取最大值。
+ */
+function kingAuraFor(state, side) {
+  let blessing = null;
+  let hpFloor = 0;
+  for (const u of allUnits(state)) {
+    if (!u || u.removed || u.side !== side || !u.kingAura) continue;
+    if (u.kingAura.blessing !== undefined) {
+      blessing = blessing === null ? u.kingAura.blessing : Math.min(blessing, u.kingAura.blessing);
+    }
+    if (u.kingAura.hpFloor !== undefined) hpFloor = Math.max(hpFloor, u.kingAura.hpFloor);
+  }
+  return { blessing, hpFloor };
+}
+
+/**
+ * 「这次伤害是谁打的 / 为什么」（作者 2026-10-22：每次卡牌受伤都要写明原因）。
  * 优先级：调用点显式给的 opts.reason > 来源单位 / 虚拟来源的名字 > 兜底文案。
  * 兜底那一档真的会出现：环境伤害、标记结算（中毒 / 灼烧）都没有来源，
  * 它们各自的调用点会显式传 reason，所以这里的兜底只防遗漏。

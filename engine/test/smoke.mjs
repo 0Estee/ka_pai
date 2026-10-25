@@ -2774,6 +2774,170 @@ test('D78：留场的队友不会因为融合而触发「进入一条线」或�
   assert.equal(s.stats.unitsDestroyed, 1, '只有融合牌被消灭，队友没被消灭');
 });
 
+// ══════════════════════════════════════════════════════════
+// 精通技能的机制（作者 2026-10-24 五档技能表带来的引擎能力）
+// ══════════════════════════════════════════════════════════
+group('§ 精通技能的机制（fx / flags / kingAura / 新 op，作者 2026-10-24）');
+
+/** 带强化增量表建局：enhance = [{ [cardId]: {...} }, {...}] */
+function gameE(enhance, cfg = {}) {
+  const seed = cfg.seed === undefined ? DEFAULT_SEED : cfg.seed;
+  const state = G.createGame({
+    seed,
+    firstPlayer: cfg.firstPlayer === undefined ? 0 : cfg.firstPlayer,
+    deck: cfg.deck || buildTestDeck(80, seed),
+    cardLib: cfg.cardLib || TEST_CARD_LIB,
+    factions: cfg.factions || [],
+    enhance,
+  });
+  G.startGame(state);
+  state.autoResolveChoices = true;
+  return state;
+}
+
+/** 走真实出牌路径打一张带强化的单位；返回 { unit, handBefore } */
+function playE(s, side, cardId, lane, row) {
+  forcePhase(s, side, 'deploy');
+  const hc = give(s, side, cardId);
+  const before = s.players[side].hand.length;
+  G.playCard(s, side, hc.iid, { lane, row });
+  return { unit: s.board[lane].units[side][row], handBefore: before };
+}
+
+test('fx：技能带的「打出:抽一张」挂到了单位身上，落地就抽', () => {
+  const s = gameE([{ W01: { fx: [{ trigger: 'onPlay', actions: [{ op: 'draw', amount: 1 }] }] } }, {}]);
+  const { handBefore } = playE(s, 0, 'W01', 'plainL', 'front');
+  // 打出 -1、抽 +1 → 净变化 0
+  assert.equal(s.players[0].hand.length, handBefore, '打出抽一张应当把净手牌补回来');
+});
+
+test('flags.critAlways：有暴击词条就必定触发', () => {
+  const s = gameE([{ W03: { flags: { critAlways: true }, kw: [{ id: 'crit', x: 3 }] } }, {}]);
+  const me = playE(s, 0, 'W03', 'plainL', 'front').unit;
+  const foe = deploy(s, 1, 'W03', 'mountain', 'front');
+  deploy(s, 1, 'W03', 'mountain', 'back'); // 占位不影响
+  foe.hp = 99; foe.maxHp = 99;
+  M.dealDamage(s, me, { kind: 'unit', unit: foe }, 1, { noThorns: true });
+  assert.equal(foe.hp, 95, '1 + 暴击3 必须一次打满，不能靠运气');
+});
+
+test('flags.critChance：把默认的 50% 换成 100% 时必中', () => {
+  const s = gameE([{ W03: { flags: { critChance: 1 }, kw: [{ id: 'crit', x: 2 }] } }, {}]);
+  const me = playE(s, 0, 'W03', 'plainL', 'front').unit;
+  const foe = deploy(s, 1, 'W03', 'mountain', 'front');
+  foe.hp = 99; foe.maxHp = 99;
+  M.dealDamage(s, me, { kind: 'unit', unit: foe }, 1, { noThorns: true });
+  assert.equal(foe.hp, 96, '1 + 暴击2');
+});
+
+test('flags.spellDamageReduce：受到的来自锦囊的伤害 -1', () => {
+  const s = gameE([{ W03: { flags: { spellDamageReduce: 1 } } }, {}]);
+  const u = playE(s, 0, 'W03', 'plainL', 'front').unit;
+  M.dealDamage(s, null, { kind: 'unit', unit: u }, 3, { fromSpell: true, noThorns: true });
+  assert.equal(u.hp, 2, '重装 4 血，锦囊 3 点被减成 2 → 剩 2');
+});
+
+test('flags.swapStats：先 +1/+1 再把攻血数值对调（扭曲）', () => {
+  const s = gameE([{ W02: { atk: 1, hp: 1, flags: { swapStats: true } } }, {}]);
+  const u = playE(s, 0, 'W02', 'plainL', 'front').unit;
+  // W02 2/1 → +1/+1 = 3/2 → 对调 = 2/3
+  assert.equal(u.atk, 2, '对调后攻击 = 原生命 2');
+  assert.equal(u.hp, 3, '对调后生命 = 原攻击 3');
+});
+
+test('flags.costPerAlly：费用减去场上队友数（协作）', () => {
+  const s = gameE([{ W03: { flags: { costPerAlly: 1 } } }, {}]);
+  deploy(s, 0, 'W01', 'plainL', 'front');
+  deploy(s, 0, 'W01', 'plainR', 'front');
+  const hc = give(s, 0, 'W03');
+  assert.equal(G.costOf(s, hc), 1, 'W03 原费 3 − 2 名队友 = 1');
+});
+
+test('kingAura.blessing：在场时友方国王受到的伤害被压到 X（圣洁）', () => {
+  const s = gameE([{ W01: { kingAura: { blessing: 2 } } }, {}]);
+  playE(s, 0, 'W01', 'plainL', 'front');
+  const hp0 = king(s, 0);
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 5);
+  assert.equal(king(s, 0), hp0 - 2, '5 点被祝福压成 2 点');
+});
+
+test('kingAura.hpFloor：在场时友方国王生命至少为 1（不灭）', () => {
+  const s = gameE([{ W01: { kingAura: { hpFloor: 1 } } }, {}]);
+  playE(s, 0, 'W01', 'plainL', 'front');
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 999);
+  assert.equal(king(s, 0), 1, '再大的伤害也留 1 点');
+});
+
+test('op summonSelf：打出时在场上召唤一张同名卡（复制），且不会无限繁殖', () => {
+  const s = gameE([{ W01: { fx: [{ trigger: 'onPlay', actions: [{ op: 'summonSelf' }] }] } }, {}]);
+  playE(s, 0, 'W01', 'plainL', 'front');
+  const n = M.allUnits(s).filter((u) => !u.removed && u.cardId === 'W01').length;
+  assert.equal(n, 2, '本体 + 复制品各一张（复制品不再触发复制）');
+});
+
+test('op setKingHp / discardHandUnits：设国王血、弃光敌方手牌里的单位牌', () => {
+  const s = gameE([{
+    W01: { fx: [{ trigger: 'onPlay', actions: [{ op: 'setKingHp', amount: 5 }, { op: 'discardHandUnits' }] }] },
+  }, {}]);
+  give(s, 1, 'W01');            // 敌方手里的单位牌
+  s.cardLib.TS1 = { id: 'TS1', name: '测试锦囊', type: 'spell', spellKind: 'item', cost: 1, actions: [] };
+  const spell = give(s, 1, 'TS1'); // 敌方手里的锦囊（应当留下）
+  playE(s, 0, 'W01', 'plainL', 'front');
+  assert.equal(king(s, 0), 5, '国王生命被设为 5');
+  const left = s.players[1].hand.map((c) => c.cardId);
+  assert.ok(left.indexOf('W01') < 0, '敌方手里的单位牌被弃掉');
+  assert.ok(left.indexOf(spell.cardId) >= 0, '锦囊不受影响');
+});
+
+test('target randomEnemyUnits + when.turnAtLeast：奥义式回合开始 AOE', () => {
+  const s = gameE([{
+    W01: { fx: [{ trigger: 'onTurnStart', when: { turnAtLeast: 4 },
+      actions: [{ op: 'damage', amount: 3, target: { kind: 'randomEnemyUnits', count: 2 } }] }] },
+  }, {}]);
+  const a = deploy(s, 1, 'W03', 'mountain', 'front');
+  const b = deploy(s, 1, 'W03', 'plainL', 'front');
+  playE(s, 0, 'W01', 'plainR', 'front');
+  s.turn = 4;
+  M.queueTrigger(s, at(s, 'plainR', 0, 'front'), 'onTurnStart', { turn: 4 });
+  G.flushTriggers(s);
+  assert.equal(a.hp + b.hp, 8 - 6, '两名敌人各吃 3 点');
+});
+
+test('conditional turnAtLeast / ownKingHpAtMost：热寂与无尽的条件分支', () => {
+  const s = gameE([{
+    W01: { fx: [{ trigger: 'onPlay', actions: [
+      { op: 'conditional', if: { turnAtLeast: 12 },
+        then: [{ op: 'destroy', allowKing: true, target: { kind: 'enemyKing' } }] },
+      { op: 'conditional', if: { ownKingHpAtMost: 1 },
+        then: [{ op: 'setKingHp', amount: 99 }] },
+    ] }] },
+  }, {}]);
+  // 条件不满足：什么也不发生
+  playE(s, 0, 'W01', 'plainL', 'front');
+  assert.equal(king(s, 1), 20, '回合数不够，热寂不发动');
+  assert.equal(king(s, 0), 20, '国王血量不是 1，无尽不发动');
+  // 条件满足
+  const s2 = gameE([{ W01: { fx: [{ trigger: 'onPlay', actions: [
+    { op: 'conditional', if: { ownKingHpAtMost: 1 }, then: [{ op: 'setKingHp', amount: 99 }] },
+  ] }] } }, {}]);
+  s2.players[0].kingHp = 1;
+  playE(s2, 0, 'W01', 'plainL', 'front');
+  assert.equal(king(s2, 0), 20, '国王血设为 99 后按上限 20 收（无尽）');
+});
+
+test('effect.oncePerTurn：开战按 4 条线路触发时，每回合只结算一次（兼爱）', () => {
+  const s = gameE([{
+    W01: { fx: [{ trigger: 'onCombatStart', oncePerTurn: true,
+      actions: [{ op: 'draw', amount: 1 }] }] },
+  }, {}]);
+  playE(s, 0, 'W01', 'plainL', 'front');
+  const u = at(s, 'plainL', 0, 'front');
+  const n0 = s.players[0].hand.length;
+  for (const lane of LANES) M.queueTrigger(s, u, 'onCombatStart', { lane });
+  G.flushTriggers(s);
+  assert.equal(s.players[0].hand.length, n0 + 1, '四条线路只抽到一张');
+});
+
 console.log('\n' + BAR);
 if (failures.length === 0) {
   console.log(OK_ALL + ' 全部通过：' + passed + ' 个测试');

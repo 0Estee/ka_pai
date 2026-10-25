@@ -12,6 +12,7 @@ import { matchesTargetFilter, isFrozen } from './keywords.js';
 import { filterCtx } from './auras.js';
 import { laneUnits, allUnitsInLane, allUnits, findControlSpot } from './mechanics.js';
 import { asUnit, asKing } from './amounts.js';
+import { nextInt } from './rng.js';
 
 /** 目标引用的可读名（用于日志与提示） */
 export function describeTarget(t) {
@@ -158,6 +159,24 @@ function* resolveTargetsInner(state, ctx, selector) {
       const out = [];
       for (const lane of LANES) out.push(...laneUnits(state, lane, foe));
       return batch(out);
+    }
+
+    /**
+     * 随机 N 名敌方单位（精通技能「奥义」，作者 2026-10-24）。
+     * 用 state.rng 抽，结果确定 —— 回放 / 联机锁步两边抽到同一批人。
+     * 不足 N 个就全给（不会重复）。
+     */
+    case 'randomEnemyUnits': {
+      let pool = allUnits(state).filter((u) => u.side === foe);
+      pool = pool.filter((u) => matchesTargetFilter(u, selector.filter, filterCtx(state, source)));
+      const n = Math.max(1, Number(selector.count) || 1);
+      const picked = [];
+      while (picked.length < n && pool.length > 0) {
+        const idx = nextInt(state.rng, pool.length);
+        picked.push(pool[idx]);
+        pool.splice(idx, 1);
+      }
+      return batch(picked);
     }
 
     /**

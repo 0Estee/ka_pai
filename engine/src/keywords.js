@@ -153,6 +153,8 @@ export function computeFinalDamage(target, raw, opts = {}) {
   if (blessing && amount > blessing.x) amount = blessing.x;
   const armor = getKw(target, 'armor');
   if (armor) amount = Math.max(0, amount - armor.x);
+  // 「受到的来自锦囊的伤害 -1」（精通技能「不屈」）：排在装甲之后扣
+  if (opts.spellReduce) amount = Math.max(0, amount - opts.spellReduce);
   return amount;
 }
 

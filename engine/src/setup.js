@@ -175,13 +175,18 @@ export function createGame(cfg = {}) {
 // ══════════════════════════════════════════════════════════
 
 /** 没有强化时的零值（常量，**不要修改它**） */
-const NO_ENHANCE = { atk: 0, hp: 0, cost: 0, kw: [] };
+const NO_ENHANCE = { atk: 0, hp: 0, cost: 0, kw: [], fx: [], flags: {}, kingAura: null };
 
 /**
  * 把外部传进来的强化表洗成引擎认的形状。
  *
  * 允许的来源：玩家档案（强化工坊）、联机 start 消息、回放存档。
  * 脏数据一律丢弃 —— 存档坏掉不该让对局开不起来。
+ *
+ * 除 atk/hp/cost/kw 之外还带三样（作者 2026-10-24 五档技能表）：
+ *   fx       触发式异能，直接挂到单位身上
+ *   flags    单位级开关（暴击概率 / 攻血交换 / 锦囊减伤…）
+ *   kingAura 在场时给友方国王的被动（祝福上限 / 生命下限）
  */
 export function normalizeEnhance(raw) {
   const out = [{}, {}];
@@ -199,11 +204,48 @@ export function normalizeEnhance(raw) {
           .filter((k) => k && typeof k.id === 'string')
           .map((k) => ({ id: k.id, x: Number(k.x) || 0 }))
         : [];
-      if (atk === 0 && hp === 0 && cost === 0 && kw.length === 0) continue;
-      out[side][cardId] = { atk, hp, cost, kw };
+      const fx = Array.isArray(v.fx) ? sanitizeEffects(v.fx) : [];
+      const flags = v.flags && typeof v.flags === 'object' ? sanitizeFlags(v.flags) : null;
+      const kingAura = v.kingAura && typeof v.kingAura === 'object' ? sanitizeKingAura(v.kingAura) : null;
+      if (atk === 0 && hp === 0 && cost === 0 && kw.length === 0
+          && fx.length === 0 && !flags && !kingAura) continue;
+      out[side][cardId] = { atk, hp, cost, kw, fx, flags, kingAura };
     }
   }
   return out;
+}
+
+/** 深拷贝一份异能表（技能给的 fx 不能被某一局改脏，卡库是双方共享的） */
+function sanitizeEffects(list) {
+  const out = [];
+  for (const e of list) {
+    if (!e || typeof e !== 'object' || typeof e.trigger !== 'string') continue;
+    try {
+      out.push(JSON.parse(JSON.stringify(e)));
+    } catch (_) { /* 脏数据跳过 */ }
+  }
+  return out;
+}
+
+const FLAG_KEYS = ['critAlways', 'critChance', 'swapStats', 'spellDamageReduce', 'costPerAlly', 'comboStrike'];
+function sanitizeFlags(src) {
+  const out = {};
+  for (const k of FLAG_KEYS) {
+    if (src[k] === undefined) continue;
+    if (k === 'critAlways' || k === 'swapStats' || k === 'comboStrike') out[k] = !!src[k];
+    else out[k] = Number(src[k]) || 0;
+  }
+  if (src.critAfterTurn && typeof src.critAfterTurn === 'object') {
+    out.critAfterTurn = { turn: Number(src.critAfterTurn.turn) || 0, x: Number(src.critAfterTurn.x) || 0 };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function sanitizeKingAura(src) {
+  const out = {};
+  if (src.blessing !== undefined) out.blessing = Number(src.blessing) || 0;
+  if (src.hpFloor !== undefined) out.hpFloor = Number(src.hpFloor) || 0;
+  return Object.keys(out).length ? out : null;
 }
 
 /** 取某方某张卡的强化增量；没有就返回零值常量。 */
@@ -258,16 +300,28 @@ export function instantiateUnit(state, def, side, lane, row) {
   // 强化是 0.1 一档，直接相加会得到 6.300000000000001；落地就算成两位小数，
   // 之后界面、伤害、回血读到的都是干净的数。
   const hp = fixNum((Number(def.hp) || 0) + enh.hp);
-  return {
+  let atk = fixNum((Number(def.atk) || 0) + enh.atk);
+  let maxHp = hp;
+  let curHp = hp;
+  const flags = enh.flags || {};
+  // 「扭曲」：先 +1/+1（已在 atk/hp 里了），再把攻/血**数值对调**（作者 2026-10-24）
+  if (flags.swapStats) {
+    const t = atk;
+    atk = curHp;
+    curHp = t;
+    maxHp = t;
+  }
+  const unit = {
     uid: state.nextUid++,
     cardId: def.id,
     name: def.name,
     side, lane, row,
-    atk: fixNum((Number(def.atk) || 0) + enh.atk),
-    hp,
-    maxHp: hp,
+    atk,
+    hp: curHp,
+    maxHp,
     keywords: mergeKeywords((def.keywords || []).map(parseKeyword), enh.kw),
-    effects: instanceEffects(def),
+    // 技能带的触发式异能（「富足：打出抽一张」等）跟着实例走，不写进共享卡库
+    effects: instanceEffects(def).concat((enh.fx || []).map((e) => Object.assign({}, e))),
     marks: [],
     removed: false,
     lastDamageSource: null,
@@ -282,6 +336,16 @@ export function instantiateUnit(state, def, side, lane, row) {
     // 炼金：巫毒娃娃 (U430) - 每回合友方国王首次受到的伤害改由敌方国王承受
     voodooDoll: !!def.voodooDoll,
   };
+  // ── 技能里的单位级开关（作者 2026-10-24 五档技能表）
+  if (flags.critAlways) unit.critAlways = true;
+  if (flags.critChance !== undefined) unit.critChance = flags.critChance;
+  if (flags.critAfterTurn) unit.critAfterTurn = flags.critAfterTurn;
+  if (flags.spellDamageReduce) unit.spellDamageReduce = flags.spellDamageReduce;
+  if (flags.costPerAlly) unit.costPerAlly = flags.costPerAlly;
+  if (flags.comboStrike) unit.comboStrike = true;
+  // 「在场:友方国王获祝福 / 生命至少为 1」—— 由 damage.js 扫场上单位取
+  if (enh.kingAura) unit.kingAura = enh.kingAura;
+  return unit;
 }
 
 /**
