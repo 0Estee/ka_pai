@@ -3,13 +3,13 @@ import { api, check } from './harness.mjs';
 
 console.log('\n§ 融合进化 / 单位打出选目标（作者 2026-09 报的两个 bug）');
 
-check('融合进化：点场上的队友就能把新牌打到他身上', () => {
+check('融合：点场上的队友就能把融合牌打到他身上（队友留在场上，融合牌被消灭）', () => {
   if (typeof api.__demoFuse !== 'function') throw new Error('缺少 __demoFuse 钩子');
   const r = api.__demoFuse();
   if (r.error) throw new Error('打出失败：' + r.error);
   if (!r.highlighted) throw new Error('队友所在格没被算成合法落点（界面不高亮，玩家不知道该点哪）');
-  if (!r.fused) throw new Error('点了队友但没融合：' + r.beforeName + ' 还在');
-  if (r.afterName === r.beforeName) throw new Error('融合后场上还是原来那张牌');
+  if (!r.keptAlly) throw new Error('融合后队友不该消失：' + r.beforeName + ' → ' + r.afterName);
+  if (!r.fuseCardDiscarded) throw new Error('融合牌自己应当算作被消灭（进弃牌堆）');
 });
 
 check('单位「打出:」需要指定目标时，界面会停下来让玩家点', () => {

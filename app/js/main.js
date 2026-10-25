@@ -1116,8 +1116,11 @@ window.__resolveChoice = (idx) => {
 };
 
 /**
- * 自检钩子：在**真实的界面路径**上打出一张「融合进化」牌，验证能打到队友身上。
+ * 自检钩子：在**真实的界面路径**上打出一张「融合」牌，验证能打到队友身上。
  * 走的是 selectCard + handleUnitClick，也就是玩家实际点的那两下。
+ *
+ * 作者 2026-10-25 的新口径（裁决 D78）：融合牌自己算作被消灭，队友留在场上。
+ * 所以这里断言的是「队友还在」而不是「换人了」。
  */
 window.__demoFuse = () => {
   startNewGame();
@@ -1138,7 +1141,7 @@ window.__demoFuse = () => {
   const before = state.board.mountain.units[me()].front;
   if (!before) return { error: '队友没放上去' };
 
-  // 2) 手上给一张带融合进化的牌，选中它
+  // 2) 手上给一张带融合的牌，选中它
   const fuserId = Object.values(TEST_CARD_LIB).find((c) => (c.keywords || []).includes('fuse')).id;
   const hc = { iid: state.nextIid++, cardId: fuserId };
   p.hand.push(hc);
@@ -1159,7 +1162,9 @@ window.__demoFuse = () => {
     highlighted,
     beforeName: before.name,
     afterName: after ? after.name : null,
-    fused: !!after && after.uid !== before.uid,
+    // 新口径：队友留下 = 同一个 uid；融合牌进了弃牌堆
+    keptAlly: !!after && after.uid === before.uid,
+    fuseCardDiscarded: state.discard.includes(fuserId),
     error: view.hint || '',
   };
 };

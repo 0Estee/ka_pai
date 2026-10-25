@@ -389,9 +389,18 @@ function notifyDamageWatchers(state, victim) {
  * 注意：这里存的是**单位对象的引用**而不是 uid。
  * 因为「被消灭:」异能需要在单位已经离开战场之后仍然能执行，
  * 按 uid 反查会查不到（单位已从 board 上摘除）。
+ *
+ * opts.effects / opts.cardId（作者 2026-10-25「融合」重做）：
+ *   **以别人的异能、挂在这个单位身上结算**。融合时那条「融合后效果」属于
+ *   被消灭的那张牌，但要结算在留在场上的那个单位身上，所以不能走单位的
+ *   `unit.effects`。给了 effects 就只用它，不再读单位自己的异能。
  */
-export function queueTrigger(state, unit, triggerName, payload = {}) {
-  state.triggerQueue.push({ unit, triggerName, payload });
+export function queueTrigger(state, unit, triggerName, payload = {}, opts = null) {
+  state.triggerQueue.push({
+    unit, triggerName, payload,
+    effects: opts && opts.effects ? opts.effects : null,
+    cardId: opts && opts.cardId ? opts.cardId : null,
+  });
 }
 
 /**

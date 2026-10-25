@@ -165,12 +165,18 @@ export function resolveChoice(state, choice) {
 // 触发队列
 // ══════════════════════════════════════════════════════════
 
-function* runTriggeredEffects(state, unit, triggerName, payload = {}) {
+function* runTriggeredEffects(state, unit, triggerName, payload = {}, override = null) {
   // 被封印的单位异能不生效（卡牌「禁军」「大封印碑」「卫兵」）。
   // 一次性的 sealUnit 与「在场」式的大封印碑都要算。
   if (M.isSealed(unit) || isSealedByAura(state, unit)) return;
 
-  const list = (unit.effects || []).filter((e) => e.trigger === triggerName);
+  /**
+   * override（作者 2026-10-25「融合」重做）：这一条触发要跑的是**另一张牌**的异能，
+   * 只是挂在 `unit` 身上结算。融合后效果属于被消灭的那张牌，但要落在队友身上，
+   * 所以来源还是 `unit`（选目标 / 归属都按它算），异能表换成 override.effects。
+   */
+  const list = (override && override.effects ? override.effects : (unit.effects || []))
+    .filter((e) => e.trigger === triggerName);
   for (const effect of list) {
     /**
      * effect.when 是**附加条件**，不满足就跳过这条异能：
@@ -184,7 +190,8 @@ function* runTriggeredEffects(state, unit, triggerName, payload = {}) {
       state,
       source: unit,
       controller: unit.side,
-      card: state.cardLib[unit.cardId],
+      // 融合后的效果按**异能所属的那张牌**记账（伤害原因 / 卡名显示都用它）
+      card: (override && override.cardId && state.cardLib[override.cardId]) || state.cardLib[unit.cardId],
       chosenLane: unit.lane,
       chosenTargetUid: null,
       payload,
@@ -298,7 +305,8 @@ export function* flushTriggersGen(state) {
       ? runCardTriggeredActions(state, t.cardSide, t.cardId, t.actions, t.payload)
       : (t.kingSide !== undefined
         ? runKingTriggeredEffects(state, t.kingSide, t.triggerName, t.payload)
-        : runTriggeredEffects(state, t.unit, t.triggerName, t.payload));
+        : runTriggeredEffects(state, t.unit, t.triggerName, t.payload,
+          t.effects ? { effects: t.effects, cardId: t.cardId } : null));
     yield* gen;
   }
 }

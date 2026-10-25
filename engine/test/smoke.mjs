@@ -2705,6 +2705,75 @@ test('心驭阵营：四张超能力进抽取池，令牌不进', () => {
   assert.equal(all.indexOf('U480'), -1, '令牌不进超能力抽取池');
 });
 
+// ══════════════════════════════════════════════════════════
+// 融合（作者 2026-10-25 重做口径，裁决 D78）
+// ══════════════════════════════════════════════════════════
+group('§ 融合（作者 2026-10-25：融合牌自己被消灭，队友留在场上）');
+
+test('D78-A：把带融合的牌打在队友身上 —— 队友留在场上，融合牌进弃牌堆', () => {
+  const s = game();
+  // 先摆一个队友（雪人走后排在平地上）
+  const mate = deploy(s, 0, 'U461', 'plainL', 'front');
+  const k0 = s.stats.unitsDestroyed;
+  // 雪人 U456 带融合，打在队友身上
+  playUnit(s, 0, 'U456', 'plainL', 'front');
+  assert.equal(at(s, 'plainL', 0, 'front').uid, mate.uid, '留在场上的必须是原来那个队友');
+  assert.ok(s.discard.indexOf('U456') >= 0, '融合牌自己算作被消灭（进弃牌堆）');
+  assert.equal(s.stats.unitsDestroyed, k0 + 1, '消灭计数 +1');
+});
+
+test('D78-A：融合后效果结算在留场的队友身上（雪人 → 冻结敌人）', () => {
+  const s = game({ factions: ['frost', 'frost'] });
+  deploy(s, 0, 'U461', 'mountain', 'front');
+  const foe = deploy(s, 1, 'U461', 'plainL', 'front');
+  playUnit(s, 0, 'U456', 'mountain', 'front');
+  assert.ok(isFrozen(foe), '融合后效果（冻结一名敌人）生效了');
+});
+
+test('D78-B：把普通牌打在带融合的队友身上 —— 新牌留下，融合牌被消灭', () => {
+  const s = game({ factions: ['frost', 'frost'] });
+  const fusee = playUnit(s, 0, 'U456', 'plainL', 'front');
+  const foe = deploy(s, 1, 'U461', 'mountain', 'front');
+  playUnit(s, 0, 'U461', 'plainL', 'front');
+  const now = at(s, 'plainL', 0, 'front');
+  assert.ok(now && now.uid !== fusee.uid, '融合牌不该留在场上');
+  assert.ok(s.discard.indexOf('U456') >= 0, '带融合的那张被消灭');
+  assert.ok(isFrozen(foe), '融合后效果仍然结算（落在新打出的那张牌上）');
+});
+
+test('D78：融合牌「被消灭」走的是真正的被消灭（触发它自己的「被消灭:」）', () => {
+  const s = game();
+  // 造一张「被消灭: 抽一张牌」的融合测试卡
+  s.cardLib.TF1 = {
+    id: 'TF1', name: '测试融合体', type: 'unit', cost: 1, atk: 1, hp: 1,
+    keywords: ['fuse'],
+    effects: [{ trigger: 'onDeath', actions: [{ op: 'draw', amount: 1 }] }],
+  };
+  deploy(s, 0, 'U461', 'plainL', 'front');
+  // 自己发牌，好在「打出之前」量一次手牌数
+  forcePhase(s, 0, 'deploy');
+  const hc = give(s, 0, 'TF1');
+  const before = s.players[0].hand.length;
+  G.playCard(s, 0, hc.iid, { lane: 'plainL', row: 'front' });
+  // 打出让它离开手牌（-1），被消灭时「抽一张」（+1）→ 净变化 0
+  assert.equal(s.players[0].hand.length, before, '融合牌自己的「被消灭:抽一张」生效了');
+});
+
+test('D78：留场的队友不会因为融合而触发「进入一条线」或「被消灭」', () => {
+  const s = game();
+  s.cardLib.TF2 = {
+    id: 'TF2', name: '测试标记体', type: 'unit', cost: 1, atk: 1, hp: 1,
+    keywords: ['fuse'],
+    effects: [{ trigger: 'onPlay', when: 'fused', actions: [{ op: 'buffAtk', amount: 2, target: { kind: 'self' } }] }],
+  };
+  const mate = deploy(s, 0, 'U461', 'plainL', 'front');
+  const atk0 = mate.atk;
+  playUnit(s, 0, 'TF2', 'plainL', 'front');
+  assert.equal(at(s, 'plainL', 0, 'front').uid, mate.uid, '队友还在');
+  assert.equal(mate.atk, atk0 + 2, '融合后效果按队友结算（+2 攻）');
+  assert.equal(s.stats.unitsDestroyed, 1, '只有融合牌被消灭，队友没被消灭');
+});
+
 console.log('\n' + BAR);
 if (failures.length === 0) {
   console.log(OK_ALL + ' 全部通过：' + passed + ' 个测试');
