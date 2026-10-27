@@ -212,7 +212,7 @@ check('瞬态钩子都在：render.js 有扫描/施加两支，样式里八支�
   for (const s of ['.statusbar', ' .sb-mana', '.sb-king[data-king="', '.unit[data-uid="', '.slot[data-lane="', '.room-row[data-url="http://', '.hud-gold', '.hud-lv', '.rp-btn-play', '.hand .card[data-iid="']) {
     if (!js.includes(s)) throw new Error('render.js 里找不到目标选择器片段：' + s);
   }
-  for (const m of ['FX_POP_MS = 240', 'FX_ROW_MS = 300', 'FX_NUM_MS = 320', 'FX_WARN_MS = 260', 'FX_RP_MS = 280', 'FX_DEATH_MS = 340', 'FX_HEAL_MS = 420', 'FX_MANA_MS = 300', 'FX_PHASE_MS = 300', 'FX_DRAW_MS = 300', 'FX_SPEND_MS = 260']) {
+  for (const m of ['FX_POP_MS = 240', 'FX_ROW_MS = 300', 'FX_NUM_MS = 320', 'FX_WARN_MS = 260', 'FX_RP_MS = 280', 'FX_DEATH_MS = 340', 'FX_HEAL_MS = 420', 'FX_MANA_MS = 300', 'FX_PHASE_MS = 300', 'FX_DRAW_MS = 300', 'FX_DROP_MS = 360', 'FX_SPEND_MS = 260']) {
     if (!js.includes(m)) throw new Error('时长和清单对不上：' + m);
   }
   const style = read('app/style.css');
@@ -302,6 +302,69 @@ check('回放控制条：播放 ↔ 暂停翻转时给 .rp-btn-play 加 fx-rp', 
   if (demo.error) throw new Error('打开回放失败：' + demo.error);
   const a = withFxProbe(() => { api.__nav('replay-toggle'); });
   if (!hasAdded(a, 'fx-rp', '.rp-btn-play')) throw new Error('播放 / 暂停翻转没有加 fx-rp');
+});
+
+check('时长对账：JS 的 FX_*_MS 必须等于 CSS 里那一支动画的时长', () => {
+  // 上面那条只钉「常量写着多少」和「规则存在」，两边各写一遍是**两个真相来源**：
+  // 改 CSS 忘了改 JS（或反过来），动画会在 #stage 重绘时被提前掐断，而且没有任何地方会报错。
+  // 这里真的把 CSS 里的 `.NNs` 解析出来和常量对账。
+  const js = read('app/js/render.js');
+  const style = read('app/style.css');
+  const scr = read('app/screens.css');
+
+  /** 从一段 CSS 里找出 `选择器 { ... animation: <name> <time> ... }` 的时长，单位 ms */
+  const durationOf = (src, name) => {
+    const re = new RegExp('animation:\\s*' + name + '\\s+([0-9.]+)s', 'm');
+    const m = src.match(re);
+    return m ? Math.round(parseFloat(m[1]) * 1000) : null;
+  };
+  /** render.js 里某个常量的值 */
+  const constOf = (name) => {
+    const m = js.match(new RegExp(name + '\\s*=\\s*(\\d+)'));
+    return m ? Number(m[1]) : null;
+  };
+
+  // [常量名, 动画名, 到哪个文件里找]
+  const TABLE = [
+    ['FX_DEATH_MS', 'fx-death', style],
+    ['FX_HEAL_MS', 'fx-heal', style],
+    ['FX_MANA_MS', 'fx-pop-up', style],
+    ['FX_PHASE_MS', 'fx-phase', style],
+    ['FX_DRAW_MS', 'fx-draw', style],
+    ['FX_DROP_MS', 'slotDrop', style],
+    ['FX_SPEND_MS', 'fx-spend', style],
+    ['FX_POP_MS', 'pop-in', scr],
+    ['FX_ROW_MS', 'row-in', scr],
+    ['FX_NUM_MS', 'num-pop', scr],
+    ['FX_WARN_MS', 'warn-in', scr],
+    ['FX_RP_MS', 'rp-flash', scr],
+  ];
+  const bad = [];
+  for (const [k, anim, src] of TABLE) {
+    const want = constOf(k);
+    const got = durationOf(src, anim);
+    if (want === null) bad.push(k + ' 在 render.js 里没找到');
+    else if (got === null) bad.push(anim + ' 的 animation 时长没解析出来');
+    else if (want !== got) bad.push(k + ' = ' + want + 'ms，但 CSS 里 ' + anim + ' 是 ' + got + 'ms');
+  }
+  if (bad.length) throw new Error('CSS / JS 时长漂移：\n    ' + bad.join('\n    '));
+
+  // 还有一条更靠上游的约束：任何一支动画都不能长过一步特效的预算，
+  // 否则 #stage 在 FX_STEP_MS 时整块重写，动画会被当场掐断（see game-flow.js 的 FX_STEP_MS）。
+  const flow = read('app/js/game-flow.js');
+  const stepM = flow.match(/FX_STEP_MS\s*=\s*(\d+)/);
+  if (!stepM) throw new Error('game-flow.js 里找不到 FX_STEP_MS');
+  const step = Number(stepM[1]);
+  // `infinite` 的常驻呼吸动画（如 pulseT）不受这条约束：它本来就不指望在一步内播完。
+  const over = [];
+  for (const src of [style, scr]) {
+    for (const m of src.matchAll(/animation:\s*[-\w]+\s+([0-9.]+)s([^;}]*)/g)) {
+      if (/\binfinite\b/.test(m[2])) continue;
+      const ms = parseFloat(m[1]) * 1000;
+      if (ms > step) over.push(m[0] + '（' + ms + 'ms）');
+    }
+  }
+  if (over.length) throw new Error('这些动画比 FX_STEP_MS(' + step + 'ms) 还长，重绘会掐断它们：\n    ' + over.join('\n    '));
 });
 
 check('纪律：这些 fx-* 类一个都不许出现在渲染出来的 HTML 里', () => {

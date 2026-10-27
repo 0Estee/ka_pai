@@ -168,6 +168,16 @@ export const DIFFICULTIES = [
     // 门禁 09 会对账，不允许偷偷开。关掉它做对照：传 params { insight: null }。
     insight: { hand: true, deck: true },
     planner: 'rollout',   // 打开模拟前瞻
+    /**
+     * 作者 2026-10-27：引擎中途反问的每一问（弃哪张 / 封印谁 / 选哪条线 / 抉择走哪支 /
+     * 召唤落哪格 / 拿哪张原料）也要自己算，不能再用引擎兜底的「取第一个选项」。
+     *
+     * 这是**决策水平**的提升，不是数值优势 —— 和 insight 一样只改选择、不改规则，
+     * 所以不给它单独做界面文案；其余四档保持原来的手感，别顺手改掉。
+     * 实测（13 阵营随机、种子 1-24、写死 0 档）：开 / 关只有 2 局结局相同，
+     * 平均回合从 8.9 掉到 7.6 —— 它让对局变短，也就是更会推。
+     */
+    smartChoices: true,
     // 留手也交给推演决定（agent 2026-10 的实测改动，见 aiTakeTurn 里的 rolloutPass 分支）。
     // 原来是「贪心分低于 -1 就不出牌」，手调的常数 —— 实测它才是这一档最大的短板：
     //   写死第 0 档打噩梦，n=240（种子 1-240）：117/122/1 = 48.8%（关掉留手判定则 111/128/1 = 46.3%）
@@ -777,6 +787,413 @@ export function installAiTargetPicker(state) {
   return state;
 }
 
+// ══════════════════════════════════════════════════════════
+// AI 自行裁定「引擎问到一半」的选择
+// ══════════════════════════════════════════════════════════
+
+/**
+ * 引擎在效果结算中途会反问「选哪个」。AI 那一侧以前**没有答案**，只会走
+ * `choices.js` 的兜底「取第一个选项」—— 而第一个选项按棋盘顺序排，等于随机。
+ *
+ * 在这套卡里这不是小事：实测 40 局里被兜底吃掉的多选项提问有
+ *   chooseUnit 5.5k、chooseEnemyTarget 6.9k、chooseHandCard 1.2k、
+ *   chooseLane 1.0k、chooseOption 1.0k、summonCell 178、chooseRawMaterial 318 次。
+ * 「弃哪张牌」「封印谁」「冰冻哪两条线」「召唤落在哪」「抉择走哪一支」全在里面 ——
+ * 阵营超能力（极寒的选线冻结、炎帝的抉择、炼金的原料）几乎全靠这些分支生效，
+ * 交给「取第一个」就等于 AI 只用了阵营卡的字面效果。
+ *
+ * 这套策略只回答**引擎提出的问题**，不参与「打哪张牌」的决策：
+ *   · 纯函数：不写 state、不推进 rng、不读日志（推演克隆里也照常成立）；
+ *   · 每一问都当场算一个答案，所以推演里走的分支和真对局一致 ——
+ *     这是「不可能」那一档的推演结果能对得上实战的前提；
+ *   · 只挂在 `state.chooser` 上，由 aiTakeTurn 在这一次调用期间临时装上，
+ *     离开时还原（回放播放器自己那个 chooser 不会被顶掉）。
+ *
+ * 关闭方式：`aiTakeTurn(..., { params: { chooser: null } })`，做消融对照用。
+ */
+
+/** 某只单位此刻的有效攻击力（含光环 / 锁攻），不写 state */
+function unitAtk(state, u) {
+  return u ? (effectiveAtk(state, u) || 0) : 0;
+}
+
+/** 这只单位对 side 的威胁值：攻击力 + 血量的四成，后排再加一点（更难处理） */
+function unitThreat(state, u) {
+  if (!u) return 0;
+  return unitAtk(state, u) + (u.hp || 0) * 0.4 + (u.row === 'back' ? 0.8 : 0);
+}
+
+/** 手牌里这张「值多少」—— 复用 cardHandValue，弃牌 / 洗回时挑最不值钱的那张 */
+function handCardWorth(state, hc) {
+  return cardHandValue(state.cardLib[hc.cardId]);
+}
+
+/** 从活着的单位里挑威胁最大 / 最小的那个（ties 按 uid，结果确定） */
+function pickUnitByThreat(state, list, wantMax) {
+  let best = null;
+  let bestScore = wantMax ? -Infinity : Infinity;
+  for (const u of list) {
+    if (!u || u.removed) continue;
+    const s = unitThreat(state, u);
+    if (wantMax ? s > bestScore : s < bestScore) { best = u; bestScore = s; }
+  }
+  return best;
+}
+
+/** 我方这一条线上「对面一根毛都没有」= 放上去就能白打脸 */
+function laneOpenFor(state, lane, side) {
+  return laneFreeDamage(state, side, lane) > 0;
+}
+
+/**
+ * 一条线上「敌方」的威胁合计：有挡的线路解掉它最值钱。
+ */
+function laneEnemyWeight(state, lane, side) {
+  const foe = 1 - side;
+  const row = (state.board[lane] && state.board[lane].units) || {};
+  const theirs = row[foe] || {};
+  return [theirs.front, theirs.back]
+    .filter((u) => u && !u.removed)
+    .reduce((sum, u) => sum + unitThreat(state, u), 0);
+}
+
+/**
+ * 给一个 `chooseUnit` 提问打分。
+ *
+ * 三档，按 selector 隐含的敌我来分：
+ *   敌方 → 威胁最大的那个（威胁 = 攻击力 + 血量，后排更高）
+ *   我方 → 挑「最脆、最不重要」的那个（这一问几乎都是代价：献祭 / 弃 / 洗回）
+ *   谁都可以 → 敌我各取一侧，用同一把尺子比
+ * 另外，「控制」类（`controlRoom`）已经在引擎那边过滤掉了放不下的候选。
+ */
+function chooseUnitAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  const units = allUnits(state);
+  const byUid = new Map(units.map((u) => [u.uid, u]));
+
+  const mine = [];
+  const theirs = [];
+  for (const o of options) {
+    const u = byUid.get(o.uid);
+    if (!u || u.removed) continue;
+    (u.side === side ? mine : theirs).push(o);
+  }
+
+  // ── 1. 我方目标：默认是「代价」，挑最不心疼的
+  const scapegoat = () => {
+    let worst = null;
+    let worstScore = Infinity;
+    for (const o of mine) {
+      const u = byUid.get(o.uid);
+      const s = unitThreat(state, u);
+      if (s < worstScore) { worst = o; worstScore = s; }
+    }
+    return worst;
+  };
+  // ── 2. 敌方目标：挑威胁最大的
+  const target = () => {
+    let best = null;
+    let bestScore = -Infinity;
+    for (const o of theirs) {
+      const u = byUid.get(o.uid);
+      const s = unitThreat(state, u);
+      if (s > bestScore) { best = o; bestScore = s; }
+    }
+    return best;
+  };
+
+  /**
+   * 敌方目标里混进了「点名要动敌方」的提问（封印 / 弹射 / 冻结 / 控制 / 抢），
+   * 这些一律走 target()。反过来「献祭 / 消耗自己」类走 scapegoat()。
+   */
+  if (mine.length && theirs.length) {
+    // 敌我都可选（「选择一个单位」）：消灭类挑敌方，其余挑自己（代价）
+    return target() || scapegoat() || options[0];
+  }
+  if (theirs.length) return target() || options[0];
+  if (mine.length) return scapegoat() || options[0];
+  return options[0];
+}
+
+/** 敌方单位或敌方国王：能一刀打死国王就先打脸，否则按单位威胁挑 */
+function chooseEnemyTargetAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  const foe = 1 - side;
+  const units = allUnits(state);
+  let best = null;
+  let bestScore = -Infinity;
+  for (const o of options) {
+    let s;
+    if (o.king) {
+      // 国王值多少：残血国王按「再摸一下就到斩杀线」加价，满血只算常规收益
+      const hp = state.players[foe].kingHp;
+      s = 6 + Math.max(0, 12 - hp) * 0.8;
+    } else {
+      const u = units.find((x) => x.uid === o.uid);
+      s = unitThreat(state, u);
+    }
+    if (s > bestScore) { best = o; bestScore = s; }
+  }
+  return best || options[0];
+}
+
+/**
+ * 选一条线路。
+ *
+ * 两种提问共用这一个类型：
+ *   · 范围效果（`chooseLanes`）——「冰刃出击：选两条相邻线路」：选敌方单位最多的线
+ *   · 「把某只单位移到哪条线」—— 选一条能白打脸、或者能挡住对面空线的线
+ * 靠 prompt 里的「移到」分辨（引擎那两条路的 prompt 就是这么写的），
+ * 拿不准时退回「敌方最值钱的线」，那是两种情况下都不亏的选择。
+ */
+function chooseLaneAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  const prompt = String(request.prompt || '');
+  const moving = prompt.indexOf('移到') >= 0;
+  let best = null;
+  let bestScore = -Infinity;
+  for (const o of options) {
+    const lane = o.lane;
+    let s;
+    if (moving) {
+      // 搬过去能打脸 > 搬过去能挡对面；两边都空的线最没用
+      s = laneFreeDamage(state, side, lane) * 1.2
+        + laneFreeDamage(state, 1 - side, lane) * 1.0;
+    } else {
+      // 范围效果：解掉这条线上最多 / 最硬的敌人
+      s = laneEnemyWeight(state, lane, side);
+      // 空线只值一点点（有些效果带抽牌，不该完全不选，但没有理由优先选）
+      if (s === 0) s = 0.2;
+    }
+    if (s > bestScore) { best = o; bestScore = s; }
+  }
+  return best || options[0];
+}
+
+/**
+ * 弃一张手牌 / 洗回牌组：挑**手里最不值钱**的那张。
+ * 手里唯一一张牌也得弃 —— 那就弃它（没有第二选择）。
+ */
+function chooseHandCardAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  const hand = (state.players[side] && state.players[side].hand) || [];
+  let best = null;
+  let bestWorth = Infinity;
+  for (const o of options) {
+    const hc = hand.find((c) => c.iid === o.iid);
+    const w = hc ? handCardWorth(state, hc) : 0;
+    if (w < bestWorth) { best = o; bestWorth = w; }
+  }
+  return best || options[0];
+}
+
+/**
+ * 「抉择」：把每个分支的成本算出来，挑净收益最高的。
+ *
+ * 只认三种成本 / 收益，其余分支按「有没有实质内容」估：
+ *   `damage → ownKing`   自己掉血，按 1 点血 ≈ 3.2 分扣
+ *   `taxMana`            下回合少费用，1 费 ≈ 2.6 分
+ *   `damage / destroy / control / draw / summon`  按收益加分
+ *
+ * 效果数据里没写数值的部分不猜（只给一个很小的正分），宁可低估也不要
+ * 因为「看起来很大」而选错分支 —— 这一档在卡面数值上吃过亏。
+ */
+function optionBranchValue(state, actions, side, depth) {
+  if (depth > 3) return 0;
+  let v = 0;
+  for (const a of actions || []) {
+    switch (a.op) {
+      case 'damage': {
+        const amount = typeof a.amount === 'number' ? a.amount : 2;
+        const kind = (a.target && a.target.kind) || '';
+        if (kind === 'ownKing') v -= amount * 3.2;
+        else if (kind === 'enemyKing') v += amount * 1.4 + (amount >= state.players[1 - side].kingHp ? 20 : 0);
+        else if (kind === 'allEnemyUnits') v += amount * 1.1;
+        else if (kind === 'allOwnUnits') v -= amount * 1.1;
+        else v += amount * 0.9;
+        break;
+      }
+      case 'destroy': v += 5.0; break;
+      case 'control': v += 5.5; break;
+      case 'draw': v += (typeof a.amount === 'number' ? a.amount : 1) * 2.2; break;
+      case 'heal': v += (typeof a.amount === 'number' ? a.amount : 2) * 0.5; break;
+      case 'summon': v += 2.6; break;
+      case 'summonToHand': v += 1.6; break;
+      case 'delayedSummon': v += 1.8; break;
+      case 'taxMana': v -= (a.amount || 1) * 2.6; break;
+      case 'sacrifice': v -= 3.5; break;
+      case 'buffAtk':
+      case 'buffMaxHp': v += (typeof a.amount === 'number' ? a.amount : 1) * 1.0; break;
+      case 'grantKeyword':
+      case 'grantKeywordBuff': v += 2.2; break;
+      case 'chooseKeywords': v += 3.0; break;
+      case 'freeze': v += 2.2; break;
+      case 'spellLock': v += 2.0; break;
+      case 'kingInvincible':
+      case 'kingShield': v += 2.6; break;
+      case 'kingDamageReduce': v += (a.amount || 1) * 0.8; break;
+      case 'discard': v -= (a.amount || 1) * 1.2; break;
+      case 'compound':
+      case 'conditional': v += optionBranchValue(state, a.actions || a.then || [], side, depth + 1); break;
+      default: v += 0.2; break;
+    }
+  }
+  return v;
+}
+
+function chooseOptionAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  // request.options 只带 {index,label}；分支内容在卡面数据里，按 label 反查。
+  const cur = state.players[side] && state.players[side].currentSpell;
+  const def = cur ? state.cardLib[cur] : null;
+  const branches = [];
+  const collect = (acts) => {
+    for (const a of acts || []) {
+      if (a.op === 'choose') branches.push(...(a.options || []));
+      else if (a.op === 'compound' || a.op === 'conditional') collect(a.actions || a.then || a.else);
+    }
+  };
+  if (def) collect(def.actions);
+  let best = options[0];
+  let bestScore = -Infinity;
+  for (const o of options) {
+    const br = branches.find((b) => (b.label || '') === o.label);
+    const s = br ? optionBranchValue(state, br.actions || [], side, 0) : 0.3;
+    if (s > bestScore) { best = o; bestScore = s; }
+  }
+  return best;
+}
+
+/**
+ * 召唤落点：优先「对面这条线没有单位」的位置（下一回合白打脸），
+ * 其次「对面这条线单位最弱」的位置；都差不多时落到左边那条（结果确定）。
+ * label 形如「山地-前排」。
+ */
+function chooseSummonCellAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  let best = null;
+  let bestScore = -Infinity;
+  // 同一路的两个身位里，前排先（能挡、也能打）
+  const rowBias = (o) => (String(o.label || '').indexOf('前排') >= 0 ? 0.15 : 0);
+  for (const o of options) {
+    if (!o || !o.lane) continue;
+    const openBonus = laneOpenFor(state, o.lane, side) ? 3.0 : 0;
+    const s = openBonus - laneEnemyWeight(state, o.lane, side) * 0.5 + rowBias(o);
+    if (s > bestScore) { best = o; bestScore = s; }
+  }
+  return best || options[0];
+}
+
+/**
+ * 炼金原料：按组合表挑「能立刻凑出一张令牌」的那张。
+ *
+ * 它只决定「这一问拿哪张原料」，真正的组合匹配在 tryAlchemyBrew 里；
+ * 这里多看一步能让原料堆往有解的方向掏（否则经常掏到凑不成对的那张）。
+ */
+function chooseRawMaterialAnswer(state, request) {
+  const options = request.options || [];
+  if (!options.length) return null;
+  if (options.length === 1) return options[0];
+  const side = request.side === 1 ? 1 : 0;
+  const hand = (state.players[side] && state.players[side].hand) || [];
+  const inHand = hand.map((c) => c.cardId);
+  let best = options[0];
+  let bestScore = -Infinity;
+  for (const o of options) {
+    // 手里已经有同一张 → 直接成对；否则按「这张原料在组合表里出现的次数」排
+    let s = inHand.indexOf(o.cardId) >= 0 ? 3.0 : 0;
+    const combos = (G.RAW_COMBOS && Object.keys(G.RAW_COMBOS)) || [];
+    for (const key of combos) {
+      if (key.split('+').indexOf(o.cardId) >= 0) s += 0.2;
+    }
+    if (s > bestScore) { best = o; bestScore = s; }
+  }
+  return best;
+}
+
+/**
+ * 统一入口。遇到不认识的问题返回 `undefined` —— 这样引擎会退回它自己的
+ * 兜底口径（`request.choose`，再不行取第一个），不会因为 AI 没见过某种提问就卡住。
+ *
+ * ⚠ **引擎自己挂了 `request.choose` 的提问，一律不抢**（2026-10-27 实测）：
+ *   选敌方单位 / 敌方目标这两类的 `choose` 是 `pickFragileTarget` ——「能一刀杀
+ *   就杀，否则打国王」，是作者按这套卡池调过的口径。拿「威胁值最大」去覆盖它
+ *   是明确的负收益，配对同种子各 120 局：
+ *     只开这两类 84.2% / 66.7%   只开其余五类 90.0% / 70.8%   全关 90.0% / 70.0%
+ *   （打困难 / 打噩梦）—— 覆盖掉 `pickFragileTarget` 正是「学会用阵营反而变弱」
+ *   的来源。阵营卡真正一片空白的地方是**下面这五类**：引擎对它们只会
+ *   「取第一个选项」，没有任何策略可言。
+ */
+export function aiChoose(state, request) {
+  if (!state || !request) return undefined;
+  if (typeof request.choose === 'function') return undefined;
+  switch (request.type) {
+    case 'chooseUnit': return chooseUnitAnswer(state, request) || undefined;
+    case 'chooseEnemyTarget': return chooseEnemyTargetAnswer(state, request) || undefined;
+    case 'chooseLane': return chooseLaneAnswer(state, request) || undefined;
+    case 'chooseHandCard': return chooseHandCardAnswer(state, request) || undefined;
+    case 'chooseOption': return chooseOptionAnswer(state, request) || undefined;
+    case 'summonCell': return chooseSummonCellAnswer(state, request) || undefined;
+    case 'chooseRawMaterial': return chooseRawMaterialAnswer(state, request) || undefined;
+    // `combatTarget` 由 request.choose → aiTargetPicker 那条路答，这里不抢。
+    default: return undefined;
+  }
+}
+
+/**
+ * 只在这一次 AI 回合里把 aiChoose 装上（离开时原样还原）。
+ *
+ * ⚠ 形态：`state.chooser(request)` —— **只收一个参数**（见 replay.js 的 replayChooser，
+ *   和 engine/src/choices.js 的 `state.chooser(request)`），state 得靠闭包带进来。
+ *   写成 `state.chooser = aiChoose` 是不行的：那会把 request 当成 state 传进去，
+ *   于是每一问都返回 undefined、静默退回引擎兜底，看起来「装上了」其实一次都没生效。
+ *
+ * ⚠ `aiRebind`：推演克隆（cloneForSim）要把这个 chooser 重新绑到**克隆体自己**身上，
+ *   否则推演里每一问都拿真棋盘判。见 cloneForSim 的 `chooser` 分支。
+ */
+function bindAiChooser(state) {
+  const fn = (request) => aiChoose(state, request);
+  fn.aiRebind = (other) => bindAiChooser(other);
+  return fn;
+}
+function withAiChooser(state, fn) {
+  const had = Object.prototype.hasOwnProperty.call(state, 'chooser');
+  const prev = state.chooser;
+  // 让 takeChoice 把 chooser 的答案也记进裁定流水（见 engine/src/choices.js）。
+  // 录制中的对局记账；推演克隆拿到的是自己那份临时数组，记了也无害。
+  const hadRec = Object.prototype.hasOwnProperty.call(state, 'chooserRecords');
+  const prevRec = state.chooserRecords;
+  state.chooser = bindAiChooser(state);
+  state.chooserRecords = true;
+  try {
+    return fn();
+  } finally {
+    if (had) state.chooser = prev;
+    else delete state.chooser;
+    if (hadRec) state.chooserRecords = prevRec;
+    else delete state.chooserRecords;
+  }
+}
+
+
 /**
  * AI 在自己的行动阶段连续出牌，直到没得打。
  *
@@ -860,8 +1277,25 @@ const JOURNAL_KEYS = ['log', 'choiceLog'];
 function cloneForSim(state) {
   const c = {};
   for (const k of Object.keys(state)) {
-    if (k === "cardLib" || k === "targetPicker" || k === "chooser") {
+    if (k === "cardLib" || k === "targetPicker") {
       c[k] = state[k];
+    } else if (k === "chooser") {
+      /**
+       * ⚠ AI 自己那个 chooser 是**闭包绑死了真对局 state 的**，不能按引用共享。
+       *
+       * `withAiChooser` 装的是 `(request) => aiChoose(state, request)`；克隆体如果
+       * 原样继承这个函数，推演里每一问都会拿**真棋盘**去判 —— 选出的是「真局面里
+       * 该打谁」，却作用在推演的局面上。推演于是从第二步起就和现实分叉，
+       * 规划器据此挑出来的牌自然也是错的（实测：开 smartChoices 后打「困难」
+       * 从 95.8% 掉到 85.4%，配对同种子）。
+       *
+       * 认得出的就重新绑到克隆体自己身上；认不出的（回放播放器的 chooser 等）
+       * 仍旧按引用共享 —— 它们读的是自己那份录制流水，不依赖 state 指针。
+       */
+      const fn = state[k];
+      c[k] = (typeof fn === "function" && typeof fn.aiRebind === "function")
+        ? fn.aiRebind(c)
+        : fn;
     } else if (JOURNAL_KEYS.includes(k)) {
       c[k] = Array.isArray(state[k]) ? [] : state[k];
     } else if (k === "rng") {
@@ -1107,6 +1541,15 @@ export function aiTakeTurn(state, side, opts = {}) {
     ? { ...difficultyByKey(difficulty), ...opts.params }
     : difficultyByKey(difficulty);
 
+  // 引擎中途反问的每一问（选目标 / 选线路 / 弃牌 / 抉择 / 召唤落点）交给 aiChoose。
+  // 以前这里什么都没有，全靠引擎兜底的「取第一个选项」—— 阵营卡几乎全靠这些分支生效。
+  // 只有表里写了 smartChoices 的那一档才装，别的档手感不变（见难度表的说明）。
+  // 消融对照：params { chooser: null }。
+  if (P.chooser === null || !P.smartChoices) return runAiTurn(state, side, P, maxPlays);
+  return withAiChooser(state, () => runAiTurn(state, side, P, maxPlays));
+}
+
+function runAiTurn(state, side, P, maxPlays) {
   // 推演预算按**整个回合**算：一回合里可能连续做几次规划，它们共用同一个截止时间。
   // 这样「可以接受几秒延迟」变成的是「这一回合最多算几秒」，而不是每张牌都算几秒。
   const planDeadline = (P.planBudgetMs > 0) ? Date.now() + P.planBudgetMs : 0;

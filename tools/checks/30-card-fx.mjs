@@ -226,7 +226,11 @@ function withFakeDom() {
 
 check('源码 / CSS：fx-draw 与 fx-spend 两支都接上了', () => {
   if (!renderSrc.includes('function dropHandPulse(')) throw new Error('render.js 缺少 dropHandPulse');
-  if (!renderSrc.includes("el.classList.add('fx-draw')")) throw new Error('render.js 没有给手牌卡加 fx-draw');
+  // 加类的方式不锁死：走 fxPulse（加类 + 定时摘）或手写 classList.add 都算接上了。
+  // 原来只认 classList.add，2026-10 把两处手写定时器统一成 fxPulse 之后就假失败了。
+  if (!/fxPulse\(\[el\], 'fx-draw'|classList\.add\('fx-draw'\)/.test(renderSrc)) {
+    throw new Error('render.js 没有给手牌卡加 fx-draw');
+  }
   if (!renderSrc.includes('dropHandPulse(f.iid)')) throw new Error('抽牌落槽回弹没有接到飞行终点');
   if (!renderSrc.includes('function spawnHandGhost(')) throw new Error('render.js 缺少 spawnHandGhost');
   if (!renderSrc.includes("el.className = 'fx-spend'")) throw new Error('render.js 没有造 .fx-spend 残影');

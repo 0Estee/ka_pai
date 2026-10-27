@@ -784,35 +784,54 @@ html, body {
   color: var(--accent, #f4c04e);
 }
 /*  战斗可视化（每一次攻击都看得见）  */
+/* 受击抖动：位移 + **形变**（作者 2026-10：「轻飘飘」）。
+   以前只有 ±4px 的纯平移，撞上去像被风吹了一下。有分量的撞击必然带压扁：
+   第一下横向缩、纵向拉（被砸中的那一下），回摆时反过来，最后归位。
+   幅度放大到 6px、总时长反而压到 .30s —— 更短更狠才叫「挨了一下」，
+   拉长只会变成慢慢摇。 */
 @keyframes fx-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-3px); }
-  80% { transform: translateX(2px); }
+  0%, 100% { transform: translateX(0) scale(1, 1); }
+  18% { transform: translateX(-6px) scale(.93, 1.06); }
+  38% { transform: translateX(5px) scale(1.05, .95); }
+  58% { transform: translateX(-4px) scale(.97, 1.03); }
+  78% { transform: translateX(2px) scale(1.01, .99); }
 }
+/* 闪白：亮度从 2.4 收到 2.1，saturate 从 .35 提到 .6 —— 原来压到 .35 几乎变灰，
+   看着像「褪色」而不是「被打亮」；偏高饱和度才像一次真实的闪光。 */
 @keyframes fx-flash {
-  0% { filter: brightness(2.4) saturate(.35); }
+  0% { filter: brightness(2.1) saturate(.6); }
   100% { filter: none; }
 }
-/* 出手：除了往前一顶，整张牌还要**正反面翻一圈**（作者 2026-10：
-   「攻击卡牌要正反面旋转」）。rotateY 转到 90° 时牌面正好侧立成一条线，
-   再往后就是背面 —— 背面本身是 .unit::after 画的一张纯色牌背，
+/* 出手：**先蓄力、再打出去、最后回弹**，同时整张牌**正反面翻一圈**
+   （作者 2026-10：「攻击卡牌要正反面旋转」）。
+   rotateY 转到 90° 时牌面正好侧立成一条线，再往后就是背面 ——
+   背面本身是 .unit::after 画的一张纯色牌背，
    靠 fx-flip-back 只在 25%~75%（也就是背朝观众的那段）露出来。
-   中间那一帧给 180°、结尾回 360°（等价 0°），所以翻完还是正面。 */
+   中间那一帧给 180°、结尾回 360°（等价 0°），所以翻完还是正面。
+   以前从 0 帧直接开始翻牌，没有任何预备动作，看着像被一阵风带走的。
+   现在：
+     0~14%   往后缩一点并压扁（蓄力，方向与出击相反）
+     14~52%  整体翻一圈、冲出去，36~52% 这一段横向拉长（速度拉伸）
+     52~74%  撞完回弹过一点（惯性）
+     74~100% 稳住
+   翻面（正反面旋转）保留不动 —— 作者 2026-10 明确要求过攻击牌要翻面，
+   只是在翻的同时补上了前后两段，所以翻的动作现在有起势和收势。
+   总时长仍是 .38s：更短的反而更重，因为每一段的速度都变快了。 */
 @keyframes fx-lunge-mine {
-  0% { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1); }
-  25% { transform: perspective(420px) translateY(-6px) rotateY(-90deg) scale(1.03); }
-  50% { transform: perspective(420px) translateY(-7px) rotateY(-180deg) scale(1.04); }
-  75% { transform: perspective(420px) translateY(-6px) rotateY(-270deg) scale(1.03); }
-  100% { transform: perspective(420px) translateY(0) rotateY(-360deg) scale(1); }
+  0%   { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1, 1); }
+  14%  { transform: perspective(420px) translateY(3px) rotateY(0deg) scale(1.06, .94); }
+  36%  { transform: perspective(420px) translateY(-9px) rotateY(-130deg) scale(.96, 1.05); }
+  52%  { transform: perspective(420px) translateY(-11px) rotateY(-180deg) scale(1.08, 1.04); }
+  74%  { transform: perspective(420px) translateY(-2px) rotateY(-300deg) scale(1.02, .98); }
+  100% { transform: perspective(420px) translateY(0) rotateY(-360deg) scale(1, 1); }
 }
 @keyframes fx-lunge-foe {
-  0% { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1); }
-  25% { transform: perspective(420px) translateY(6px) rotateY(90deg) scale(1.03); }
-  50% { transform: perspective(420px) translateY(7px) rotateY(180deg) scale(1.04); }
-  75% { transform: perspective(420px) translateY(6px) rotateY(270deg) scale(1.03); }
-  100% { transform: perspective(420px) translateY(0) rotateY(360deg) scale(1); }
+  0%   { transform: perspective(420px) translateY(0) rotateY(0deg) scale(1, 1); }
+  14%  { transform: perspective(420px) translateY(-3px) rotateY(0deg) scale(1.06, .94); }
+  36%  { transform: perspective(420px) translateY(9px) rotateY(130deg) scale(.96, 1.05); }
+  52%  { transform: perspective(420px) translateY(11px) rotateY(180deg) scale(1.08, 1.04); }
+  74%  { transform: perspective(420px) translateY(2px) rotateY(300deg) scale(1.02, .98); }
+  100% { transform: perspective(420px) translateY(0) rotateY(360deg) scale(1, 1); }
 }
 /* 牌背只在「背朝着观众」的那一小段浮出来；其余时间 opacity 0，
    所以正面朝观众时看到的仍然是牌面本身。 */
@@ -840,16 +859,27 @@ html, body {
   box-shadow: inset 0 0 0 1px var(--card-line);
 }
 .slot.fx-lunge .unit::after { animation: fx-flip-back .38s linear; }
+/* 伤害飘字：**先砸出来、再稳住、最后才走**。
+   以前是 scale 一路上浮 + 一路缩小，全程都在动，所以像一口气吹散的。
+   现在前 12% 就冲到最大（.7 -> 1.28），停住不动的读秒占了大半时长
+   （玩家真正在看的只有这一段），末尾才快速收走。
+   上浮距离也收到 14px：飘太远反而读不清数字。 */
 @keyframes fx-float {
-  0% { opacity: 0; transform: translate(-50%, 2px) scale(.75); }
-  22% { opacity: 1; transform: translate(-50%, -6px) scale(1.18); }
-  100% { opacity: 0; transform: translate(-50%, -22px) scale(1); }
+  0%   { opacity: 0; transform: translate(-50%, 3px) scale(.7); }
+  12%  { opacity: 1; transform: translate(-50%, -3px) scale(1.28); }
+  26%  { opacity: 1; transform: translate(-50%, -6px) scale(1.06); }
+  70%  { opacity: 1; transform: translate(-50%, -11px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -14px) scale(.98); }
 }
-.slot.fx-hit { animation: fx-shake .40s ease-out; }
-.slot.fx-hit .unit { animation: fx-flash .40s ease-out; }
-.slot.fx-lunge.mine .unit { animation: fx-lunge-mine .38s ease-out; }
-.slot.fx-lunge.foe .unit { animation: fx-lunge-foe .38s ease-out; }
-.sb-king.fx-hit { animation: fx-shake .40s ease-out; color: #ff5f5f; }
+/* 抖动用 cubic-bezier(.2,.9,.3,1)：起步极快、末段干脆收住。
+   ease-out 会让每一次摆动都软着陆，而这应该是「被打了一下」。 */
+.slot.fx-hit, .sb-king.fx-hit { animation: fx-shake .30s cubic-bezier(.2, .9, .3, 1); }
+.sb-king.fx-hit { color: #ff5f5f; }
+.slot.fx-hit .unit { animation: fx-flash .30s cubic-bezier(.2, .9, .3, 1); }
+/* 出手用 cubic-bezier(.5,0,.85,.35)：前段慢（蓄力），后段猛（打出去）。
+   这正是 ease-out 的反面 —— 出手不该一上来就最快。 */
+.slot.fx-lunge.mine .unit { animation: fx-lunge-mine .38s cubic-bezier(.5, 0, .85, .35); }
+.slot.fx-lunge.foe .unit { animation: fx-lunge-foe .38s cubic-bezier(.5, 0, .85, .35); }
 .fx-float {
   position: absolute; left: 50%; top: 4px; z-index: 9;  /* 9 大于棋盘上所有 auto 盒子：飘字一定画在最上层 */
   transform: translate(-50%, 0);
@@ -873,24 +903,35 @@ html, body {
    也只是静静停在终态，不会变成永远播不完的动画。
    ══════════════════════════════════════════════════════════ */
 
-/* 单位阵亡：淡出 + 轻微下沉 + 缩一点。以前只有 fx-hit（挨打抖一下 + 闪）,
-   「死掉」这一下是不存在的 —— 残影一摘，格子里的牌就凭空没了。
+/* 单位阵亡：**先被打得一缩，再塌下去**。
+   以前只有 fx-hit（挨打抖一下 + 闪），「死掉」这一下是不存在的 ——
+   残影一摘，格子里的牌就凭空没了；后来补的第一版是匀速往下漂 7px，
+   像羽毛落地。现在先有一个被砸中的顿挫（12% 处压扁），
+   然后带一点旋转往下砸、并且缩得更狠（.88），最后才淡出。
    作用在格子里那张牌上（不是格子本身），标记万一没摘也只影响这一张。 */
 @keyframes fx-death {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(7px) scale(.94); }
+  0%   { opacity: 1; transform: translateY(0) scale(1, 1) rotate(0deg); }
+  12%  { opacity: 1; transform: translateY(-2px) scale(.94, 1.06) rotate(-2deg); }
+  34%  { opacity: .92; transform: translateY(5px) scale(1.04, .92) rotate(2deg); }
+  100% { opacity: 0; transform: translateY(14px) scale(.88, .84) rotate(5deg); }
 }
-.slot.fx-death .unit { animation: fx-death .34s ease-in forwards; }
+/* 缓动接近线性：节奏已经完整写在关键帧里（12% 被砸一缩、34% 塌、100% 散），
+   再叠强 ease-in 会把开场那一下"顿挫"整体往后推，反而变轻。 */
+.slot.fx-death .unit { animation: fx-death .34s cubic-bezier(.4, .05, .6, .95) forwards; }
 
-/* 回血：往上浮一下、亮一档。受击是向下抖 + 变红（fx-hit 已有），
-   治疗必须方向相反，否则玩家分不出这一下是加血还是掉血。 */
+/* 回血：往上**被提起来**，亮一档（不是飘起来）。
+   受击是抖动 + 变红（fx-hit 已有），治疗必须方向相反，否则玩家分不出
+   这一下是加血还是掉血。所以先压一下再弹起，弹起时纵向拉长 ——
+   这是「被拉了一把」的形态，纯平移到 .35 的旧版本只会像飘。
+   峰值亮度也调高到 1.5，让治疗和受击在余光里就能分开。 */
 @keyframes fx-heal {
-  0% { transform: translateY(0); filter: none; }
-  35% { transform: translateY(-3px); filter: brightness(1.35); }
-  100% { transform: translateY(0); filter: none; }
+  0%   { transform: translateY(0) scale(1, 1); filter: none; }
+  18%  { transform: translateY(1px) scale(1.04, .96); filter: brightness(1.12); }
+  45%  { transform: translateY(-5px) scale(.97, 1.07); filter: brightness(1.5); }
+  100% { transform: translateY(0) scale(1, 1); filter: none; }
 }
-.sb-king.fx-heal { animation: fx-heal .42s ease-out; color: var(--hp); }
-.slot.fx-heal .unit { animation: fx-heal .42s ease-out; }
+.sb-king.fx-heal, .slot.fx-heal .unit { animation: fx-heal .42s cubic-bezier(.25, .8, .35, 1); }
+.sb-king.fx-heal { color: var(--hp); }
 
 /* 费用 / 法力变化：涨了往上弹，降了往下缩。
    数字本身在重绘时是硬跳的、没有方向感，玩家看不出刚才是加了费还是花了费。 */
@@ -922,15 +963,20 @@ html, body {
    都可以放心补上，不会重播。 */
 .slot.fx-dead .unit { opacity: 0; }
 
-/* 抽到的新牌落进卡槽那一下回弹。飞行（.fly-card）负责「从屏幕下方划过来」，
-   这一支只负责「落槽」那一下，所以叠在飞行的终点触发（见 render.js 的 dropHandPulse）。
+/* 抽到的新牌落进卡槽：**从高处砸下来**。
+   飞行（.fly-card）负责「从屏幕下方划过来」，这一支只负责「落槽」那一下，
+   所以叠在飞行的终点触发（见 render.js 的 dropHandPulse）。
+   原来只从 -9px 滑到 0，几乎看不出动过 —— 这是「轻飘飘」最明显的一处。
+   现在起始 -20px 带放大（近大远小的透视暗示），落到槽位压扁一下再接住，
+   把「这张牌真的落进手里了」交代清楚。
    只写位移不写 opacity：手牌的铺开/选中有各自的常态，回弹不该把卡闪一下。 */
 @keyframes fx-draw {
-  0% { transform: translateY(-9px) scale(1.06); }
-  58% { transform: translateY(2px) scale(.98); }
-  100% { transform: translateY(0) scale(1); }
+  0%   { transform: translateY(-20px) scale(1.10, 1.14); }
+  46%  { transform: translateY(3px) scale(1.04, .94); }
+  68%  { transform: translateY(-2px) scale(.99, 1.02); }
+  100% { transform: translateY(0) scale(1, 1); }
 }
-.hand .card.fx-draw { animation: fx-draw .30s cubic-bezier(.2, .8, .3, 1); }
+.hand .card.fx-draw { animation: fx-draw .30s cubic-bezier(.35, 0, .4, 1); }
 
 /* 打出的牌在**原卡槽**的退场残影（作者 2026-10：本体是被重绘直接抹掉的，没有退场手感）。
    本体是「先离开 state、再重绘」的，渲染完已经不在 DOM 里，没法给本体加类 ——
@@ -1170,13 +1216,15 @@ html, body {
 }
 .fly-card .c-desc { max-height: 44px; }
 /* 落点回弹：卡牌飞到位之后，格子自己「弹一下」再接住。
-   原来是 scale(1.05) -> scale(1) 的单向下沉，看着像格子被按扁；
-   改成先缩一下再弹过一点、最后稳住，落点才有「接住一张牌」的质感。 */
-.slot.fx-drop { animation: slotDrop .36s ease-out; }
+   幅度要**跨过 1**（先压到 .82、再弹到 1.10）才有撞击感；
+   原来只在 .94~1.04 之间晃，差值 10% 在这个尺寸上肉眼几乎分不出。
+   更早那版是 scale(1.05) -> scale(1) 的单向下沉，看着像格子被按扁。 */
+.slot.fx-drop { animation: slotDrop .36s cubic-bezier(.3, .05, .35, 1); }
 @keyframes slotDrop {
-  0% { transform: scale(.94); opacity: .55; }
-  55% { transform: scale(1.04); opacity: 1; }
-  100% { transform: scale(1); }
+  0%   { transform: scale(.82, .78); opacity: .4; }
+  42%  { transform: scale(1.10, 1.14); opacity: 1; }
+  68%  { transform: scale(.97, .96); }
+  100% { transform: scale(1, 1); }
 }
 
 /* 手牌还在飞向这一格：格子里的牌先不显示（HTML 照常渲染，只藏视觉），飞完摘掉标记再出现 */

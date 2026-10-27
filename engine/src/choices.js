@@ -108,7 +108,26 @@ function takeChoice(state, request) {
       // eslint-disable-next-line no-console
       console.log(`[takeChoice] ${request.type} noAuto=${!!request.noAuto} chooser→${viaChooser === PENDING ? 'PENDING' : (viaChooser === undefined ? 'undefined' : JSON.stringify(viaChooser))}`);
     }
-    if (viaChooser !== undefined) return viaChooser;
+    /**
+     * ⚠ chooser 给的答案**也必须记进流水**（2026-10-27 补）。
+     *
+     * `choiceLog` 是**完整的裁定流**：回放侧靠一个游标「一问一条」对齐。
+     * 以前走到这里的只有回放播放器自己 —— 它读流水、**绝不能写**流水
+     * （写进去的就是回放自己那份，游标会被自己推着走）。
+     * 现在 AI 也挂 chooser（`aiTakeTurn` 的 smartChoices），它答的每一问
+     * 原来都会**漏掉一条**：实测 12 局里 27 问在流水里找不到，
+     * 整份录制从此错位，回放到后面报「有挂起的交互请求，但没法回答」。
+     *
+     * 所以用 `state.chooserRecords` 分开这两类调用方：
+     *   · 录制中的 AI chooser → 由 aiTakeTurn 置 true，照 `hold()` 同一个形状记；
+     *   · 回放播放器 → 不置（它自己就是从这份流水里读答案的）。
+     */
+    if (viaChooser !== undefined) {
+      if (state.chooserRecords && Array.isArray(state.choiceLog) && viaChooser !== PENDING) {
+        state.choiceLog.push({ type: request.type, v: viaChooser });
+      }
+      return viaChooser;
+    }
   }
   /**
    * ⚠ `noAuto: true` 的请求**必须由真人回答，自动代答一律不碰**。

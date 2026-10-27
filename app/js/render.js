@@ -723,8 +723,7 @@ function dropSlotPulse(f) {
   try {
     const el = document.querySelector('.slot[data-lane="' + f.lane + '"][data-side="' + f.side + '"][data-row="' + f.row + '"]');
     if (!el || !el.classList) return;
-    el.classList.add('fx-drop');
-    setTimeout(() => { try { el.classList.remove('fx-drop'); } catch (e) {} }, 380);
+    fxPulse([el], 'fx-drop', FX_DROP_MS);
   } catch (e) {}
 }
 
@@ -936,6 +935,7 @@ const FX_HEAL_MS = 420;    // 回血（.fx-heal）
 const FX_MANA_MS = 300;    // 费用 / 法力涨跌（.fx-pop-up / .fx-pop-down）
 const FX_PHASE_MS = 300;   // 阶段推进（.fx-phase）
 const FX_DRAW_MS = 300;    // 抽到的牌落进卡槽（.fx-draw）
+const FX_DROP_MS = 360;    // 落点格子被砸一下（.fx-drop / slotDrop）
 const FX_SPEND_MS = 260;   // 打出牌的原位退场残影（.fx-spend）
 const FX_CLAW_MS = 620;    // 受击爪印（.fx-claw，逐笔出现后整体淡出）
 const FX_RAKE_MS = 170;    // 受击前那道爪痕从出手者扫到目标（.fx-rake）
@@ -1055,8 +1055,7 @@ function dropHandPulse(iid) {
   try {
     const el = document.querySelector('.hand .card[data-iid="' + iid + '"]');
     if (!el || !el.classList) return;
-    el.classList.add('fx-draw');
-    setTimeout(() => { try { el.classList.remove('fx-draw'); } catch (e) { /* 桩 */ } }, FX_DRAW_MS);
+    fxPulse([el], 'fx-draw', FX_DRAW_MS);
   } catch (e) { /* DOM 桩 */ }
 }
 
