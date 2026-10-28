@@ -68,6 +68,7 @@ import './checks/47-watch.mjs';
 import './checks/48-admin-edit.mjs';
 import './checks/49-heart.mjs';
 import './checks/50-forge-skills.mjs';
+import './checks/51-mode-replay-perspective.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

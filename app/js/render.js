@@ -1752,8 +1752,15 @@ function renderScreen(stage) {
       factions: factionOptions(),
       // 有几个人在看：服务端每轮 poll 报一次（纯展示，不进锁步）
       watchers: (session && session.watchers) || 0,
-      // 强化是独立模式：大厅里要能一眼看出这一局用哪套规则
-      forgeMode: playMode === 'forge',
+      /**
+       * 强化是独立模式：大厅里要能一眼看出这一局用哪套规则。
+       *
+       * **房间模式以主机为准**：主机看自己的 `playMode`（它才是开局时算 enhance 的人），
+       * 客人看主机 hello 里报上来的那一份 —— 客人是靠扫码 / 手输地址进来的，
+       * 本地根本没有模式信息（见 lan.js 的 forgeModeQuery）。
+       * 以前两边都读本地 `playMode`，于是强化房间在客人眼里一律显示「普通模式」。
+       */
+      forgeMode: session && !session.isHost ? !!session.peerForge : playMode === 'forge',
       peerForge: session ? !!session.peerForge : false,
     });
     applyScreenFx(stage);
@@ -1802,6 +1809,24 @@ function renderScreen(stage) {
     //   而回放渲染的是 replayCtx.player.state。冷启动（内存里还没有对局）
     //   时 state 是 null，整条 refresh() 会在那里抛异常，回放界面根本画不出来。
     //   回放是只读的：合法落点/可出牌这些高亮一律清空。
+    /**
+     * 回放也能切视角（作者 2026-10-28：「回放增加：可以看对方视角」）。
+     *
+     * 只在**打开回放时**定一次，之后整个播放过程沿用 `view.humanSide` 不动 ——
+     * 拖进度条 / 单步 / 播放都会重新走这里，若每次覆盖成 `record.humanSide`，
+     * 玩家切过去的视角下一步就被弹回来。
+     *
+     * 名字用「你 / 对手」而不是「玩家1 / 玩家2」：回放里的两条座位在存档里
+     * 没有名字，但**哪个是当时执屏幕的那个人**是确定的（`record.humanSide`），
+     * 这对看回放的人来说比编号有用。
+     */
+    if (!view.replayViewInit) {
+      view.replayViewInit = true;
+      const me = (replayCtx.record && replayCtx.record.humanSide) === 1 ? 1 : 0;
+      view.playerNames = me === 0 ? ['你', '对手'] : ['对手', '你'];
+      view.humanSide = me;
+      view.sideLabel = view.playerNames[me];
+    }
     const replayView = {
       ...view,
       humanSide: view.humanSide,

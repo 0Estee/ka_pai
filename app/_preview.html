@@ -213,7 +213,10 @@
     } else if (demo === 'replay') {
       window.__newGame();
       window.__autoPlay();
-      document.title = 'demo: ' + JSON.stringify(window.__replayDemo(0, Number(p.get('step') || 30)));
+      // side=1：先翻到对手那一侧再看（作者 2026-10-28 的回放换视角）
+      const rp = window.__replayDemo(0, Number(p.get('step') || 30));
+      if (p.get('side') === '1') window.__nav('watch-side', {});
+      document.title = 'demo: ' + JSON.stringify(rp) + ' side=' + window.__view().humanSide;
     } else if (demo === 'fxprobe') {
       // 真打一下（不是手摆特效）：报告爪痕起点 / 爪印大小 / 残影 data-uid
       const info = window.__fxKillProbe(p.get('att') || 'W04', p.get('def') || 'E01');

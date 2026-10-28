@@ -1105,11 +1105,29 @@ function handleAction(act, el) {
    */
   if (act === 'watch-side') {
     if (!view) return;
-    setWatchSide(1 - watchSideOf());
-    // 直接读 watchSide，不走 me()：me() 只在 session 是观战时才看 watchSide，
-    // 而自检里（__watchView）根本没有 session —— 那会让视角切不动。
-    view.humanSide = watchSideOf();
-    view.hint = `现在按「${(view.playerNames || [])[view.humanSide] || '玩家'}」的视角看`;
+    /**
+     * 回放（作者 2026-10-28）：`view.humanSide` 就是唯一真相，不经过 watchSide。
+     *
+     * 回放**不是**一条观战连接 —— 它没有 session，`me()` 也读不到它。
+     * 以前和观战共用同一段代码，靠 `watchSide` 中转，于是回放的视角值
+     * 是跟着「上一次观战看的是谁」走的。现在按 `screen` 分开：
+     * 回放直接翻 view.humanSide，观战仍旧翻 watchSide（me() 要读它）。
+     */
+    if (screen === 'replay') {
+      view.humanSide = 1 - (view.humanSide === 1 ? 1 : 0);
+    } else {
+      setWatchSide(1 - watchSideOf());
+      // 直接读 watchSide，不走 me()：me() 只在 session 是观战时才看 watchSide，
+      // 而自检里（__watchView）根本没有 session —— 那会让视角切不动。
+      view.humanSide = watchSideOf();
+    }
+    /**
+     * 名字**只**取 `playerNames` 里那一项，不能用 `|| '玩家'` 兜底把「你」吞掉
+     * —— 回放里标的是「你 / 对手」。
+     */
+    const who = (view.playerNames || [])[view.humanSide] || '玩家';
+    view.sideLabel = who;
+    view.hint = `现在按「${who}」的视角看`;
     clearSelection();
     refresh();
     return;

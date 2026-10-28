@@ -372,7 +372,11 @@ export function lobbyHTML({ mode, roomName, peerName, myName, discoverError, sta
   //
   // 房间号和链接各自占一行：链接是一串没有空格的字符，混在句子里一定会顶出卡片
   // （作者截图看到的就是右侧被裁掉的半截 URL）。分成块级元素后，长链接在自己那行里折行。
-  const lanUrl = !online && isHost && localIp ? `http://${localIp}:${port}/` : '';
+  // 强化房间把模式也写进这串地址里：对面照着抄进来，大厅才会写「强化模式」
+  // （见 lan.js 的 forgeModeQuery / joinByManualAddress）
+  const lanUrl = !online && isHost && localIp
+    ? `http://${localIp}:${port}/?net=guest${forgeMode ? '&mode=forge' : ''}`
+    : '';
   const invite = online && code
     ? `<div class="lobby-url">
          <div>把这个房间号念给对面：</div>

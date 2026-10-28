@@ -54,6 +54,12 @@ function openReplay(id) {
     speed: 1,
     timer: null,
   };
+  /**
+   * 回放可以切视角看对方（作者 2026-10-28）。重新打开一条回放 = 重新定一次
+   * 初始视角（render.js 只在 `!view.replayViewInit` 时初始化），否则上一条回放
+   * 切到的视角会带到下一条，看上去像「它记错了这一局是谁」。
+   */
+  if (view) { view.replayViewInit = false; view.sideLabel = ''; }
   screen = 'replay';
   refresh();
 }
@@ -61,6 +67,7 @@ function openReplay(id) {
 function stopReplay() {
   if (replayCtx && replayCtx.timer) clearTimeout(replayCtx.timer);
   replayCtx = null;
+  if (view) { view.replayViewInit = false; view.sideLabel = ''; }
 }
 
 /** 播放速度 → 每步间隔毫秒 */

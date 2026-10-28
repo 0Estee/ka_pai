@@ -1334,11 +1334,15 @@ window.__demoLobby = (opts) => {
   const real = session;
   const online = o.online !== false;
   const mode = o.mode === 'guest' ? 'guest' : 'host';
+  // 强化模式的假会话：大厅上「房间模式」那一行必须按主机的说法显示
+  // （客人本地没有模式信息，见 render.js 里 forgeMode 的说明）
+  const realMode = playMode;
+  if (o.playMode) playMode = o.playMode === 'forge' ? 'forge' : 'normal';
   session = {
     isHost: mode === 'host',
     mySide: mode === 'host' ? 0 : 1,
     peerName: o.peer === undefined ? '张三' : String(o.peer),
-    peerForge: false,
+    peerForge: !!o.peerForge,
     started: false,
     state: null,
     submit: () => false,
@@ -1367,9 +1371,26 @@ window.__demoLobby = (opts) => {
     showsPeer: html.includes('已连接'),
     // 大厅里能不能选阵营（以前只有难度页有；联机时客人只能被主机安排）
     factionRows: (html.match(/data-act="set-faction"/g) || []).length,
+    // 「房间模式」那一行显示的是不是强化模式（作者 2026-10-28 报的那一幕）
+    forgeShown: html.includes('强化模式（双方各带自己的强化卡组）'),
   };
   session = real;
+  playMode = realMode;
   return r;
+};
+
+/**
+ * 自检用：强化模式下，联机房间链接必须带 `&mode=forge`。
+ *
+ * 开房 / 进房都会**重新加载页面**，`playMode` 是内存变量，重载后一定没了
+ * （作者 2026-10-28：「强化联机创建房间会显示普通数值」就是这么来的）。
+ * 所以模式只能走 URL。这里调的是 lan.js 里**真正**的那个拼串函数，
+ * 不另抄一份逻辑 —— 抄一份的门禁只证明了副本没写错。
+ */
+window.__forgeModeQuery = (playModeKey) => {
+  const real = playMode;
+  playMode = playModeKey === 'forge' ? 'forge' : 'normal';
+  try { return forgeModeQuery(); } finally { playMode = real; }
 };
 
 /**

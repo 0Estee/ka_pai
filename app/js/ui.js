@@ -567,9 +567,13 @@ export function render(root, state, view) {
   /**
    * 行标签（作者 2026-10-23 第 5 条）：观战者是第三方，没有「我 / 敌」——
    * 只有「玩家1 / 玩家2」，而且名字要跟着**它正在看的那一侧**走。
+   *
+   * 回放同理（作者 2026-10-28：「回放增加：可以看对方视角」）：切到对手那一侧时，
+   * 若还按「我 / 敌」标行，下半场会写着「我前排」而状态条写着「对手」——
+   * 同一个座位两种叫法。回放一律按名字标。
    */
   const rowLabel = (own, txt) => {
-    if (view.watcher !== true) return (own ? '我' : '敌') + txt;
+    if (view.watcher !== true && view.isReplay !== true) return (own ? '我' : '敌') + txt;
     const side = own ? view.humanSide : foeSide;
     const name = (view.playerNames && view.playerNames[side]) || ('玩家' + (side + 1));
     return name + ' ' + txt;
@@ -645,11 +649,11 @@ export function render(root, state, view) {
 
   root.innerHTML = `
     <div class="topbar${sandbox ? ' topbar-sb' : ''}">
-      <span class="turn">${sandbox ? '靶场 · ' : (view.watcher === true ? '观战 · ' : '')}第 ${state.turn} 回合</span>
+      <span class="turn">${sandbox ? '靶场 · ' : (view.watcher === true && !view.isReplay ? '观战 · ' : '')}第 ${state.turn} 回合</span>
       <span class="deck-left">牌库 ${state.deck.length}</span>
       ${myP && myP.faction === 'alchemy' ? `<span class="raw-left">原料 ${G.rawPileOf(state, view.humanSide).length}</span>` : ''}
       ${myP && myP.faction === 'flame' ? `<span class="raw-left">异火 ${G.flamePileOf(state, view.humanSide).length}</span>` : ''}
-      ${view.watcher === true ? `<button class="btn-watch" data-act="watch-side">视角：${esc((view.playerNames && view.playerNames[view.humanSide]) || '玩家1')}</button>` : ''}
+      ${(view.watcher === true || view.isReplay === true) ? `<button class="btn-watch" data-act="watch-side">视角：${esc(view.sideLabel || (view.playerNames && view.playerNames[view.humanSide]) || '玩家1')}</button>` : ''}
       <button class="btn-menu" data-act="menu">菜单</button>
     </div>
     ${sandbox ? sandboxBarHTML(state, view) + (view.pickOpen ? sandboxPickerHTML(state, view) : '') : ''}

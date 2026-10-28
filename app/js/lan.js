@@ -28,11 +28,30 @@ function lanPlayerName(mode) {
   return mode === 'host' ? '玩家1' : '玩家2';
 }
 
+/**
+ * 强化模式要跟着 URL 走（作者 2026-10-28：「强化联机创建房间会显示普通数值」）。
+ *
+ * `playMode` 只是内存里的一个变量，而开房 / 进房都会**重新加载页面**
+ * （公网换 location，局域网换成 127.0.0.1 的地址），加载回来时它已经退回
+ * `'normal'`。于是从「强化 联机对决」开的房间，主机那侧 `hostStartMatch()`
+ * 读到的是普通模式：`enhance` 算成 null，双方都用卡面原值 —— 大厅上还写着
+ * 「普通模式（卡面原值）」，正是作者看到的那一幕。
+ *
+ * 所以凡是会跨页面重载的联机地址都带上 `mode=forge`，进大厅时再读回来。
+ */
+function forgeModeQuery() {
+  return playMode === 'forge' ? '&mode=forge' : '';
+}
+
 /** 进入联机大厅并建立会话（mode 也可能是 'watch'：观战，只读） */
 function enterLobby(mode) {
   const watching = mode === 'watch';
   const room = Net.currentRoom();
   const myName = lanPlayerName(mode);
+  // 页面重载后从 URL 把模式读回来（见 forgeModeQuery）。
+  // 没带这个参数就保持原值 —— 自己手输房间号的客人本来就没有模式信息，
+  // 房间以主机为准（开局时按广播过来的 mode 覆盖，见 beginLanMatch）。
+  if (Net.queryParam('mode') === 'forge') playMode = 'forge';
   lanInfo = {
     roomName: Net.queryParam('room') || '未命名房间',
     port: Number(globalThis.location.port) || 8765,
@@ -43,8 +62,10 @@ function enterLobby(mode) {
     gameReady: false,
     // 公网房间：链接是 `站点/?net=guest&room=CODE`，局域网则是 `主机IP:端口/?net=guest`
     online: Net.onlineAvailable(),
+    // 主机把链接发给客人时也带上模式：客人那边重载后同样要显示「强化模式」，
+    // 否则大厅会写着「与房间不一致」而其实两边都在强化模式里
     joinUrl: room && Net.onlineAvailable()
-      ? `${Net.siteBase()}/?net=guest&room=${room}`
+      ? `${Net.siteBase()}/?net=guest&room=${room}${forgeModeQuery()}`
       : '',
     code: room,
     // 观战者：界面上要和两端区分开（没有座位、没有金币、没有重开/认输）
@@ -213,7 +234,7 @@ function joinByManualAddress() {
 
   if (code && Net.onlineAvailable()) {
     lanManualError = '';
-    const target = `${Net.siteBase()}/?net=guest&room=${code}`;
+    const target = `${Net.siteBase()}/?net=guest&room=${code}${forgeModeQuery()}`;
     try {
       globalThis.location.href = target;
       return;
@@ -231,7 +252,10 @@ function joinByManualAddress() {
     return;
   }
   lanManualError = '';
-  Net.navigateTo(`http://${addr}/?net=guest`);
+  // 强化房间的地址里带着 mode=forge（见 screens.js 里的 lanUrl），
+  // 但 normalizeHostInput 会把查询串剥掉，所以这里要按本地 playMode 补回来。
+  // 最终仍以主机为准：开局时广播过来的 mode 会覆盖它（见 beginLanMatch）。
+  Net.navigateTo(`http://${addr}/?net=guest${forgeModeQuery()}`);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -259,7 +283,8 @@ function createRoom() {
 
   if (online) {
     // 公网：不经过原生层，直接换成带房间号的地址。location 会重载，房间在服务端。
-    const target = `${Net.siteBase()}/?net=host&room=${code}`;
+    // mode=forge 必须带上：重载后内存里的 playMode 已经没了（见 forgeModeQuery）。
+    const target = `${Net.siteBase()}/?net=host&room=${code}${forgeModeQuery()}`;
     try {
       globalThis.location.href = target;
       return;
@@ -276,7 +301,9 @@ function createRoom() {
     refresh();
     return;
   }
-  Net.navigateTo(r.url);
+  // 原生侧给的 url 是 `…?net=host&room=…`（可能还带 &discover=0），
+  // 模式只能在 JS 这边补上 —— 原生层不知道也不该知道玩法模式。
+  Net.navigateTo(r.url + forgeModeQuery());
 }
 
 /** 扫描同一 Wi-Fi 下的房间 */
