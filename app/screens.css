@@ -4479,7 +4479,18 @@ body::before, body::after { content: none; }
 .unit-info .ui-close:active { opacity: .85; background: var(--pill-bg); }
 
 /* ── 中途反问（开战选目标 / 抉择 / 弃哪张牌 / 召唤落点）── */
-.choice-box { padding: 18px; }
+/* 选项一多就必须能滑（作者 2026-10-31 报的 bug）：
+   打到后期「弃哪张手牌」「选哪个单位」动辄十几条，以前整块面板没有高度上限，
+   多出来的选项直接掉到屏幕外面，既点不到也滚不到。现在面板限高、
+   标题固定、**只有选项区滚动**；选项本身不许被压缩（flex: 0 0 auto），
+   否则 flex 容器为了塞进高度会把每一条都挤扁。 */
+.choice-box {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+}
 .choice-title {
   margin-bottom: 4px;
   font-family: var(--font-title);
@@ -4488,10 +4499,19 @@ body::before, body::after { content: none; }
   color: var(--ink);
   letter-spacing: .02em;
   text-align: left;
+  flex: 0 0 auto;
 }
-.choice-sub { margin-bottom: 10px; font-size: 11.5px; line-height: 1.5; color: var(--ink-faint); }
+.choice-sub { margin-bottom: 10px; font-size: 11.5px; line-height: 1.5; color: var(--ink-faint); flex: 0 0 auto; }
 /* 选项：一行一条，头发丝线分隔（原来是每个一个描边圆角块） */
-.choice-list { gap: 0; }
+.choice-list {
+  gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;          /* flex 子项默认 min-height:auto —— 不写死这里，滚动区会被内容顶破 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;  /* 滑到底不要顺手带着背后的棋盘一起动 */
+  scrollbar-width: thin;
+}
 .choice-opt {
   padding: 13px 2px;
   border: 0;
@@ -4501,16 +4521,23 @@ body::before, body::after { content: none; }
   color: var(--ink);
   font-size: 14px;
   line-height: 1.45;
+  flex: 0 0 auto;
 }
 .choice-list .choice-opt:first-child { border-top: 1px solid var(--hair); }
 .choice-opt:active { background: var(--row-bg); border-color: var(--hair); }
-/* 召唤落点用的是底部条（不遮棋盘），同样换成一条线 + 无框选项 */
+/* 召唤落点用的是底部条（不遮棋盘），同样换成一条线 + 无框选项。
+   格子多（组合解锁第二身位、或者线上已经有单位）时这条也会长高，
+   所以同样限高 + 可滚动，别把棋盘盖掉。 */
 .choice-bar {
   background: var(--panel);
   border: 1px solid var(--hair);
   border-radius: var(--scr-r);
   box-shadow: none;
   color: var(--ink);
+  max-height: 55vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .choice-bar .choice-title { width: 100%; font-size: 12.5px; color: var(--ink-dim); }
 .choice-bar .choice-opt { padding: 8px 4px; }

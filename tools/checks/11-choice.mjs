@@ -1,5 +1,7 @@
 /** § 抉择：效果打到一半反问玩家 */
-import { api, check } from './harness.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT, api, check } from './harness.mjs';
 
 // ── 目标高亮（含国王）─────────────────────────────────────
 console.log('\n§ 抉择：效果打到一半反问玩家');
@@ -34,4 +36,61 @@ check('「抉择」：点第一个选项走另一条分支（少花 4 费 + 穿�
     throw new Error(`选第一项不该改身材，实际 ${after.atk}/${after.hp}`);
   }
   if (after.mana !== 16) throw new Error(`8 费打出 + 退还 4 = 剩 16，实际 ${after.mana}`);
+});
+
+// ── 选项太多要能上下滑（作者 2026-10-31 报的 bug）───────────────
+/**
+ * 取某个选择器在**顶层**（不在 @media 里）的声明，后写的覆盖先写的。
+ *
+ * 为什么要求顶层：这条断言锁的是「不管屏幕多高都生效」的修复；
+ * 只在某个 @media 里写 overflow-y，小屏以外的机型照样滑不动，
+ * 那种写法应该让断言失败，而不是蒙混过关。
+ */
+function topLevelDecls(cssFile, selector) {
+  const src = fs.readFileSync(path.join(ROOT, cssFile), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const out = {};
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const head = m[1].trim();
+    // 外层还开着花括号 = 在 @media / @supports 里面
+    const before = src.slice(0, m.index);
+    const depth = (before.match(/\{/g) || []).length - (before.match(/\}/g) || []).length;
+    if (depth !== 0) continue;
+    if (!head.split(',').map((s) => s.trim()).includes(selector)) continue;
+    for (const decl of m[2].split(';')) {
+      const i = decl.indexOf(':');
+      if (i < 0) continue;
+      out[decl.slice(0, i).trim()] = decl.slice(i + 1).trim();
+    }
+  }
+  return out;
+}
+
+check('选项面板限高、只有选项区滚动（选项一多不能滑出去的 bug）', () => {
+  const box = topLevelDecls('app/screens.css', '.choice-box');
+  if (box.display !== 'flex') throw new Error('.choice-box 不是 flex 列 —— 没法把标题固定、只让选项区滚');
+  if (!/calc\(100(d)?vh/.test(box['max-height'] || '')) {
+    throw new Error(`.choice-box 没有 max-height: calc(100vh|100dvh - …)，现在是 ${JSON.stringify(box['max-height'])}`);
+  }
+
+  const list = topLevelDecls('app/screens.css', '.choice-list');
+  if (list['overflow-y'] !== 'auto') {
+    throw new Error(`.choice-list 没有 overflow-y: auto（现在是 ${JSON.stringify(list['overflow-y'])}）—— 选项一多就滑不动`);
+  }
+  if (list['min-height'] !== '0') {
+    throw new Error('flex 子项默认 min-height:auto，不写 min-height: 0 滚动区会被内容顶破');
+  }
+  if (!/1 1 auto|1 1 0|flex: 1/.test(list.flex || '')) {
+    throw new Error(`.choice-list 应该 flex: 1 1 auto 撑满剩余高度，现在是 ${JSON.stringify(list.flex)}`);
+  }
+
+  const opt = topLevelDecls('app/screens.css', '.choice-opt');
+  if (!/^0 0 auto/.test(opt.flex || '')) {
+    throw new Error(`.choice-opt 必须 flex: 0 0 auto，否则选项会被压扁（现在是 ${JSON.stringify(opt.flex)}）`);
+  }
+
+  // 召唤落点用的是底部条，同样可能列很多格
+  const bar = topLevelDecls('app/screens.css', '.choice-bar');
+  if (bar['overflow-y'] !== 'auto') throw new Error('.choice-bar（召唤落点）也不能滑');
 });
