@@ -7,7 +7,7 @@
  *   这份直接 import app/js/multiplayer.js 的 Session —— 测的就是线上跑的那份代码。
  *
  * 用法：
- *   node tools/probe-mp.mjs                          # 打线上 www.wangzuo.icu
+ *   node tools/probe-mp.mjs                          # 打线上 wangzuo.icu
  *   node tools/probe-mp.mjs http://127.0.0.1:8787    # 打本地 wrangler dev
  *
  * 依赖：Node 22（全局 fetch + WebSocket）。会真的建一个房间号，两小时没人动自动回收。
@@ -18,7 +18,7 @@ import path from 'node:path';
 import url from 'node:url';
 
 const ROOT = path.resolve(url.fileURLToPath(new URL('..', import.meta.url)));
-const BASE = (process.argv[2] || 'https://www.wangzuo.icu').replace(/\/$/, '');
+const BASE = (process.argv[2] || 'https://wangzuo.icu').replace(/\/$/, '');
 const u = new URL(BASE);
 
 // Session 读 globalThis.location 拼同源地址；Node 里给一个等价的

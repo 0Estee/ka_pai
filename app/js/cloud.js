@@ -24,7 +24,7 @@ import * as Store from './store.js';
 import { profile, setProfile } from './app-state.js';
 
 /** APK 从 file:// 加载时用的公网 API 根地址（http(s) 页面一律同源 /api） */
-const CLOUD_BASE = 'https://www.wangzuo.icu';
+const CLOUD_BASE = 'https://wangzuo.icu';
 /** 本地存档改动后等这么久再上传：一局里金币 / 强化会连着改十几次，逐次上传既慢又吵 */
 const CLOUD_SAVE_DEBOUNCE_MS = 2000;
 /** 单次请求超时：手机上弱网很常见，不能让「正在同步」永远转圈 */
