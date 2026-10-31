@@ -23,7 +23,7 @@ import { esc } from './ui.js';
 import { levelFor } from './economy.js';
 
 /** 版本号（改版本时和 tools/build-apk.ps1 一起改） */
-export const APP_VERSION = '0.75.0';
+export const APP_VERSION = '0.76.0';
 
 /**
  * 把毫秒时间戳格式化成「YYYY-MM-DD HH:mm」。
