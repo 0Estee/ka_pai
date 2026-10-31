@@ -412,26 +412,36 @@ export function applyHandStatDelta(state, unit, handCard) {
 /**
  * 「立即进入下个回合」（派对阵营「小丑」，作者 2026-10-11）。
  *
- * 与界面上的「结束回合」同一条路：把当前回合剩下的阶段依次跑完
- * （开战也跑），直到进入下一回合的 TURN_START。
+ * 与界面上的「结束回合」同一条路：把当前回合剩下的阶段依次跑完，
+ * 直到进入下一回合的 TURN_START —— **但本回合不开战**。
+ *
+ * ⚠ 作者 2026-10-31 复查：以前只在「当前阶段已经是 COMBAT」时才把开战跳过去，
+ *   从单位 / 锦囊阶段调进来时 `advance()` 会**一步跨进 COMBAT** 并当场把仗打完，
+ *   与「不开战」的口径不符。现在改成**提前看一眼下一阶段**：只要是开战就直接
+ *   结算 TURN_END。
+ *
  * 开战中途挂起时（state.pending）立刻停手：代表「这个回合到此为止」，
  * 答完之后由界面的自动推进把剩下阶段走完。
  */
 export function endTurnNow(state) {
   if (isOver(state)) return false;
-  /**
-   * 「立即进入下个回合」（派对「小丑」）。作者 2026-10 裁定①：
-   * **不开战**，效果结算完直接进下一回合 —— 原来这里无脑 advance() 到 TURN_START，
-   * 会顺路把 COMBAT（开战）跑完，与「不开战」的口径不符。
-   */
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     if (state.pending) return true;
     if (state.phase === 'TURN_START') return true;
-    // 战斗阶段跳过：本回合不再开战，直接去跑 TURN_END
-    if (typeof state.phase === 'string' && state.phase.indexOf('COMBAT') === 0) state.phase = 'TURN_END';
+    // 已经在开战阶段（理论上不会：开战是同步跑完的）——直接收尾
+    if (state.phase === 'COMBAT') {
+      enterPhase(state, 'TURN_END');
+      continue;
+    }
+    const idx = PHASES.indexOf(state.phase);
+    if (idx < 0) return true;
+    // 下一阶段本来是 COMBAT：跳过整场开战，直接结算回合结束
+    if (PHASES[idx + 1] === 'COMBAT') {
+      enterPhase(state, 'TURN_END');
+      if (state.pending) return true;
+      continue;
+    }
     advance(state);
-    if (state.pending) return true;
-    if (state.phase === 'TURN_START') return true;
   }
   return true;
 }

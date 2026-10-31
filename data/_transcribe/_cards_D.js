@@ -14,7 +14,7 @@ export const CARDS_D = [
   //     ② 两个动作按顺序结算，先 +1⚔ 再判定 ≥4，与卡面「然后」一致。
   //     ③ 攻击力判定走 filter.minAtk，读有效攻击力（含光环），同「滚石」口径。
   // ─────────────────────────────────────────────────────────
-  {"id":"U140","name":"生长炸弹","type":"spell","spellKind":"attack","cost":5,"actions":[{"op":"buffAtk","amount":1,"target":{"kind":"allUnits"}},{"op":"destroy","target":{"kind":"allUnits","filter":{"minAtk":4}}}]},
+  {"id":"U140","name":"生长炸弹","type":"spell","spellKind":"attack","cost":5,"text":"所有单位获得+1⚔；然后消灭所有⚔≥4的单位","actions":[{"op":"buffAtk","amount":1,"target":{"kind":"allUnits"}},{"op":"destroy","target":{"kind":"allUnits","filter":{"minAtk":4}}}]},
 
   // ─────────────────────────────────────────────────────────
   // 卡面：单位（人形） / 「炒鸡赛亚人」/ 费用 5 / 攻击4 生命4

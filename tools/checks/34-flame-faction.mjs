@@ -51,18 +51,17 @@ check('难度页能选炎帝，卡库里有 11 张炎帝牌（异火与两张牌
   }
 });
 
-check('炎帝开局就有 10 张异火堆（五种各 2），界面显示张数', () => {
+check('炎帝开局就有 5 张异火堆（五种各 1），界面显示张数', () => {
   const st = aiGame('flame');
   const me = st.players[0];
   const pile = me.flamePile || [];
-  if (pile.length !== 10) throw new Error('异火堆应当是 10 张，实际 ' + pile.length);
+  if (pile.length !== 5) throw new Error('异火堆应当是 5 张，实际 ' + pile.length);
   for (const id of FLAME_IDS) {
     const n = pile.filter((cid) => cid === id).length;
-    if (n !== 2) throw new Error(id + ' 在异火堆里应当是 2 张，实际 ' + n);
+    if (n !== 1) throw new Error(id + ' 在异火堆里应当是 1 张，实际 ' + n);
   }
-  if (me.flameLotusGiven) throw new Error('开局不该已经发过佛怒火莲');
   if (st.players[0].hand.some((c) => FLAME_IDS.indexOf(c.cardId) >= 0)) throw new Error('开局手牌不该有异火');
-  if (!stage().includes('异火 10')) throw new Error('棋盘上没有显示异火堆张数');
+  if (!stage().includes('异火 5')) throw new Error('棋盘上没有显示异火堆张数');
 });
 
 check('异火堆抽完不会自动补（作者：所有异火都是令牌，抽完不自动补）', () => {

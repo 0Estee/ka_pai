@@ -172,7 +172,9 @@ export function drawCards(state, side, n, opts = {}) {
   }
   log(state, { type: 'draw', side, count: drawnIds.length, deckLeft: state.deck.length });
 
-  // 「敌方抽牌时:」（卡牌「希佩尔海军上将号」）—— 播给对手的观察者
+  // 「敌方抽牌时:」（卡牌「希佩尔海军上将号」）—— 播给对手的观察者。
+  // 作者 2026-10-31 裁定：「只要抽牌就弃」，开局起手也算（`raw: false` 只关掉炼金产原料，
+  // 不影响这条广播）；**唯一的例外是超能力抽取**（见 factions.js 的 drawSuperpower）。
   if (drawnIds.length > 0) {
     for (const watcher of allUnits(state)) {
       if (watcher.removed || watcher.side === side) continue;

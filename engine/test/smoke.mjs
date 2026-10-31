@@ -1992,6 +1992,23 @@ test('U446 活火山：双重打击，出手时同时打全场敌方单位与敌
   assert.equal(king(s, 1), k0 - 2, '敌方国王同样吃两次 1 点');
 });
 
+test('U446 活火山：带溅射时，扫射之外还给相邻线路的敌人补一份溅射（作者 2026-10-31）', () => {
+  const s = factionGame('inferno');
+  playUnit(s, 0, 'U446', 'mountain', 'front');
+  const v = at(s, 'mountain', 0, 'front');
+  M.grantKeyword(s, v, 'splash', 2);
+  const adj = deploy(s, 1, 'W04', 'plainL', 'front'); adj.maxHp = 30; adj.hp = 30;
+  const far = deploy(s, 1, 'W04', 'plainR', 'front'); far.maxHp = 30; far.hp = 30;
+  const water = deploy(s, 1, 'W04', 'water', 'front'); water.maxHp = 30; water.hp = 30;
+  const k0 = king(s, 1);
+  combat(s);
+  // 双重打击 = 两轮扫射：相邻线路每轮 1（扫射）+ 2（溅射）= 3，两轮 6
+  assert.equal(adj.hp, 24, '相邻线路：扫射 1x2 + 溅射 2x2');
+  assert.equal(far.hp, 28, '不相邻线路：只有扫射 1x2');
+  assert.equal(water.hp, 28, '水路同样只有扫射 1x2');
+  assert.equal(king(s, 1), k0 - 2, '敌方国王仍然只吃扫射，溅射不打国王');
+});
+
 test('U447 黑曜石：一名队友+3生命，并在每回合开始时+1攻击力（还抽一张牌）', () => {
   const s = factionGame('inferno');
   const ally = deploy(s, 0, 'U461', 'mountain', 'front');
@@ -2207,24 +2224,23 @@ test('派对已注册：FACTIONS 有 party，U 组 5 张进卡库（含 1 张令
   assert.equal(ids.length, 5, '派对共 5 张');
 });
 
-test('U462 小丑：所有单位额外攻击一次，然后立刻进入下个回合', () => {
+test('U462 小丑：双方所有单位额外攻击一次（当场结算），然后立刻进入下个回合、本回合不开战', () => {
   const s = factionGame('party');
   const big = deploy(s, 0, 'W04', 'mountain', 'front');
   big.atk = 3;
+  const foe = deploy(s, 1, 'W04', 'plainR', 'front');
+  foe.atk = 3;
+  foe.maxHp = 20;
+  foe.hp = 20;
   const before = king(s, 1);
+  const myK0 = king(s, 0);
+  const log0 = s.log.length;
   playUnit(s, 0, 'U462', 'plainL', 'front');
   assert.equal(s.turn, 2, '打完小丑立刻进入下个回合');
-  // 对照：同样一张 3 攻白板 + 一张 1 攻白板，只走一次常规开战
-  const c = factionGame('party');
-  const cbig = deploy(c, 0, 'W04', 'mountain', 'front');
-  cbig.atk = 3;
-  const cbefore = king(c, 1);
-  playUnit(c, 0, 'W01', 'plainL', 'front');
-  nextTurn(c);
-  const doubled = before - king(s, 1);
-  const single = cbefore - king(c, 1);
-  assert.equal(single, 4, '对照局一次开战打 4 点（3+1）');
-  assert.equal(doubled, single * 2, '额外攻击让这一次开战的伤害翻倍');
+  assert.equal(before - king(s, 1), 4, '我方 3 攻 + 小丑 1 攻各额外攻击一次 = 4 点');
+  assert.equal(myK0 - king(s, 0), 3, '敌方单位也会额外攻击一次（打我方国王 3 点）');
+  const types = s.log.slice(log0).map((l) => l.type);
+  assert.ok(types.indexOf('combat-start') < 0, '本回合不开战（不该出现 combat-start）');
 });
 
 test('U463 惊喜：随机令牌-1费进手牌，友方国王回复 3 点', () => {
@@ -2293,13 +2309,12 @@ test('U466 气球：被消灭时对这条线上的敌人和敌方国王各造成
 group('24 炎帝阵营（异火堆 + U467~U477，作者 2026-10-12 规格）');
 //
 
-test('炎帝开局就有 10 张异火堆：五种异火各 2 张（作者未指定数量，先按此实现）', () => {
+test('炎帝开局就有 5 张异火堆：五种异火各 1 张（作者 2026-10-31 裁定）', () => {
   const s = game({ factions: ['flame', null] });
   const pile = flamePileOf(s, 0);
-  assert.equal(pile.length, 10, '异火堆 10 张');
-  for (const id of FLAME_IDS) assert.equal(pile.filter((x) => x === id).length, 2, id + ' 应有两张');
+  assert.equal(pile.length, 5, '异火堆 5 张');
+  for (const id of FLAME_IDS) assert.equal(pile.filter((x) => x === id).length, 1, id + ' 应有一张');
   assert.equal(flamePileOf(s, 1).length, 0, '不是炎帝就没有异火堆');
-  assert.ok(!s.players[0].flameLotusGiven, '佛怒火莲开局还没发过');
 });
 
 test('炎帝的超能力池只有 4 张非令牌（U472~U475）：异火与令牌都不进池', () => {
@@ -2310,15 +2325,15 @@ test('炎帝的超能力池只有 4 张非令牌（U472~U475）：异火与令�
 test('异火只能靠超能力效果获得：普通抽牌不产异火（作者裁定②）', () => {
   const s = game({ factions: ['flame', null] });
   M.drawCards(s, 0, 5);
-  assert.equal(flamePileOf(s, 0).length, 10, '抽牌不动异火堆');
+  assert.equal(flamePileOf(s, 0).length, 5, '抽牌不动异火堆');
   assert.equal(s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) >= 0).length, 0, '手牌里没有异火');
 });
 
-test('异火堆不自动补：抽到第 11 次返回 null（作者裁定②）', () => {
+test('异火堆不自动补：抽到第 6 次返回 null（作者裁定）', () => {
   const s = game({ factions: ['flame', null] });
   let got = 0;
-  for (let i = 0; i < 12; i++) if (drawFlame(s, 0)) got++;
-  assert.equal(got, 10, '一共只抽到 10 张');
+  for (let i = 0; i < 8; i++) if (drawFlame(s, 0)) got++;
+  assert.equal(got, 5, '一共只抽到 5 张');
   assert.equal(flamePileOf(s, 0).length, 0, '堆已经空了');
   const hand = s.players[0].hand.length;
   assert.equal(drawFlame(s, 0), null, '空堆再抽返回 null');
@@ -2468,7 +2483,7 @@ test('焚决 U474：国王获得「有单位被消灭时，抽一张异火」', 
   M.destroyUnit(s, foe, 'combat');
   G.flushTriggers(s);
   assert.equal(count(), before + 1, '有单位被消灭 -> 抽一张异火');
-  assert.equal(flamePileOf(s, 0).length, 9, '异火堆少了一张');
+  assert.equal(flamePileOf(s, 0).length, 4, '异火堆少了一张');
 });
 
 test('天火三玄变 U475 抉择①：一个单位 +3 攻、生命设为 1，并抽一张异火', () => {
@@ -2512,21 +2527,20 @@ test('六合游身尺 U476：本回合所有单位攻击力为 0，回合结束�
   assert.equal(effectiveAtk(s, mate), atk, '回合过去就恢复原攻击力');
 });
 
-test('佛怒火莲 U477：异火堆和手牌都没有异火时入手；重置后才能再入手（作者裁定②）', () => {
+test('佛怒火莲 U477：堆与手牌都没有异火时入手；无次数限制；打出后异火堆复原成 5 张', () => {
   const s = game({ factions: ['flame', null] });
-  for (let i = 0; i < 10; i++) drawFlame(s, 0);
+  for (let i = 0; i < 5; i++) drawFlame(s, 0);
   s.players[0].hand = s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) < 0);
   assert.equal(checkFlameLotus(s, 0), 'U477', '满足条件：入手佛怒火莲');
   assert.ok(s.players[0].hand.some((c) => c.cardId === 'U477'), '进了手牌');
-  assert.equal(checkFlameLotus(s, 0), null, '不会重复入手');
   const kb = king(s, 1);
   cast(s, 0, 'U477');
   assert.equal(kb - king(s, 1), 3, '敌方国王吃 3 点');
-  assert.equal(flamePileOf(s, 0).length, 10, '异火堆被重置');
-  assert.equal(s.players[0].flameLotusGiven, false, '重新武装入手检查');
-  for (let i = 0; i < 10; i++) drawFlame(s, 0);
+  assert.equal(flamePileOf(s, 0).length, 5, '异火堆被重置成 5 张');
+  for (const id of FLAME_IDS) assert.equal(flamePileOf(s, 0).filter((x) => x === id).length, 1, id + ' 复原成一张');
+  for (let i = 0; i < 5; i++) drawFlame(s, 0);
   s.players[0].hand = s.players[0].hand.filter((c) => FLAME_IDS.indexOf(c.cardId) < 0);
-  assert.equal(checkFlameLotus(s, 0), 'U477', '重置后的堆再抽干、手牌也没异火 -> 再入手一次');
+  assert.equal(checkFlameLotus(s, 0), 'U477', '重置后的堆再抽干、手牌也没异火 -> 再入手一次（无次数限制）');
 });
 
 //
@@ -3045,6 +3059,29 @@ test('双重打击：打死人也不会连锁（连锁只属于狂热）', () =>
   combat(s);
   assert.equal(s.log.filter((e) => e.type === 'extra-attack' && e.uid === me.uid).length, 1, '双重打击只额外一次');
   assert.equal(king(s, 1), 20, '没有第三击');
+});
+
+//
+group('希佩尔海军上将号 U362（作者 2026-10-31：只要抽牌就弃，除了超能力）');
+//
+
+test('U362：敌方抽牌会被弃掉；超能力抽取不算「抽牌」，不会被弃', () => {
+  const s = factionGame('party');
+  deploy(s, 1, 'U362', 'mountain', 'front');
+  const hand0 = s.players[0].hand.length;
+  M.drawCards(s, 0, 1);
+  G.flushTriggers(s);
+  assert.equal(s.players[0].hand.length, hand0, '抽到的那张被弃掉，手牌数不变');
+  assert.equal(s.log.filter((e) => e.type === 'discard-drawn').length, 1, '弃牌留痕');
+
+  // 超能力（国王血量阈值）抽取不走 drawCards，不触发希佩尔
+  s.players[0].kingHp = 16;
+  const hand1 = s.players[0].hand.length;
+  M.dealDamage(s, null, { kind: 'king', side: 0 }, 3);
+  G.flushTriggers(s);
+  assert.equal(s.players[0].hand.length, hand1 + 1, '超能力进了手牌');
+  assert.equal(s.log.filter((e) => e.type === 'discard-drawn').length, 1, '没有再触发弃牌');
+  assert.ok((s.players[0].superpowers || []).length >= 1, '确实抽到了超能力');
 });
 
 console.log('\n' + BAR);

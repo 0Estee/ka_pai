@@ -986,6 +986,7 @@ export const USER_CARDS_B3 = [
     "type": "spell",
     "spellKind": "attack",
     "cost": 5,
+    "text": "所有单位获得+1⚔；然后消灭所有⚔≥4的单位",
     "actions": [
       {
         "op": "buffAtk",
@@ -2311,7 +2312,7 @@ export const USER_CARDS_B3 = [
     "spellKind": "item",
     "cost": 3,
     "token": true,
-    "text": "名队友获得+2⚔+2♥",
+    "text": "一名队友获得+2⚔+2♥",
     "actions": [
       {
         "op": "buffAtk",

@@ -444,7 +444,7 @@ export function* execAction(state, ctx, action) {
       break;
     }
 
-    /** 炎帝「佛怒火莲」：重置异火堆（并重新武装佛怒火莲的入手检查） */
+    /** 炎帝「佛怒火莲」：重置异火堆（复原成五种各一张、共 5 张） */
     case 'resetFlamePile': {
       const side = resolveSide(action.side === undefined ? 'controller' : action.side, me);
       resetFlamePile(state, side);
@@ -452,7 +452,7 @@ export function* execAction(state, ctx, action) {
     }
 
     /**
-     * 「打出异火之后检查佛怒火莲能否入手」（作者裁定②）。
+     * 「打出异火之后检查佛怒火莲能否入手」（作者 2026-10-31 裁定：每次打出异火都检查、无次数限制）。
      * 单独做成 op，是因为「打出锦囊之后」这一刻只有 play.js 知道。
      */
     case 'checkFlameLotus': {

@@ -365,7 +365,13 @@ export function collectAttackEvents(state, lane, unit, events) {
    * 「同时攻击所有敌人和敌方国王」（炼狱「活火山」的卡级旗标 sweepAllEnemies）。
    *
    * 出手时把攻击力打到**全场**敌方单位（所有线路、前后排）与敌方国王各一次，
-   * 覆盖常规的交战目标 / 溅射 / 穿透分支（与「必中」同族的整体改写）。
+   * 覆盖常规的交战目标分支。
+   *
+   * 作者 2026-10-31 裁定：**打单位时照常触发「溅射」** —— 所以这里在扫射之后
+   * 仍然按通常口径给相邻线路的敌人补一份溅射伤害（扫射本身已经把所有线路都打了，
+   * 溅射相当于给左右两条相邻线路再多一层 X 点）。
+   * 「穿透」不再结算：它的定义是「主要目标之外再命中本线路 X 个」，
+   * 而扫射根本没有「主要目标」，同时打全场时再加穿透没有意义。
    */
   const sweepDef = state.cardLib && state.cardLib[unit.cardId];
   if (sweepDef && sweepDef.sweepAllEnemies) {
@@ -374,6 +380,14 @@ export function collectAttackEvents(state, lane, unit, events) {
       events.push({ source: unit, target: { kind: 'unit', unit: enemy }, amount: atk, tag: 'sweep' });
     }
     events.push({ source: unit, target: { kind: 'king', side: foe }, amount: atk, tag: 'sweep' });
+    const sweepSplash = getKeyword(state, unit, 'splash');
+    if (sweepSplash && sweepSplash.x > 0) {
+      for (const adj of ADJACENT_LANES[lane]) {
+        for (const enemy of M.laneUnits(state, adj, foe)) {
+          events.push({ source: unit, target: { kind: 'unit', unit: enemy }, amount: sweepSplash.x, tag: 'splash' });
+        }
+      }
+    }
     return;
   }
 

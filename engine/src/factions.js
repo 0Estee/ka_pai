@@ -59,6 +59,9 @@ export function superpowerPool(state, side) {
 /**
  * 抽一张超能力进手牌；池子空了返回 null（不会重复抽）。
  * 与 stats.js 的 drawCards 走同一条「进手牌」写法（iid + nextIid）。
+ *
+ * ⚠ 超能力抽取**不广播「敌方抽牌时」**（作者 2026-10-31 裁定：
+ *   「只要抽牌就弃，除了超能力」）。所以这里不要改成调用 drawCards。
  */
 function drawSuperpower(state, side, opts) {
   const p = state.players[side];
@@ -286,8 +289,8 @@ export function findVoodooDoll(state, side) {
 /** 五种异火（都是令牌、超能力牌） */
 export const FLAME_IDS = ['U467', 'U468', 'U469', 'U470', 'U471'];
 
-/** 异火堆构成：每种 2 张，共 10 张（作者未指定数量，先按此实现，已在汇报里说明） */
-export const FLAME_PILE_MAKEUP = FLAME_IDS.map((cardId) => ({ cardId, count: 2 }));
+/** 异火堆构成：每种 1 张，共 5 张（作者 2026-10-31 裁定：五种各一张） */
+export const FLAME_PILE_MAKEUP = FLAME_IDS.map((cardId) => ({ cardId, count: 1 }));
 
 /** 「佛怒火莲」的卡 id：唯一会重置异火堆的牌 */
 export const FLAME_LOTUS_ID = 'U477';
@@ -339,14 +342,17 @@ export function drawFlame(state, side) {
 }
 
 /**
- * 「佛怒火莲」：重置异火堆，并**重新武装**佛怒火莲的入手检查
- * （作者裁定②：重置之后的下一次满足条件时才能再入手一次）。
+ * 「佛怒火莲」：重置异火堆（复原成五种各一张、共 5 张）。
+ *
+ * 作者 2026-10-31 裁定：佛怒火莲入手**没有次数限制** —— 每打出一张异火
+ * 检查一次，只要「堆和手牌里都没有异火」就给。所以这里不再有
+ * `flameLotusGiven` 这类「整局只发一次」的开关；重置之后把新堆再抽干，
+ * 下一次打出异火时又会再进一张。
  */
 export function resetFlamePile(state, side) {
   const p = state.players[side];
   if (!p) return [];
   p.flamePile = makeFlamePile();
-  p.flameLotusGiven = false;
   log(state, { type: 'flame-pile-reset', side, left: p.flamePile.length });
   return p.flamePile;
 }
@@ -360,16 +366,15 @@ export function noFlameAnywhere(state, side) {
 }
 
 /**
- * 佛怒火莲的入手检查（作者裁定②：**打出异火之后**检查；不重复入手）。
+ * 佛怒火莲的入手检查（作者 2026-10-31 裁定：**每打出一张异火检查一次**，
+ * 只要「异火堆和手牌中均没有异火」就给，**没有次数限制**）。
  * 返回入手的那张卡 id，没入手返回 null。
  */
 export function checkFlameLotus(state, side) {
   const p = state.players[side];
   if (!p || p.faction !== 'flame') return null;
-  if (p.flameLotusGiven) return null;
   if (!state.cardLib[FLAME_LOTUS_ID]) return null;
   if (!noFlameAnywhere(state, side)) return null;
-  p.flameLotusGiven = true;
   p.hand.push({ iid: state.nextIid++, cardId: FLAME_LOTUS_ID });
   log(state, { type: 'flame-lotus', side, cardId: FLAME_LOTUS_ID });
   return FLAME_LOTUS_ID;

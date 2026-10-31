@@ -21,6 +21,7 @@ export const USER_CARDS = [
     type: 'spell',
     spellKind: 'attack',
     cost: 1,
+    text: '造成2点伤害',
     actions: [
       {
         op: 'damage',
@@ -44,6 +45,7 @@ export const USER_CARDS = [
     type: 'spell',
     spellKind: 'attack',
     cost: 1,
+    text: '消灭一名⚔≤2的敌人',
     actions: [
       {
         op: 'destroy',
@@ -67,6 +69,7 @@ export const USER_CARDS = [
     atk: 1,
     hp: 1,
     keywords: [],
+    text: '打出:抽一张牌',
     effects: [
       { trigger: 'onPlay', actions: [{ op: 'draw', amount: 1 }] },
     ],
@@ -88,6 +91,7 @@ export const USER_CARDS = [
     atk: 1,
     hp: 1,
     keywords: ['amphibious'],
+    text: '造成伤害:为自己的国王回复1点生命',
     effects: [
       {
         trigger: 'onDealDamage',
