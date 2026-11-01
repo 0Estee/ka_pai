@@ -481,6 +481,13 @@ export class Session {
     // 效果中途要选目标（「抉择」「打出:指定目标」）时必须挂起等人点，
     // 设成 true 的话引擎会一律取第一个选项 —— 那就是「被判定成 AI」了。
     this.state.autoResolveChoices = false;
+    /**
+     * 同理，**一个 AI 都没有**：`aiSides` 留空数组（作者 2026-11-01）。
+     * 引擎的 takeChoice 会拿它判「这一问归 AI 吗」——归 AI 的会直接代答、
+     * 绝不允许挂起。联机两边都是人，所以这里必须是空数组；写错成 [对手]
+     * 会让对手的红火蚁 / 水蛭把自己的选择交给本地引擎替他答，两端状态立刻分叉。
+     */
+    this.state.aiSides = [];
     this.started = true;
     this.step = 0;
     this.history = [];

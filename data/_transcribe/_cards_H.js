@@ -273,6 +273,11 @@ export const CARDS_H = [
             target: {
               kind: 'chosenEnemyUnit',
               filter: { maxHp: 3 },
+              // 作者 2026-11-01：「AI 对战时水蛭等单位的选择效果目标界面也会错误弹给玩家」
+              // → 点选改成**主人自己答**：水蛭的主人是真人就当问真人（以前这段在
+              // 出牌中途被 autoResolveChoices=false 顺手挂起，面板弹给了对面），
+              // 主人是 AI 就由引擎按 pickFragileTarget 自己挑，绝不弹给玩家。
+              askHuman: true,
               prompt: '选择一名♥≤3的敌人',
             },
           },

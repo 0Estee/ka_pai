@@ -8,7 +8,7 @@
  */
 
 import { LANES, ADJACENT_LANES, LANE_NAME, fixNum } from './constants.js';
-import { isFrozen, KEYWORD_DEFS } from './keywords.js';
+import { isFrozen, KEYWORD_DEFS, KEYWORDS_NOT_GRANTABLE } from './keywords.js';
 import { hasRooted, getKeyword, effectiveAtk } from './auras.js';
 import {
   dealDamage, destroyUnit, healUnit, healKing, buffAtk, buffMaxHp, debuffMaxHp,
@@ -937,14 +937,21 @@ export function* execAction(state, ctx, action) {
     }
     /**
      * 「选择N个词条，一名队友获得它们，X=2」（炎帝「大天造化掌」）。
+     *
      * `exclude` 里是不能选的词条（无敌 / 祝福X）；每次只列还没选过的。
+     *
+     * ⚠ 还有一份**全局默认排除表** `KEYWORDS_NOT_GRANTABLE`（作者 2026-11-01：
+     *   「以后所有选择加词条的卡默认不能选择这些」）：无敌 / 祝福 / 水生 / 先制 /
+     *   冻结 / 融合 / 融合进化 / 无法攻击 / 陷阱。卡牌自己写的 `exclude` 只能
+     *   在它上面**追加**，不能把默认排除的再放回来 —— 否则每张卡都要抄一遍九条，
+     *   以后加新词条还得回头改所有卡。
      */
     case 'chooseKeywords': {
       const targets = yield* resolveTargets(state, ctx, action.target);
       const unit = targets.find((t) => t.kind === 'unit' && t.unit && !t.unit.removed);
       const n = action.count || 1;
       const x = action.x === undefined ? 0 : action.x;
-      const exclude = action.exclude || [];
+      const exclude = KEYWORDS_NOT_GRANTABLE.concat(action.exclude || []);
       const picked = [];
       for (let i = 0; i < n; i++) {
         const options = Object.keys(KEYWORD_DEFS)

@@ -650,6 +650,7 @@ export const USER_CARDS_B3 = [
             "amount": 1,
             "target": {
               "kind": "chosenEnemyTarget",
+              "askHuman": true,
               "prompt": "选择一名敌方单位或敌方国王（每掉 1♥ 砸 1 点）"
             }
           }
@@ -2350,6 +2351,7 @@ export const USER_CARDS_B3 = [
               "filter": {
                 "maxHp": 3
               },
+              "askHuman": true,
               "prompt": "选择一名♥≤3的敌人"
             }
           }

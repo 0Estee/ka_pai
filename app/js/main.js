@@ -311,7 +311,10 @@ window.__sandbox = (opts) => {
   if (cfg.side !== undefined) {
     setSandboxSide(cfg.side);
     if (view) view.humanSide = me();
-    if (state) state.humanSide = me();
+    if (state) {
+      state.humanSide = me();
+      state.aiSides = [1 - me()];   // 与 play-input.js 的 sb-side 同一条口径
+    }
     refresh();
   }
   if (cfg.foeFaction && state) { G.sandboxSetFaction(state, 1, cfg.foeFaction); refresh(); }
@@ -1443,6 +1446,7 @@ window.__demoLanStart = (opts = {}) => {
       });
       G.startGame(st);
       st.autoResolveChoices = false;
+      st.aiSides = [];          // 联机两边都是真人（与 multiplayer.js 的 applyStart 一致）
       recordingSeed = p.seed;
       recordingDeck = p.deck;
       recordingFactions = p.factions;
@@ -1465,6 +1469,7 @@ window.__demoLanStart = (opts = {}) => {
   G.startGame(st);
   // 与 multiplayer.js 的 applyStart 一致：联机没有 AI 代答
   st.autoResolveChoices = false;
+  st.aiSides = [];
   beginLanMatch(st);
   return { phase: state.phase, actor: G.getActor(state), busy: view.busy, screen };
 };
@@ -1495,6 +1500,10 @@ window.__demoLanChoice = (opts = {}) => {
   startNewGame();
   screen = 'game';
   paused = true;
+  // 这里要模拟「联机」：startNewGame 建的是单机局（aiSides = [对手]），
+  // 必须清掉，否则对手的提问会被引擎当成「归 AI」直接代答，这个钩子就测不到
+  // 「等待对手选择」那条界面分流了。
+  if (state) state.aiSides = [];
   clearTimeout(bannerTimer);
   clearTimeout(autoAdvanceTimer);
   const side = owner === 'me' ? mySide : 1 - mySide;

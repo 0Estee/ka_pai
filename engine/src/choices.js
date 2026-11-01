@@ -34,6 +34,18 @@ function oncePerTurnBlocked(unit, key, turn) {
 // 交互挂起（generator 驱动）
 // ══════════════════════════════════════════════════════════
 
+/**
+ * 这一问是不是「AI 那一侧的」——是的话永远不允许挂起等真人。
+ *
+ * `state.aiSides` 由界面在建局时写入（单机 = [对手]；联机 = []）；
+ * 没写（引擎单测 / 回放 / 平衡自检）就返回 false，行为与以前完全一致。
+ */
+function answeredByAi(state, request) {
+  const ai = state.aiSides;
+  if (!Array.isArray(ai) || ai.length === 0) return false;
+  return request.side !== undefined && ai.indexOf(request.side) >= 0;
+}
+
 function takeChoice(state, request) {
   /**
    * 录音模式（`state.choiceLog` 是数组时）：把**每一问的裁定**按顺序记下来。
@@ -142,6 +154,28 @@ function takeChoice(state, request) {
    * ⚠ 顺序：它排在 `state.chooser` **之后** —— 回放驱动器做的是「照录制把
    * 每一问装回去」，不是「自动代答」，所以不算违反上面这条规则（见 ②）。
    */
+  /**
+   * ⚠ **归 AI 那一侧的问题绝不能挂起给真人**（作者 2026-11-01 报的 bug）。
+   *
+   * 现场：玩家打出 AOE / 消灭效果，打掉的是**对面**的红火蚁、水蛭，
+   * 它们的「选择一名敌方单位」被触发。出牌期间 `autoResolveChoices` 是 false
+   * （见 play-input.js 的 commitPlay，为了让这张牌自己的提问挂起等人），
+   * 于是这两条 AI 的问题也走 holdHang —— 面板弹给玩家，玩家还被要求
+   * 替对手挑一个「敌方目标」（其实就是自己的单位），既荒谬又没法拒绝。
+   *
+   * 判据放在**引擎**里，`state.aiSides` = 本局由 AI 操作的那几方
+   * （单机 = [对手]；联机 = []，两边都是真人；回放不设，走上面的 chooser）。
+   *   · 是 AI 那一侧 → 直接按 `choose` / 第一个选项算一个（并照常记进裁定流水）；
+   *   · 不是 → 继续往下走原来的挂起协议。
+   * 这样「谁该答」只有一处口径，界面不需要再猜。
+   */
+  if (answeredByAi(state, request)) {
+    if (typeof request.choose === 'function') {
+      const picked = request.choose();
+      if (picked) return hold(picked);
+    }
+    return hold((request.options && request.options[0]) || {});
+  }
   if (request.noAuto) return holdHang();
   if (globalThis.__dbg || (typeof window !== 'undefined' && window.__dbg)) {
     if (!state.autoResolveChoices) {

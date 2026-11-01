@@ -12,7 +12,7 @@
 import * as G from '../src/engine.js';
 import * as M from '../src/mechanics.js';
 import { instantiateUnit } from '../src/setup.js';
-import { matchesTargetFilter, isFrozen } from '../src/keywords.js';
+import { matchesTargetFilter, isFrozen, KEYWORD_DEFS, KEYWORDS_NOT_GRANTABLE } from '../src/keywords.js';
 import { pickFragileTarget } from '../src/targets.js';
 import { filterCtx, effectiveAtk, hasRooted, syncStatAuras } from '../src/auras.js';
 import { trapsOf, visibleMana, findControlSpot } from '../src/board.js';
@@ -2161,6 +2161,22 @@ test('U458 妒忌：对攻击力最高的敌人造成 5 点伤害，召唤一张
   assert.ok(s.players[0].hand.some((h) => h.cardId === 'U459'), '召唤的恶意应当进手牌');
 });
 
+test('U458 妒忌：两个攻击力并列最高时由玩家挑（作者 2026-11-01）', () => {
+  const s = factionGame('sin');
+  const a = deploy(s, 1, 'U461', 'mountain', 'front');
+  const b = deploy(s, 1, 'U461', 'plainL', 'front');
+  for (const u of [a, b]) { u.maxHp = 10; u.hp = 10; u.atk = 6; }
+  cast(s, 0, 'U458');
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseUnit', '并列最高 → 挂起问打哪个');
+  assert.equal(rq.noAuto, true, '真人那一侧不许自动代答');
+  const uids = (rq.options || []).map((o) => o.uid);
+  assert.deepEqual(uids.slice().sort((x, y) => x - y), [a.uid, b.uid].sort((x, y) => x - y), '并列的两个都在选项里');
+  G.resolveChoice(s, { uid: b.uid });
+  assert.equal(b.hp, 5, '选中的那个吃 5 点');
+  assert.equal(a.hp, 10, '另一个没挨打（旧口径会打 uid 最小的那个）');
+});
+
 test('U459 恶意（令牌）：随机弃置敌方一张牌并复制进手牌，再抽一张', () => {
   const s = factionGame('sin');
   forcePhase(s, 1, 'spell');
@@ -2192,6 +2208,28 @@ test('U460 暴食：消灭生命最低的敌人，友方国王回复 5 点，抽
   cast(s, 0, 'U460');
   assert.ok(low.removed, '生命最低的被消灭');
   assert.equal(high.hp, 4, '另一个不受影响');
+  assert.equal(king(s, 0), 15, '友方国王回复 5 点');
+  assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
+});
+
+test('U460 暴食：两个生命并列最低时由玩家挑（作者 2026-11-01，与鲸鲨同一条口径）', () => {
+  const s = factionGame('sin');
+  const a = deploy(s, 1, 'U446', 'mountain', 'front');
+  const b = deploy(s, 1, 'U446', 'plainL', 'front');
+  const third = deploy(s, 1, 'U446', 'plainR', 'front');
+  a.hp = 1; b.hp = 1; third.hp = 4;
+  s.players[0].kingHp = 10;
+  const deck0 = s.deck.length;
+  cast(s, 0, 'U460');
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseUnit', '并列最低 → 挂起问消灭哪个');
+  assert.equal(rq.noAuto, true, '真人那一侧不许自动代答');
+  assert.deepEqual((rq.options || []).map((o) => o.uid).sort((x, y) => x - y),
+    [a.uid, b.uid].sort((x, y) => x - y), '并列的两个都在选项里（♥4 的不算）');
+  G.resolveChoice(s, { uid: b.uid });
+  assert.ok(b.removed, '选中的那个被消灭');
+  assert.ok(!a.removed, '另一个并列的还在（旧口径会杀 uid 最小的那个）');
+  assert.ok(!third.removed, '生命 4 的没被选中');
   assert.equal(king(s, 0), 15, '友方国王回复 5 点');
   assert.equal(s.deck.length, deck0 - 1, '抽一张牌');
 });
@@ -2444,6 +2482,24 @@ test('大天造化掌 U473 抉择①：全场敌人和敌方国王各 3 点，�
   assert.equal(s.players[1].manaPenalty, 0, '只减自己这边的费用');
 });
 
+/**
+ * 作者 2026-11-01：「大天造化掌选择词条时，不能选择无敌 祝福 水生 先制 冻结
+ * 融合 融合进化 无法攻击 陷阱（以后所有选择加词条的卡默认不能选择这些）」。
+ * 这份**写死的**清单就是需求原文对应的 9 个 id —— 引擎里的 KEYWORDS_NOT_GRANTABLE
+ * 必须与它逐条一致（下面有一条专门的测试比对，改表就得改这里，反之亦然）。
+ */
+const NOT_GRANTABLE_SPEC = [
+  ['invincible', '无敌'],
+  ['blessing', '祝福'],
+  ['aquatic', '水生'],
+  ['firstStrike', '先制'],
+  ['freeze', '冻结'],
+  ['fuse', '融合'],
+  ['evolve', '融合进化'],
+  ['cannotAttack', '无法攻击'],
+  ['trap', '陷阱'],
+];
+
 test('大天造化掌 U473 抉择②：选 2 个词条给一名队友，X=2，不能选无敌/祝福X', () => {
   const s = game({ factions: ['flame', null] });
   const mate = deploy(s, 0, 'W04', 'mountain', 'front');
@@ -2454,12 +2510,19 @@ test('大天造化掌 U473 抉择②：选 2 个词条给一名队友，X=2，�
   assert.ok(first && first.type === 'chooseOption', '先问抉择');
   G.resolveChoice(s, { index: 1 });
   let guard = 0;
-  while (s.pending && guard++ < 10) {
+  let keywordAsks = 0;
+  while (s.pending && guard++ < 12) {
     const rq = s.pending.request;
     if (rq.type === 'chooseKeyword') {
+      keywordAsks++;
       const ids = rq.options.map((o) => o.id);
-      assert.ok(ids.indexOf('invincible') < 0, '不能选无敌');
-      assert.ok(ids.indexOf('blessing') < 0, '不能选祝福X');
+      const names = rq.options.map((o) => o.label);
+      for (const [id, name] of NOT_GRANTABLE_SPEC) {
+        assert.ok(ids.indexOf(id) < 0, '不能选' + name + '（' + id + '）');
+        assert.ok(names.indexOf(name) < 0, '选项里不该出现「' + name + '」');
+      }
+      assert.equal(ids.indexOf('invincible'), -1, '不能选无敌');
+      assert.equal(ids.indexOf('blessing'), -1, '不能选祝福X');
       G.resolveChoice(s, { id: ids.indexOf('armor') >= 0 ? 'armor' : ids[0] });
     } else {
       const opts = rq.options || [];
@@ -2468,6 +2531,7 @@ test('大天造化掌 U473 抉择②：选 2 个词条给一名队友，X=2，�
       G.resolveChoice(s, { uid: hit.uid });
     }
   }
+  assert.equal(keywordAsks, 2, '问两次词条');
   assert.equal(mate.keywords.length, kwBefore + 2, '正好挂了两个词条');
   const armor = mate.keywords.filter((k) => k.id === 'armor')[0];
   assert.ok(armor, '装甲挂上了');
@@ -3005,12 +3069,24 @@ test('沧龙 U104：回合开始清掉「自己线 + 相邻线」的敌人，自
   assert.equal(far.removed, false, '隔一条线的敌人不受影响');
 });
 
-test('红火蚁 U72：打出时扣的 -2♥ 也算「扣除♥」，触发它自己的异能', () => {
+test('红火蚁 U72：打出时扣的 -2♥ 也算「扣除♥」，触发它自己的异能（目标由主人点）', () => {
   const s = game();
+  s.humanSide = 0;              // 0 号是真人：作者 2026-11-01 要求目标由玩家自己选
   const foe = deploy(s, 1, 'W04', 'mountain', 'front');
   const hp0 = foe.hp;
   playUnit(s, 0, 'U72', 'mountain', 'front');
   assert.equal(at(s, 'mountain', 0, 'front').hp, 3, '自己 5♥ → 3♥');
+  // 掉 2 点 → 问 2 次「打谁」
+  let asked = 0;
+  let guard = 0;
+  while (s.pending && guard++ < 8) {
+    const rq = s.pending.request;
+    assert.equal(rq.type, 'chooseEnemyTarget', '问的是敌方单位/国王');
+    assert.equal(rq.noAuto, true, '真人这一侧必须自己选，不许自动代答');
+    G.resolveChoice(s, { uid: foe.uid });
+    asked++;
+  }
+  assert.equal(asked, 2, '掉 2 点 ♥ 就问 2 次');
   assert.equal(foe.hp, hp0 - 2, '掉了 2 点 ♥ → 砸 2 点出去（每次 1 点）');
 });
 
@@ -3082,6 +3158,154 @@ test('U362：敌方抽牌会被弃掉；超能力抽取不算「抽牌」，不�
   assert.equal(s.players[0].hand.length, hand1 + 1, '超能力进了手牌');
   assert.equal(s.log.filter((e) => e.type === 'discard-drawn').length, 1, '没有再触发弃牌');
   assert.ok((s.players[0].superpowers || []).length >= 1, '确实抽到了超能力');
+});
+
+// ══════════════════════════════════════════════════════════
+// 作者 2026-11-01 报的五条
+// ══════════════════════════════════════════════════════════
+group('§ 作者 2026-11-01 报的五条（AI 侧提问 / 平手可选 / 默认排除词条）');
+
+test('KEYWORDS_NOT_GRANTABLE 与需求原文的 9 条逐条一致', () => {
+  assert.deepEqual(
+    KEYWORDS_NOT_GRANTABLE.slice().sort(),
+    NOT_GRANTABLE_SPEC.map((x) => x[0]).sort(),
+    '默认排除表必须是需求里点名的那 9 条',
+  );
+  for (const [id, name] of NOT_GRANTABLE_SPEC) {
+    assert.ok(KEYWORD_DEFS[id], id + ' 必须是真词条');
+    assert.equal(KEYWORD_DEFS[id].name, name, id + ' 的中文名应为「' + name + '」');
+  }
+});
+
+test('鲸鲨 U205：♥ 并列最低时由玩家挑，选中的那个才被消灭', () => {
+  const s = game();
+  s.humanSide = 0;
+  const a = deploy(s, 1, 'W04', 'mountain', 'front');
+  const b = deploy(s, 1, 'W04', 'water', 'front');
+  const big = deploy(s, 1, 'W04', 'plainL', 'front');
+  a.hp = 1; b.hp = 1; big.hp = 4;
+  playUnit(s, 0, 'U205', 'water', 'front');
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseUnit', '并列最低 → 挂起问消灭哪个');
+  assert.equal(rq.noAuto, true, '真人那一侧不许自动代答');
+  assert.deepEqual(
+    (rq.options || []).map((o) => o.uid).sort((x, y) => x - y),
+    [a.uid, b.uid].sort((x, y) => x - y),
+    '并列的两个都在选项里',
+  );
+  G.resolveChoice(s, { uid: b.uid });
+  assert.ok(b.removed, '选中的那个被消灭');
+  assert.ok(!a.removed, '另一个并列的还在（旧口径会杀 uid 最小的那个）');
+  assert.ok(!big.removed, '生命更高的没被选中');
+});
+
+test('鲸鲨 U205：只有唯一 ♥ 最低时不多弹面板，直接消灭它', () => {
+  const s = game();
+  s.humanSide = 0;
+  const low = deploy(s, 1, 'W04', 'mountain', 'front');
+  const high = deploy(s, 1, 'W04', 'plainL', 'front');
+  low.hp = 1;
+  playUnit(s, 0, 'U205', 'water', 'front');
+  assert.equal(s.pending, null, '只有一个候选就不问');
+  assert.ok(low.removed, '♥ 最低的那个被消灭');
+  assert.ok(!high.removed, '另一个不受影响');
+});
+
+test('红火蚁：AI 那一侧的选择不弹给玩家（即使玩家正在出牌、autoResolveChoices=false）', () => {
+  const s = game();
+  s.humanSide = 0;
+  s.aiSides = [1];                 // 1 号是 AI
+  s.autoResolveChoices = false;    // 玩家出牌期间就是这个状态
+  const ant = deploy(s, 1, 'U72', 'mountain', 'front');
+  const fragile = deploy(s, 0, 'W04', 'water', 'front');
+  const tough = deploy(s, 0, 'W04', 'plainL', 'front');
+  fragile.hp = 6; fragile.maxHp = 6;
+  tough.hp = 8; tough.maxHp = 8;
+  M.queueTrigger(s, ant, 'onHpLost', { amount: 2 });
+  G.flushTriggers(s);
+  assert.equal(s.pending, null, 'AI 的提问不许挂起给玩家');
+  assert.equal(fragile.hp, 4, 'AI 自己按「打最脆的」挑目标');
+  assert.equal(tough.hp, 8, '另一个没挨打');
+});
+
+test('水蛭 U331：真人那一侧的死亡点选要真的问人', () => {
+  const s = game();
+  s.humanSide = 0;
+  const leech = deploy(s, 0, 'U331', 'mountain', 'front');
+  const victim = deploy(s, 1, 'W04', 'plainL', 'front');
+  victim.hp = 2;  // 水蛭只挑 ♥≤3 的敌人（W04 满血是 6）
+  M.destroyUnit(s, leech, 'combat');
+  G.flushTriggers(s);
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseUnit', '要问「消灭一名♥≤3的敌人」');
+  assert.equal(rq.noAuto, true, '真人那一侧不许自动代答');
+  assert.ok((rq.options || []).some((o) => o.uid === victim.uid), '候选里有那个敌人');
+  G.resolveChoice(s, { uid: victim.uid });
+  assert.ok(victim.removed, '选中的敌人被消灭');
+});
+
+test('水蛭：AI 那一侧的死亡点选同样不弹给玩家', () => {
+  const s = game();
+  s.humanSide = 0;
+  s.aiSides = [1];
+  s.autoResolveChoices = false;
+  const leech = deploy(s, 1, 'U331', 'mountain', 'front');
+  const weak = deploy(s, 0, 'W04', 'plainL', 'front');
+  const strong = deploy(s, 0, 'W04', 'plainR', 'front');
+  weak.hp = 1; strong.hp = 3;
+  M.destroyUnit(s, leech, 'combat');
+  G.flushTriggers(s);
+  assert.equal(s.pending, null, 'AI 的提问不许挂起给玩家');
+  assert.ok(weak.removed, 'AI 按「打最脆的」挑了 ♥ 最少的那个');
+  assert.ok(!strong.removed, '另一个没被选中');
+});
+
+test('平手选择：AI 那一侧按 uid 升序代答，不弹给玩家（鲸鲨由 AI 打出）', () => {
+  const s = game();
+  s.humanSide = 0;
+  s.aiSides = [1];
+  s.autoResolveChoices = false;
+  const a = deploy(s, 0, 'W04', 'mountain', 'front');
+  const b = deploy(s, 0, 'W04', 'plainL', 'front');
+  a.hp = 1; b.hp = 1;
+  playUnit(s, 1, 'U205', 'water', 'front');
+  assert.equal(s.pending, null, 'AI 的平手选择不弹给玩家');
+  assert.ok(a.removed, '按 uid 升序 → 先落地的那个被消灭');
+  assert.ok(!b.removed, '另一个还在');
+});
+
+test('默认排除词条对**所有**授予词条的卡生效（不只是大天造化掌）', () => {
+  const lib = Object.assign({}, TEST_CARD_LIB, {
+    X01: {
+      id: 'X01', name: '测试·授词', type: 'spell', spellKind: 'item', cost: 1,
+      text: '',
+      actions: [
+        { op: 'chooseKeywords', count: 1, x: 1, target: { kind: 'chosenOwnUnit', prompt: '选择一名队友' } },
+      ],
+    },
+  });
+  const s = game({ cardLib: lib });
+  s.humanSide = 0;
+  s.autoResolveChoices = false;
+  const mate = deploy(s, 0, 'W04', 'mountain', 'front');
+  const kwBefore = mate.keywords.length;
+  cast(s, 0, 'X01');
+  let guard = 0;
+  let asked = 0;
+  while (s.pending && guard++ < 8) {
+    const rq = s.pending.request;
+    if (rq.type === 'chooseUnit') { G.resolveChoice(s, { uid: mate.uid }); continue; }
+    assert.equal(rq.type, 'chooseKeyword', '只应该问词条：' + rq.type);
+    asked++;
+    const ids = rq.options.map((o) => o.id);
+    for (const [id, name] of NOT_GRANTABLE_SPEC) {
+      assert.ok(ids.indexOf(id) < 0, '不能选' + name + '（' + id + '）');
+    }
+    assert.ok(ids.length > 0, '还有可选项');
+    G.resolveChoice(s, { id: ids[0] });
+  }
+  assert.equal(asked, 1, '问了一次词条');
+  assert.equal(mate.keywords.length, kwBefore + 1, '挂上一个词条');
 });
 
 console.log('\n' + BAR);

@@ -69,6 +69,7 @@ import './checks/48-admin-edit.mjs';
 import './checks/49-heart.mjs';
 import './checks/50-forge-skills.mjs';
 import './checks/51-mode-replay-perspective.mjs';
+import './checks/52-ai-choice.mjs';
 
 // ── 统计 ──────────────────────────────────────────────────
 if (results.length) {

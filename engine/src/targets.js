@@ -188,18 +188,19 @@ function* resolveTargetsInner(state, ctx, selector) {
 
     /**
      * 生命最低的敌方单位（卡牌「鲸鲨：打出:消灭一名♥最低的敌人」）。
-     * 平手时取 uid 最小的那个 —— 结果确定，不依赖遍历顺序的记忆。
-     * 不需要玩家点选。
+     *
+     * 平手时**不再替玩家拍板**（作者 2026-11-01）：「如果有多个生命值相等且
+     * 最小的单位，应该能够选择」。并列的那几个原样列出来问一次；只有一个候选
+     * 就直接用，不多弹一次面板。
+     * （旧口径是平手取 uid 最小的那个，玩家没有发言权 —— 鲸鲨 / 暴食都吃过这个。）
      */
     case 'lowestHpEnemyUnit': {
       let pool = allUnits(state).filter((u) => u.side === foe);
       pool = pool.filter((u) => matchesTargetFilter(u, selector.filter, filterCtx(state, source)));
       if (pool.length === 0) return [];
-      let best = pool[0];
-      for (const u of pool) {
-        if (u.hp < best.hp || (u.hp === best.hp && u.uid < best.uid)) best = u;
-      }
-      return [asUnit(best)];
+      const min = Math.min(...pool.map((u) => u.hp));
+      const ties = pool.filter((u) => u.hp === min).sort((a, b) => a.uid - b.uid);
+      return yield* chooseAmongTies(state, ctx, selector, ties, '♥最低');
     }
 
     /**
@@ -351,19 +352,17 @@ function* resolveTargetsInner(state, ctx, selector) {
       return batch(allUnits(state).filter((u) => u.side === foe && isFrozen(u)));
 
     /**
-     * 攻击力最高的敌方单位（罪恶「妒忌」）。平手取 uid 最小的那个，
-     * 与 lowestHpEnemyUnit 同一条 tie-break（结果确定，不依赖遍历顺序）。
-     * 不需要玩家点选。
+     * 攻击力最高的敌方单位（罪恶「妒忌」）。
+     * 平手同样交给玩家挑（作者 2026-11-01，与「鲸鲨」同一条口径）——
+     * 旧口径是取 uid 最小的那个，等于替玩家选了「打哪个大哥」。
      */
     case 'highestAtkEnemyUnit': {
       let pool = allUnits(state).filter((u) => u.side === foe);
       pool = pool.filter((u) => matchesTargetFilter(u, selector.filter, filterCtx(state, source)));
       if (pool.length === 0) return [];
-      let best = pool[0];
-      for (const u of pool) {
-        if (u.atk > best.atk || (u.atk === best.atk && u.uid < best.uid)) best = u;
-      }
-      return [asUnit(best)];
+      const max = Math.max(...pool.map((u) => u.atk));
+      const ties = pool.filter((u) => u.atk === max).sort((a, b) => a.uid - b.uid);
+      return yield* chooseAmongTies(state, ctx, selector, ties, '⚔最高');
     }
 
     /**
@@ -390,6 +389,39 @@ function* requireLane(ctx, selector) {
     options: LANES.map((l) => ({ lane: l, label: LANE_NAME[l] })),
   };
   ctx.chosenLane = answer.lane;
+}
+
+/**
+ * 「生命最低 / 攻击最高」这类**唯一极值**选择器在**平手**时的处理。
+ *
+ * 作者 2026-11-01：鲸鲨「消灭生命值最小的敌人时如果有多个生命值相等且最小的单位，
+ * 应该能够选择（现在不行）」。所以并列的那几个不再由引擎挑，而是**问一次**；
+ * 只有一个候选就直接用 —— 平手才多弹一次面板。
+ *
+ * 谁答：
+ *   · 真人那一侧 → `noAuto`（请求自身属性，判据是 humanSide，不是全局开关）
+ *     → 挂起等人点，回放/锁步照样是录下来的那条答案；
+ *   · AI / 没有真人 → 不写 noAuto，由 takeChoice 走 `choose` 或自动代答。
+ * 自动代答的口径按 uid 升序（与旧行为一致，结果确定、不依赖遍历顺序）。
+ */
+function* chooseAmongTies(state, ctx, selector, ties, what) {
+  if (ties.length === 0) return [];
+  if (ties.length === 1) return [asUnit(ties[0])];
+  const options = ties.map((u) => ({
+    uid: u.uid,
+    label: `${u.name} (${u.atk}/${u.hp}) ${LANE_NAME[u.lane]}-${u.row === 'front' ? '前排' : '后排'}`,
+  }));
+  const human = state.humanSide === undefined ? 0 : state.humanSide;
+  const answer = yield {
+    type: 'chooseUnit',
+    side: ctx.controller,
+    prompt: selector.prompt || `有 ${ties.length} 名${what}的敌人并列，选择一名`,
+    options,
+    choose: () => ({ uid: ties[0].uid }),
+    noAuto: ctx.controller === human || undefined,
+  };
+  const picked = ties.find((u) => u.uid === (answer ? answer.uid : null));
+  return picked ? [asUnit(picked)] : [];
 }
 
 /**

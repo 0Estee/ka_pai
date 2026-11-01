@@ -953,7 +953,12 @@ function handleAction(act, el) {
     // 切换控制方：只换视角与输入归属，两边仍是同一局
     setSandboxSide(1 - me());
     if (view) view.humanSide = me();
-    if (state) state.humanSide = me();
+    if (state) {
+      state.humanSide = me();
+      // AI 那一边跟着换（见 game-flow.js 的 newSandboxGame）：换到哪一侧，
+      // 另一侧就归 AI，它的提问不该弹给我
+      state.aiSides = [1 - me()];
+    }
     clearSelection();
     view.hint = `现在是${me() === 0 ? '玩家1' : '玩家2'}在打：点手牌，再点场上任意格子`;
     refresh();

@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-node engine/test/smoke.mjs     # 跑规则回归测试（当前 217 个）
+node engine/test/smoke.mjs     # 跑规则回归测试（当前 229 个）
 ```
 
 ```js
@@ -147,6 +147,8 @@ if (state.pending) {
 |---|---|---|
 | 「抉择」（歼-10） | `choose` op，效果打到一半 | 取第一个选项 |
 | 「拟定目标攻击」（强化士兵） | **开战结算轮到它出手时** | 按 `state.targetPicker` 算一个 |
+| 触发式点选（红火蚁 / 水蛭） | 触发结算里的 `chosenEnemyTarget` / `chosenEnemyUnit`（`askHuman: true`） | 主人是 AI → `request.choose`（挑最脆的）；主人是真人 → 挂起等它点 |
+| 极限值并列（鲸鲨 / 暴食 / 妒忌） | `lowestHpEnemyUnit` / `highestAtkEnemyUnit` 平手时的 `chooseUnit` | 只有 1 个候选不问；并列才问，AI 侧按 uid 升序 |
 
 「拟定目标攻击」这条有两个和上面那套**不一样**的地方，改它之前务必读懂：
 
@@ -170,6 +172,24 @@ if (state.pending) {
 
 不设也行：默认按 `0` 处理（规则测试就是「0 号是真人」的口径）。
 ⚠ AI 的强化士兵**必须**走 `-1` 或非真人侧那条路 —— 否则没人会去答它的请求，整局卡住。
+
+**`aiSides`：哪几方由 AI 操作（裁决 D83，作者 2026-11-01 报的 bug）**
+
+`state.aiSides` 是「本局由 AI 操作的那几方」的数组，由界面在**建局时**写入：
+单机 `[对手]`（`game-flow.js` 的 `newGame`）、靶场 `[1 - me()]`、**联机 `[]`**（两边都是真人）。
+
+`takeChoice` 在 `noAuto` 挂起**之前**先问它：**归 AI 的请求直接代答**（`request.choose()`，
+没有就取第一个选项），永远不挂起、不弹面板。
+
+这不是可选优化，是 bug 修复的落点：玩家打出范围伤害打掉对面的红火蚁 / 水蛭时，
+它们「选一个敌方目标」的触发会在这张牌自己的交互期间（`autoResolveChoices = false`）挂起，
+面板就弹给了玩家 —— 让他替对手挑目标。「谁该答」必须只有一处口径，所以判据写在引擎里，
+界面不再自己猜。回放不设这个字段（走 `state.chooser` 的录制流水），行为与以前完全一致。
+
+**触发式异能里的点选归主人**：红火蚁（`onHpLost`）、水蛭（`onDeath`）的 selector 写了
+`askHuman: true` —— 主人是真人就挂起等它点（`noAuto`），主人是 AI 就由 AI 按
+`request.choose`（挑最脆的目标）自己算。`askHuman` 的判据是 `state.humanSide`，不是
+`autoResolveChoices`（同「拟定目标攻击」那条教训）。
 
 ---
 
@@ -302,6 +322,7 @@ auras: [
 | `modifyHandCost` | `amount`, `cardFilter?`, `side?` —— 改**手牌实例**的费用，可叠加 |
 | `lockLane` | `lane` 或 `lanes`, `turns` —— 封锁线路，期间不能放置单位（「氢弹」） |
 | `discardDrawn` | `side` —— 弃掉刚抽到的那几张牌（「希佩尔」） |
+| `chooseKeywords` | `count`, `x`, `target`, `exclude?` —— 选 N 个词条授予目标（「大天造化掌」）。**默认排除表**见下 |
 
 **动态数值**：`amount` 可以是 `{ perOwnUnit: 2 }`（己方场上单位数 ×2）、`{ perAllUnits: 1 }`（场上双方单位总数）、
 `{ perKeywordOfTarget: 1 }`（目标的词条数）。「队友」= 自己场上，「单位」= 场上双方（裁决 D29/D42）。
@@ -318,6 +339,12 @@ auras: [
 **`bounce` 的 `preserveStats:true`** —— 回手后保留加成（扫地僧）。
 **`damage` 的 `asAttack:true`** —— 这次伤害算作攻击，从而吃溅射（橄榄球）。
 **光环**：新增 `to:'allEnemies'`、`to:'laneBackRowAllies'`，以及 `{kind:'seal'}` 封印光环（大封印碑，离场即解封）。
+
+**「选择词条」的默认排除表（裁决 D83）** —— `keywords.js` 的 `KEYWORDS_NOT_GRANTABLE`：
+`invincible` 无敌 · `blessing` 祝福 · `aquatic` 水生 · `firstStrike` 先制 · `freeze` 冻结 ·
+`fuse` 融合 · `evolve` 融合进化 · `cannotAttack` 无法攻击 · `trap` 陷阱。
+`chooseKeywords` **永远**先把这张表并进 `exclude`，卡牌自己写的 `exclude` 只能追加、不能放回默认排除的词条。
+以后新加词条按「一给就破坏结算前提 / 只在打出那一刻有意义 / 状态·时序类」判它该不该进表。
 
 ### 目标选择器（`target.kind`）
 
@@ -421,7 +448,7 @@ target: { kind: 'chosenEnemyTarget', allowKing: false }
 
 ## 已实现的规则
 
-对应 `docs/规则书-v0.2.md`，**219 个测试**逐条覆盖：
+对应 `docs/规则书-v0.2.md`，**229 个测试**逐条覆盖：
 
 - 共享牌库、起手 5/4、回合开始后手先抽
 - 费用上限 = 回合数、费用共享、费用上限增长

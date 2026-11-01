@@ -260,6 +260,10 @@ export const CARDS_B = [
             op: 'damage', amount: 1,
             target: {
               kind: 'chosenEnemyTarget',
+              // 作者 2026-11-01：「开战时红火蚁触发能力目标不能自己选（本来应该玩家选，
+              // 但现在是自动打）」→ 加 askHuman：它的主人是真人就挂起等人点，
+              // 是 AI 就由 AI 自己挑（判据见 targets.js 的 askHumanFor）。
+              askHuman: true,
               prompt: '选择一名敌方单位或敌方国王（每掉 1♥ 砸 1 点）',
             },
           },

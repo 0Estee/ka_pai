@@ -104,6 +104,8 @@ function newSandboxGame() {
   state.autoResolveChoices = true;
   // 引擎要问人的那一侧跟着「我现在控制谁」走（换边时由 play-input.js 再同步一次）
   state.humanSide = me();
+  // 靶场里我没在控制的那一侧交给 AI：它的提问由引擎自己答，不许弹给我（同 newGame）
+  state.aiSides = [1 - me()];
   installAiTargetPicker(state);
   // 「开局讲阵营超能力所有技能全发」：双方各自把本阵营的全部超能力发进手牌
   G.sandboxGrantFaction(state, 0);
@@ -231,6 +233,15 @@ function newGame() {
   //    真人那一侧挂起等人点，AI 那一侧用下面的策略自己挑。
   //    联机时客人是 1 号，所以这必须是 me() 而不是常量 HUMAN。
   state.humanSide = me();
+  /**
+   * 本局由 AI 操作的那几方（作者 2026-11-01 报的 bug）。
+   *
+   * 单机 = 只有对手那一边。引擎靠它判断「这一问该谁答」：
+   * 归 AI 的问题绝不允许挂起弹给玩家 —— 以前玩家出 AOE 打掉对面红火蚁 / 水蛭时，
+   * 它们的「选一个敌方单位」会被挂起，面板弹给玩家替他对手挑目标。
+   * 联机**不设**（两边都是真人，见 multiplayer.js），回放也不设（走录制流水）。
+   */
+  state.aiSides = [AI];
   installAiTargetPicker(state);
 
   // 难度给 AI 的额外优势（困难：每回合多 1 费；噩梦：再加起手多 2 张、国王 +4 上限）。
