@@ -594,3 +594,41 @@ Java 能编进 APK。**跨设备能不能连上，只能你实测。**
    平均 **7.1 回合**、**牌库抽空收场 0%**、卡池覆盖 **126/126**。
    ⚠️ 之前几轮报过 46.7% / 52.3% / 54.0%，那是 300 局的抽样波动；判趋势请用 ≥800 局。
 3. 决定正式游戏名（改 `android/app/res/values/strings.xml` 后重新构建 APK）
+
+## 重构分支（手机端 Godot · 网页端 React + PixiJS）
+
+本仓库的 `refactor/godot-web` 分支放的是重构工作，**不影响 main 上的 0.76.0 旧版**（旧版仍是唯一可安装版本）。
+
+### 目录
+
+| 目录 | 内容 |
+| --- | --- |
+| `godot/` | 手机端：Godot 4 工程。`scripts/engine/kp_game.gd` 是规则引擎的 GDScript 移植（与 `engine/src` 逐字节对拍一致），`scripts/ai/kp_ai.gd` 是 AI 移植（5 档难度） |
+| `web/` | 网页端：Vite + React 19 + PixiJS 8。`src/engine/bridge.ts` 通过 alias **原样复用** `engine/src` 与 `app/js`，不复制规则 |
+| `data/`, `godot/data/` | 由 `tools/export-rules-json.mjs` 导出的规则/卡表 JSON（Godot 侧读这个，不再解析 JS） |
+| `tools/parity/` | JS ↔ GDScript 对拍数据生成器（规则 12 局 / AI 决策 6 局） |
+| `third_party/` | Card Combat Engine、GUT 的留存副本，**只作参考，不参与构建**（见 `docs/重构决策-0001-卡牌战斗引擎.md`） |
+
+### 跑测试
+
+```bash
+# 规则引擎（旧版，229 条）
+node engine/test/smoke.mjs
+
+# Godot 侧：规则冒烟 / 选项挂起 / 与 JS 规则对拍 / AI 回归
+E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/smoke.gd
+E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/choices.gd
+E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/parity.gd
+E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/ai.gd
+E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/ai-parity.gd
+
+# 网页端：类型检查 + 构建 + 无头浏览器冒烟
+cd web && node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build
+node web/e2e/smoke.mjs
+```
+
+### 现状（2026-11-07）
+
+- **规则层等价已证实**：12 个种子 / 901 步、6 局 AI 决策 / 478 步，两边状态摘要逐字节相同。对拍过程中查出并修掉旧版 `app/js/ai.js` 的一个真 bug（`BASE` 缺 `defense` → 打分 NaN → AI 从来不自己挑锦囊目标）。
+- **Godot 端**：引擎 + AI + 无界面测试齐了；**UI 还没做**（`scenes/main.tscn` 只是空壳），也还没有 Android 导出预设与签名流程。
+- **网页端**：首页 / 对局 / 强化工坊三屏可玩，含卡牌详情弹窗、战斗演出（飘字/光环/横幅）、强化·精通与存档（`localStorage` 键 `kp.web.profile.v1`）。旧版的回放、联机、观战、靶场、账号云存档都还没有。

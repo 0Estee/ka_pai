@@ -1,0 +1,6143 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-01T06:38:10.758Z",
+  "cards": [
+    {
+      "id": "W01",
+      "name": "白板新兵",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 2,
+      "keywords": [],
+      "legacy": true
+    },
+    {
+      "id": "W02",
+      "name": "白板卫士",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 1,
+      "keywords": [],
+      "legacy": true
+    },
+    {
+      "id": "W03",
+      "name": "白板重装",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [],
+      "legacy": true
+    },
+    {
+      "id": "W04",
+      "name": "白板巨兽",
+      "type": "unit",
+      "cost": 6,
+      "atk": 5,
+      "hp": 6,
+      "keywords": [],
+      "legacy": true
+    },
+    {
+      "id": "W05",
+      "name": "石墙",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 4,
+      "keywords": [],
+      "legacy": true
+    },
+    {
+      "id": "K01",
+      "name": "双刃剑客",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "doubleStrike"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K02",
+      "name": "嗜血狂徒",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [
+        "frenzy"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K03",
+      "name": "瘟疫使者",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "disease"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K16",
+      "name": "投石车",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [
+        "splash:1"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K17",
+      "name": "毒刃刺客",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "poison:2"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K18",
+      "name": "破阵枪骑",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [
+        "pierce:1"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K04",
+      "name": "铁甲卫士",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "armor:1"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K05",
+      "name": "荆棘藤蔓",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 3,
+      "keywords": [
+        "thorns:2"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K06",
+      "name": "圣光庇护者",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "blessing:2"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K06b",
+      "name": "圣盾铁卫",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "blessing:2",
+        "armor:1"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K07",
+      "name": "水路鲛人",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "aquatic"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K08",
+      "name": "两栖蛙人",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "amphibious"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K09",
+      "name": "轻灵风灵",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [
+        "nimble"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K13",
+      "name": "不灭圣灵",
+      "type": "unit",
+      "cost": 5,
+      "atk": 1,
+      "hp": 3,
+      "keywords": [
+        "invincible"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "K14",
+      "name": "阵列队长",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "combo"
+      ],
+      "legacy": true
+    },
+    {
+      "id": "E01",
+      "name": "斥候",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [],
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        }
+      ],
+      "legacy": true
+    },
+    {
+      "id": "E02",
+      "name": "复仇亡魂",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [],
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 2,
+              "target": {
+                "kind": "enemyKing"
+              }
+            }
+          ]
+        }
+      ],
+      "legacy": true
+    },
+    {
+      "id": "E03",
+      "name": "淬毒蜘蛛",
+      "type": "unit",
+      "cost": 3,
+      "atk": 1,
+      "hp": 4,
+      "keywords": [],
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "chosenEnemyUnit"
+              }
+            }
+          ]
+        }
+      ],
+      "legacy": true
+    },
+    {
+      "id": "U01",
+      "name": "攻击",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "text": "造成2点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U02",
+      "name": "滚石",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "text": "消灭一名⚔≤2的敌人",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "maxAtk": 2,
+              "spellTargetable": true
+            },
+            "prompt": "选择攻击力≤2的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U03",
+      "name": "速写师",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [],
+      "text": "打出:抽一张牌",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U04",
+      "name": "蚊子",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [
+        "amphibious"
+      ],
+      "text": "造成伤害:为自己的国王回复1点生命",
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "heal",
+              "amount": 1,
+              "target": {
+                "kind": "ownKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U05",
+      "name": "吸血鬼",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "frenzy"
+      ],
+      "text": "造成伤害:获得+1⚔+1♥",
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U06",
+      "name": "斩杀",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "消灭一名受伤的敌人",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "damaged": true,
+              "spellTargetable": true
+            },
+            "prompt": "选择一名受伤的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U07",
+      "name": "鲨鱼",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [
+        "aquatic"
+      ],
+      "text": "有敌人受到伤害时，对其造成1点伤害",
+      "effects": [
+        {
+          "trigger": "onEnemyDamaged",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "triggerVictim"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U08",
+      "name": "骨折",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "一名敌人获得-2⚔-1♥",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -2,
+          "maxHp": -1,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U09",
+      "name": "战略纵深",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "text": "使友方国王获:友方单位被消灭时，抽一张牌",
+      "actions": [
+        {
+          "op": "attachKingEffect",
+          "effects": [
+            {
+              "trigger": "onFriendlyUnitDestroyed",
+              "actions": [
+                {
+                  "op": "draw",
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U10",
+      "name": "侯王",
+      "type": "unit",
+      "cost": 4,
+      "atk": 4,
+      "hp": 4,
+      "keywords": [
+        "firstStrike"
+      ],
+      "text": "打出:对你的国王造成2点伤害",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 2,
+              "target": {
+                "kind": "ownKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U11",
+      "name": "虫群",
+      "type": "unit",
+      "cost": 10,
+      "atk": 8,
+      "hp": 9,
+      "keywords": [],
+      "text": "打出:消灭所有敌方单位（不含国王）",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "allEnemyUnits"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U12",
+      "name": "拷问官",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [],
+      "text": "本条线上的敌人获扎根；场上所有扎根的敌人获-3⚔",
+      "auras": [
+        {
+          "kind": "grantKeyword",
+          "keyword": "rooted",
+          "to": "laneEnemies"
+        },
+        {
+          "kind": "buffAtk",
+          "amount": -3,
+          "to": "rootedEnemies"
+        }
+      ]
+    },
+    {
+      "id": "U13",
+      "name": "富饶",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "双方各抽一张牌",
+      "actions": [
+        {
+          "op": "draw",
+          "amount": 1,
+          "side": "controller"
+        },
+        {
+          "op": "draw",
+          "amount": 1,
+          "side": "opponent"
+        }
+      ]
+    },
+    {
+      "id": "U14",
+      "name": "紧急包扎",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 5,
+      "text": "立即回复自己国王已损失生命值的一半（向上取整）",
+      "actions": [
+        {
+          "op": "heal",
+          "mode": "halfLost",
+          "amount": 0,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U15",
+      "name": "密命王牌",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [],
+      "text": "场上没有队友时:获得+3⚔",
+      "auras": [
+        {
+          "kind": "buffAtk",
+          "amount": 3,
+          "to": "self",
+          "condition": "noOtherAllies"
+        }
+      ]
+    },
+    {
+      "id": "U16",
+      "name": "怨魂",
+      "type": "unit",
+      "cost": 3,
+      "atk": 0,
+      "hp": 5,
+      "keywords": [],
+      "text": "有敌人受到伤害时，对其造成1点伤害",
+      "effects": [
+        {
+          "trigger": "onEnemyDamaged",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "triggerVictim"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U17",
+      "name": "具象",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "text": "抽两张牌",
+      "actions": [
+        {
+          "op": "draw",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "U20",
+      "name": "转移",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "移动一名队友；抽一张牌",
+      "actions": [
+        {
+          "op": "move",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择要移动的队友"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U21",
+      "name": "异化蚰蜒",
+      "type": "unit",
+      "cost": 6,
+      "atk": 6,
+      "hp": 8,
+      "keywords": [
+        "amphibious",
+        "combo",
+        "thorns:2"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U22",
+      "name": "狂暴异虫",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [
+        "crit:2"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U23",
+      "name": "战时盟国",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 8,
+      "text": "将一名敌人置入你的手牌",
+      "actions": [
+        {
+          "op": "stealToHand",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名要夺走的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U24",
+      "name": "灭世",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 8,
+      "text": "消灭场上所有单位",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "allUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U25",
+      "name": "枪打出头鸟",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 3,
+      "text": "消灭一名⚔≥4的敌人",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "minAtk": 4,
+              "spellTargetable": true
+            },
+            "prompt": "选择一名攻击力≥4的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U26",
+      "name": "强心针",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "一名队友获得+3♥",
+      "actions": [
+        {
+          "op": "buffMaxHp",
+          "amount": 3,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U27",
+      "name": "伪装土堆",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 7,
+      "keywords": [
+        "combo"
+      ],
+      "bodyguard": true,
+      "text": "这张牌将为后方的单位承受伤害"
+    },
+    {
+      "id": "U28",
+      "name": "鲸鱼",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 5,
+      "keywords": [
+        "aquatic"
+      ],
+      "text": "回合开始:对自己线上造成1点伤害",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "allEnemyUnitsInLane"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U31",
+      "name": "跳杆运动员",
+      "type": "unit",
+      "cost": 4,
+      "atk": 4,
+      "hp": 3,
+      "keywords": [
+        "evolve"
+      ],
+      "text": "有单位被弹射时获得+1⚔+1♥；融合进化:弹射一名敌人",
+      "effects": [
+        {
+          "trigger": "onUnitBounced",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        },
+        {
+          "trigger": "onPlay",
+          "when": "fused",
+          "actions": [
+            {
+              "op": "bounce",
+              "target": {
+                "kind": "chosenEnemyUnit",
+                "filter": {
+                  "spellTargetable": true
+                },
+                "prompt": "选择一名要弹射的敌人"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U32",
+      "name": "致命打击",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 3,
+      "text": "造成3点伤害；使那名单位的生命上限减少3",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        },
+        {
+          "op": "modifyStats",
+          "atk": 0,
+          "maxHp": -3,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择那名单位"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U33",
+      "name": "雷电击",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "造成2点伤害,受到此伤害的敌人获-2⚔",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        },
+        {
+          "op": "modifyStats",
+          "atk": -2,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择那名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U34",
+      "name": "火球",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "keywords": [
+        "crit:1"
+      ],
+      "text": "对一名敌人造成3点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U35",
+      "name": "第5伞兵旅",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [],
+      "text": "回合开始:抽两张牌,弃置一张手牌",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 2
+            },
+            {
+              "op": "discard",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U36",
+      "name": "隐翅虫",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 1,
+      "keywords": [
+        "poison:2"
+      ],
+      "text": "被消灭:自己线上的敌人获-2⚔-2♥",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": -2,
+              "maxHp": -2,
+              "target": {
+                "kind": "allEnemyUnitsInLane"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U37",
+      "name": "SU-122",
+      "type": "unit",
+      "cost": 6,
+      "atk": 5,
+      "hp": 5,
+      "keywords": [
+        "pierce:1"
+      ],
+      "text": "打出:造成3点伤害,若目标具有装甲,对其额外造成10点伤害",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 3,
+              "target": {
+                "kind": "chosenEnemyTarget",
+                "prompt": "选择敌方单位或敌方国王"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U38",
+      "name": "僵尸",
+      "type": "unit",
+      "cost": 5,
+      "atk": 5,
+      "hp": 5,
+      "keywords": [
+        "frenzy"
+      ],
+      "text": "被消灭:召唤一张僵尸，其花费增加1",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "summonToHand",
+              "cardId": "U38",
+              "modify": {
+                "costDelta": {
+                  "sourceCostDelta": true,
+                  "plus": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U60",
+      "name": "病原体",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [
+        "disease"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U61",
+      "name": "来一口",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "一名敌人获得-1⚔-1♥，为自己回复3♥",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -1,
+          "maxHp": -1,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        },
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U62",
+      "name": "恒河水炮",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "disease"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U63",
+      "name": "苦痛",
+      "type": "unit",
+      "cost": 7,
+      "atk": 4,
+      "hp": 7,
+      "keywords": [
+        "thorns:3"
+      ],
+      "text": "受到伤害:获得+4⚔",
+      "effects": [
+        {
+          "trigger": "onDamaged",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 4,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U64",
+      "name": "回旋龙卷风",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "text": "弹射一名敌人",
+      "actions": [
+        {
+          "op": "bounce",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true,
+              "rooted": false
+            },
+            "prompt": "选择一名敌人（扎根的单位弹不动）"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U65",
+      "name": "沙丁鱼",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [
+        "aquatic",
+        "combo"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U66",
+      "name": "霸王龙",
+      "type": "unit",
+      "cost": 6,
+      "atk": 6,
+      "hp": 6,
+      "keywords": [
+        "evolve"
+      ],
+      "text": "融合进化打出时，这张牌获得双重打击",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "when": "fused",
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "doubleStrike",
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U67",
+      "name": "强壮",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "所有队友获得+1⚔+2♥",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "allOwnUnits"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "allOwnUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U68",
+      "name": "掩体",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 5,
+      "keywords": [
+        "combo"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U69",
+      "name": "抹杀",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 5,
+      "text": "消灭一名敌人",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U70",
+      "name": "铁墙",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 6,
+      "keywords": [
+        "combo",
+        "armor:1"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U71",
+      "name": "假人模特",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 4,
+      "keywords": [
+        "combo",
+        "spellImmune"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U72",
+      "name": "红火蚁",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 5,
+      "keywords": [],
+      "text": "每扣除1♥，便对指定单位造成1点伤害；打出:获得-2♥",
+      "effects": [
+        {
+          "trigger": "onHpLost",
+          "repeat": "damageAmount",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "chosenEnemyTarget",
+                "askHuman": true,
+                "prompt": "选择一名敌方单位或敌方国王（每掉 1♥ 砸 1 点）"
+              }
+            }
+          ]
+        },
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "maxHp": -2,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U73",
+      "name": "虫族药师",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 2,
+      "keywords": [
+        "poison:1",
+        "combo"
+      ],
+      "text": "打出:造成2点伤害",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 2,
+              "target": {
+                "kind": "chosenEnemyTarget",
+                "prompt": "选择敌方单位或敌方国王"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U74",
+      "name": "老鼠",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 1,
+      "keywords": [],
+      "text": "自己线上的敌人获得-1⚔",
+      "auras": [
+        {
+          "kind": "buffAtk",
+          "amount": -1,
+          "to": "laneEnemies"
+        }
+      ]
+    },
+    {
+      "id": "U100",
+      "name": "定点打击",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "text": "造成2点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U101",
+      "name": "虫族士兵",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 1,
+      "keywords": [
+        "combo"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U102",
+      "name": "战棋",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [
+        "combo"
+      ],
+      "text": "在场:自己和相邻线上的队友获得+1⚔",
+      "auras": [
+        {
+          "kind": "buffAtk",
+          "amount": 1,
+          "to": "selfAndAdjacentLaneAllies"
+        }
+      ]
+    },
+    {
+      "id": "U103",
+      "name": "吹箭手",
+      "type": "unit",
+      "cost": 2,
+      "atk": 3,
+      "hp": 1,
+      "keywords": [
+        "pierce:1"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U104",
+      "name": "沧龙",
+      "type": "unit",
+      "cost": 5,
+      "atk": 5,
+      "hp": 4,
+      "keywords": [
+        "aquatic"
+      ],
+      "text": "回合开始:消灭自己线上和相邻线上的所有敌人",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "adjacentEnemyUnits",
+                "includeSelf": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U105",
+      "name": "T-34 1942",
+      "type": "unit",
+      "cost": 6,
+      "atk": 6,
+      "hp": 6,
+      "keywords": [
+        "invincible"
+      ],
+      "text": "本单位受到的伤害为0"
+    },
+    {
+      "id": "U106",
+      "name": "紧急撤离",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "弹射一名队友，抽一张牌",
+      "actions": [
+        {
+          "op": "bounce",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名队友，将其退回手牌"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U107",
+      "name": "礼盒",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "回复3♥，抽一张牌",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U108",
+      "name": "甲龙",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "armor:3"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U109",
+      "name": "健身学员",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [],
+      "text": "回合开始:获得+1⚔+1♥",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U110",
+      "name": "绷带",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "治疗3点生命值",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U111",
+      "name": "弓箭手",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 1,
+      "keywords": [],
+      "text": "打出:造成一点伤害",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "chosenEnemyTarget",
+                "filter": {
+                  "spellTargetable": true
+                },
+                "prompt": "选择敌方单位或敌方国王"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U112",
+      "name": "橄榄球员",
+      "type": "unit",
+      "cost": 5,
+      "atk": 4,
+      "hp": 4,
+      "keywords": [
+        "armor:1",
+        "frenzy",
+        "splash:1"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U113",
+      "name": "鸡腿",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "治疗4点生命值",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 4,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U140",
+      "name": "生长炸弹",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 5,
+      "text": "所有单位获得+1⚔；然后消灭所有⚔≥4的单位",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "allUnits"
+          }
+        },
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "allUnits",
+            "filter": {
+              "minAtk": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U141",
+      "name": "炒鸡赛亚人",
+      "type": "unit",
+      "cost": 5,
+      "atk": 5,
+      "hp": 4,
+      "keywords": [
+        "pierce:999"
+      ]
+    },
+    {
+      "id": "U142",
+      "name": "停战调剂",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "text": "所有单位获得-1◈；然后弹射所有◈<2的单位",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": -1,
+          "target": {
+            "kind": "allUnits"
+          }
+        },
+        {
+          "op": "bounce",
+          "target": {
+            "kind": "allUnits",
+            "filter": {
+              "maxAtk": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U143",
+      "name": "大力丸",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "一名队友获+2⚔+2♥",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U144",
+      "name": "物产丰富",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "text": "抽两张牌",
+      "actions": [
+        {
+          "op": "draw",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "U145",
+      "name": "南方巨兽龙",
+      "type": "unit",
+      "cost": 7,
+      "atk": 6,
+      "hp": 7,
+      "keywords": [
+        "frenzy"
+      ]
+    },
+    {
+      "id": "U146",
+      "name": "雪松",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 3,
+      "keywords": [
+        "armor:1",
+        "combo",
+        "rooted"
+      ],
+      "text": "回合开始:获得+1♥",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U147",
+      "name": "异形",
+      "type": "unit",
+      "cost": 3,
+      "atk": 1,
+      "hp": 4,
+      "token": true,
+      "keywords": [
+        "crit:2",
+        "poison:1"
+      ]
+    },
+    {
+      "id": "U148",
+      "name": "牛肉",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "token": true,
+      "text": "恢复3点血量",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U149",
+      "name": "仙人掌",
+      "type": "unit",
+      "cost": 3,
+      "atk": 0,
+      "hp": 4,
+      "keywords": [
+        "thorns:3",
+        "combo"
+      ]
+    },
+    {
+      "id": "U150",
+      "name": "麻雀",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "nimble"
+      ]
+    },
+    {
+      "id": "U155",
+      "name": "赤红糖果",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "一名队友获得+1⚔+2♥",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U153",
+      "name": "功勋",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "token": true,
+      "text": "一名队友获复生",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "rebirth",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U154",
+      "name": "抱脸虫",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 3,
+      "token": true,
+      "keywords": [
+        "hunt"
+      ],
+      "text": "进入一条线:那里的敌人获-2⚔-1♥",
+      "effects": [
+        {
+          "trigger": "onEnterLane",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": -2,
+              "maxHp": -1,
+              "target": {
+                "kind": "allEnemyUnitsInLane"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U156",
+      "name": "流星碎片",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 1,
+      "token": true,
+      "text": "打出:一名队友获+3⚔；这张牌获-1♥",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 3,
+              "target": {
+                "kind": "chosenOwnUnit",
+                "prompt": "选择一名队友"
+              }
+            },
+            {
+              "op": "modifyStats",
+              "atk": 0,
+              "maxHp": -1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U200",
+      "name": "游击队",
+      "type": "unit",
+      "cost": 2,
+      "atk": 4,
+      "hp": 1,
+      "keywords": [],
+      "text": "开战回合:获得无敌",
+      "effects": [
+        {
+          "trigger": "onCombatStart",
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "invincible",
+              "untilTurnEnd": true,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U201",
+      "name": "紫电局地战",
+      "type": "unit",
+      "cost": 6,
+      "atk": 4,
+      "hp": 5,
+      "keywords": [
+        "nimble",
+        "doubleStrike"
+      ],
+      "text": "开战回合这张牌无敌",
+      "effects": [
+        {
+          "trigger": "onCombatStart",
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "invincible",
+              "untilTurnEnd": true,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U202",
+      "name": "登山员",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [],
+      "text": "在高山上打出获得+1⚔+1♥",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "when": {
+            "lane": "mountain"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 1,
+              "maxHp": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U203",
+      "name": "力量光波",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 4,
+      "text": "造成己方场上队友数×2的伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": {
+            "perOwnUnit": 2
+          },
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U204",
+      "name": "石中剑",
+      "type": "unit",
+      "cost": 3,
+      "atk": 1,
+      "hp": 5,
+      "keywords": [],
+      "text": "打出:场上每有一名单位这张牌便获+1⚔",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": {
+                "perAllUnits": 1
+              },
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U205",
+      "name": "鲸鲨",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "aquatic"
+      ],
+      "text": "打出:消灭一名♥最低的敌人",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "lowestHpEnemyUnit"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U206",
+      "name": "狂犬病",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 3,
+      "text": "一名队友获得疾病,并额外攻击一次",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "disease",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "extraAttack",
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U207",
+      "name": "咖啡豆",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "一名队友额外攻击一次",
+      "actions": [
+        {
+          "op": "extraAttack",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U208",
+      "name": "魔术师",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [],
+      "text": "打出:让一名敌人变为⚔1♥2的兔子",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "transform",
+              "cardId": "U329",
+              "target": {
+                "kind": "chosenEnemyUnit",
+                "filter": {
+                  "spellTargetable": true
+                },
+                "prompt": "选择一名要变成兔子的敌人"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U209",
+      "name": "感染",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "text": "一名队友获+3⚔+3♥；并获得组合与淬毒；清空其本身的异能",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": 3,
+          "maxHp": 3,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "grantKeyword",
+          "keyword": "combo",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "grantKeyword",
+          "keyword": "poison",
+          "x": 0,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "seal",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择那名队友（清空其异能）"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U210",
+      "name": "山炮",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 1,
+      "keywords": [
+        "combo"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U211",
+      "name": "剑龙",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 4,
+      "keywords": [
+        "thorns:2"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U212",
+      "name": "坚固防线",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "text": "为你的国王回复等同于在场单位数的♥",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": {
+            "perAllUnits": 1
+          },
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U240",
+      "name": "无双剑豪",
+      "type": "unit",
+      "cost": 9,
+      "atk": 8,
+      "hp": 7,
+      "keywords": [
+        "crit:3",
+        "splash:3"
+      ],
+      "text": "消灭敌人:所有队友获+1⚔；+1♥",
+      "effects": [
+        {
+          "trigger": "onKill",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "allOwnUnits"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "allOwnUnits"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U241",
+      "name": "酸雨",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "平地上的所有敌人获得-1⚔-1♥",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -1,
+          "maxHp": -1,
+          "target": {
+            "kind": "allEnemyUnits",
+            "filter": {
+              "laneIn": [
+                "plainL",
+                "plainR"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U242",
+      "name": "拳击手",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [],
+      "text": "对方打出锦囊牌时,获得+1⚔+1♥",
+      "effects": [
+        {
+          "trigger": "onEnemyCastSpell",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 1,
+              "maxHp": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U243",
+      "name": "永恒秘典",
+      "type": "unit",
+      "cost": 3,
+      "atk": 0,
+      "hp": 4,
+      "keywords": [
+        "armor:1",
+        "combo"
+      ],
+      "text": "后方的队友获 穿透2；回合开始:♥变为4",
+      "auras": [
+        {
+          "kind": "grantKeyword",
+          "keyword": "pierce",
+          "x": 2,
+          "to": "laneBackRowAllies"
+        }
+      ],
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "setStats",
+              "hp": 4,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U244",
+      "name": "派对客",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [
+        "doubleStrike"
+      ],
+      "text": "有队友额外攻击时,抽一张牌",
+      "effects": [
+        {
+          "trigger": "onAllyExtraAttack",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U245",
+      "name": "格斗家",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [],
+      "text": "♥>2时获穿透1",
+      "auras": [
+        {
+          "kind": "grantKeyword",
+          "keyword": "pierce",
+          "x": 1,
+          "to": "self",
+          "condition": {
+            "hpAbove": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "U280",
+      "name": "导弹",
+      "type": "unit",
+      "cost": 3,
+      "atk": 0,
+      "hp": 1,
+      "keywords": [
+        "combo"
+      ],
+      "text": "被消灭:对自己线上的所有单位造成5点伤害",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 5,
+              "target": {
+                "kind": "allUnitsInLane"
+              }
+            },
+            {
+              "op": "damage",
+              "amount": 5,
+              "target": {
+                "kind": "ownKing"
+              }
+            },
+            {
+              "op": "damage",
+              "amount": 5,
+              "target": {
+                "kind": "enemyKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U281",
+      "name": "卫兵",
+      "type": "unit",
+      "cost": 2,
+      "atk": 6,
+      "hp": 6,
+      "keywords": [
+        "combo",
+        "cannotAttack"
+      ],
+      "text": "无法攻击,4个单位被消灭后,封印这张牌的异能",
+      "effects": [
+        {
+          "trigger": "onAnyUnitDestroyed",
+          "when": {
+            "deathsAtLeast": 4
+          },
+          "actions": [
+            {
+              "op": "seal",
+              "target": {
+                "kind": "self"
+              }
+            },
+            {
+              "op": "revokeKeyword",
+              "keyword": "cannotAttack",
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U282",
+      "name": "利奥波德",
+      "type": "unit",
+      "cost": 10,
+      "atk": 6,
+      "hp": 5,
+      "keywords": [
+        "pierce:2"
+      ],
+      "text": "打出:将所有敌方单位返回牌堆顶",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "returnToDeck",
+              "side": "opponent",
+              "from": "board",
+              "to": "top",
+              "target": {
+                "kind": "allEnemyUnits"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U283",
+      "name": "武术大师",
+      "type": "unit",
+      "cost": 6,
+      "atk": 0,
+      "hp": 7,
+      "keywords": [
+        "doubleStrike"
+      ],
+      "attackWithHp": true,
+      "text": "此攻击使用♥而不是⚔"
+    },
+    {
+      "id": "U284",
+      "name": "禁军",
+      "type": "unit",
+      "cost": 3,
+      "atk": 4,
+      "hp": 2,
+      "keywords": [],
+      "text": "打出:封印一个单位的异能.",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "seal",
+              "target": {
+                "kind": "chosenEnemyUnit",
+                "prompt": "选择要封印异能的敌方单位"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U285",
+      "name": "弹簧假人",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 4,
+      "keywords": [],
+      "text": "造成伤害:弹射那名敌人",
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "bounce",
+              "target": {
+                "kind": "triggerVictim"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U286",
+      "name": "青蛙",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "amphibious"
+      ],
+      "text": "打出:消灭自己线上⚔<2的所有单位",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "allUnitsInLane",
+                "filter": {
+                  "maxAtk": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U287",
+      "name": "狙击手",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [],
+      "text": "开战时:造成2点伤害",
+      "effects": [
+        {
+          "trigger": "onCombatStart",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 2,
+              "target": {
+                "kind": "chosenEnemyTarget",
+                "askHuman": true,
+                "prompt": "狙击手：造成2点伤害，选择一个目标"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U288",
+      "name": "毒镖",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "keywords": [
+        "poison:1"
+      ],
+      "text": "对一名敌人造成3点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U289",
+      "name": "第3补给营",
+      "type": "unit",
+      "cost": 4,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "combo",
+        "armor:1"
+      ],
+      "text": "打出:选择一个单位,其每具有一个词条,抽一张牌",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": {
+                "perKeywordOfTarget": 1
+              },
+              "target": {
+                "kind": "chosenAnyUnit",
+                "prompt": "选择一个单位（按其词条数抽牌）"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U291",
+      "name": "炫彩糖果",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "一名队友本回合获得无敌,抽1张牌",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "invincible",
+          "untilTurnEnd": true,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名队友（本回合无敌）"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U293",
+      "name": "宝藏",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "text": "每有一名队友,抽一张牌",
+      "actions": [
+        {
+          "op": "draw",
+          "amount": {
+            "perOwnUnit": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "U320",
+      "name": "幽灵",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 1,
+      "token": true,
+      "keywords": [
+        "combo"
+      ]
+    },
+    {
+      "id": "U321",
+      "name": "白鼠",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 1,
+      "token": true,
+      "text": "被消灭:所有队友获+1♥+1⚔",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "allOwnUnits"
+              }
+            },
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "allOwnUnits"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U322",
+      "name": "猎手模式",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "token": true,
+      "text": "所有队友获得捕猎；所有捕猎的队友获+1⚔+1♥和狂热",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "hunt",
+          "target": {
+            "kind": "allOwnUnits"
+          }
+        },
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "allOwnUnits",
+            "filter": {
+              "keyword": "hunt"
+            }
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 1,
+          "target": {
+            "kind": "allOwnUnits",
+            "filter": {
+              "keyword": "hunt"
+            }
+          }
+        },
+        {
+          "op": "grantKeyword",
+          "keyword": "frenzy",
+          "target": {
+            "kind": "allOwnUnits",
+            "filter": {
+              "keyword": "hunt"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U323",
+      "name": "枯树皮",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "token": true,
+      "text": "一名队友获得装甲1；和+2♥",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "armor",
+          "x": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U324",
+      "name": "火箭弹",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "token": true,
+      "text": "造成3点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U325",
+      "name": "劫匪头套",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "token": true,
+      "text": "融合:让那个单位获得+1⚔",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择要获得+1⚔的队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U326",
+      "name": "队徽",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "token": true,
+      "text": "使一名队友获得:装甲1、祝福2",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "armor",
+          "x": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "grantKeyword",
+          "keyword": "blessing",
+          "x": 2,
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U327",
+      "name": "近卫步兵",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 1,
+      "token": true,
+      "keywords": [
+        "thorns:2",
+        "disease",
+        "combo"
+      ],
+      "text": "本单位的疾病效果立即触发",
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "triggerVictim"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U328",
+      "name": "湿滑地面",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "token": true,
+      "text": "移动一名敌人",
+      "actions": [
+        {
+          "op": "move",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择要移动的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U329",
+      "name": "兔子",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 2,
+      "token": true
+    },
+    {
+      "id": "U330",
+      "name": "催化剂",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "token": true,
+      "text": "一名队友获得+2⚔+2♥",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U331",
+      "name": "水蛭",
+      "type": "unit",
+      "cost": 3,
+      "atk": 3,
+      "hp": 1,
+      "text": "被消灭:消灭一名♥≤3的敌人",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "destroy",
+              "target": {
+                "kind": "chosenEnemyUnit",
+                "filter": {
+                  "maxHp": 3
+                },
+                "askHuman": true,
+                "prompt": "选择一名♥≤3的敌人"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U332",
+      "name": "群情激愤",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "所有队友获得+1⚔",
+      "actions": [
+        {
+          "op": "buffAtk",
+          "amount": 1,
+          "target": {
+            "kind": "allOwnUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U333",
+      "name": "苍耳",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 2,
+      "text": "对方打出锦囊牌时，对其造成1点伤害",
+      "effects": [
+        {
+          "trigger": "onEnemyCastSpell",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "enemyKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U334",
+      "name": "缠绕水草",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "text": "一名敌人获得-1⚔-2♥；如果其位于水路,消灭它",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -1,
+          "maxHp": -2,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名敌人"
+          }
+        },
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "filter": {
+              "lane": "water",
+              "spellTargetable": true
+            },
+            "prompt": "如果它是水路单位就消灭它"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U360",
+      "name": "氢弹",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 7,
+      "text": "消灭平地上的所有单位；令平地不可放置单位一回合",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "allUnits",
+            "filter": {
+              "laneIn": [
+                "plainL",
+                "plainR"
+              ]
+            }
+          }
+        },
+        {
+          "op": "lockLane",
+          "lanes": [
+            "plainL",
+            "plainR"
+          ],
+          "turns": 1
+        }
+      ]
+    },
+    {
+      "id": "U361",
+      "name": "回收",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "text": "将1张手牌洗入牌组，抽一张牌",
+      "actions": [
+        {
+          "op": "returnToDeck",
+          "from": "hand",
+          "count": 1,
+          "to": "shuffle",
+          "prompt": "选择要洗回牌组的牌"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U362",
+      "name": "希佩尔海军上将号",
+      "type": "unit",
+      "cost": 6,
+      "atk": 6,
+      "hp": 5,
+      "keywords": [
+        "aquatic"
+      ],
+      "text": "敌方抽牌时，将其弃置",
+      "effects": [
+        {
+          "trigger": "onOpponentDraw",
+          "actions": [
+            {
+              "op": "discardDrawn",
+              "side": "opponent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U370",
+      "name": "大封印碑",
+      "type": "unit",
+      "cost": 6,
+      "atk": 0,
+      "hp": 5,
+      "keywords": [
+        "combo"
+      ],
+      "text": "在场:封印敌方所有单位的特殊效果",
+      "auras": [
+        {
+          "kind": "seal",
+          "to": "allEnemies"
+        }
+      ]
+    },
+    {
+      "id": "U371",
+      "name": "反应装甲",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "token": true,
+      "keywords": [
+        "trap"
+      ],
+      "text": "本回合，所有敌方卡牌造成的伤害至多为2",
+      "actions": [
+        {
+          "op": "capDamage",
+          "value": 2,
+          "side": "opponent",
+          "turns": 1
+        }
+      ]
+    },
+    {
+      "id": "U372",
+      "name": "劫匪团队",
+      "type": "unit",
+      "cost": 3,
+      "atk": 4,
+      "hp": 3,
+      "keywords": [],
+      "text": "受到伤害:依次变为3/2、2/1。被消灭:召唤一张劫匪头套",
+      "effects": [
+        {
+          "trigger": "onDamaged",
+          "actions": [
+            {
+              "op": "cycleStats",
+              "steps": [
+                {
+                  "atk": 3,
+                  "hp": 2
+                },
+                {
+                  "atk": 2,
+                  "hp": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "summonToHand",
+              "cardId": "U325"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U373",
+      "name": "四号坦克H型",
+      "type": "unit",
+      "cost": 4,
+      "atk": 4,
+      "hp": 5,
+      "token": true,
+      "keywords": [],
+      "text": "若场上敌人数不大于队友数，获双重打击，否则额外攻击一次",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "conditional",
+              "if": {
+                "compare": "enemiesLEAllies"
+              },
+              "then": [
+                {
+                  "op": "grantKeyword",
+                  "keyword": "doubleStrike",
+                  "target": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "op": "extraAttack",
+                  "target": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U374",
+      "name": "神威",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "token": true,
+      "text": "令一名队友无法选中一回合",
+      "actions": [
+        {
+          "op": "untargetable",
+          "turns": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U375",
+      "name": "橄榄球",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "keywords": [
+        "splash:1"
+      ],
+      "text": "对一名敌人造成2点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "asAttack": true,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U380",
+      "name": "蜜蜂",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "poison:1"
+      ],
+      "bypassInCombat": true,
+      "text": "任何单位攻击时将略过这张牌；造成伤害:受到1点伤害",
+      "effects": [
+        {
+          "trigger": "onDealDamage",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              },
+              "noDamagedTrigger": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U381",
+      "name": "雷龙",
+      "type": "unit",
+      "cost": 7,
+      "atk": 5,
+      "hp": 7,
+      "keywords": [],
+      "text": "打出:弹射平地上的所有敌人",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "bounce",
+              "target": {
+                "kind": "allEnemyUnits",
+                "filter": {
+                  "laneIn": [
+                    "plainL",
+                    "plainR"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U382",
+      "name": "野蔷薇",
+      "type": "unit",
+      "cost": 2,
+      "atk": 1,
+      "hp": 3,
+      "keywords": [
+        "thorns:2",
+        "poison:1",
+        "combo"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U383",
+      "name": "傀儡",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 2,
+      "token": true,
+      "keywords": [
+        "spellImmune"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U384",
+      "name": "人间大炮",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [
+        "trueStrike",
+        "combo"
+      ],
+      "text": "有队友被打出时，对敌方国王造成1点伤害",
+      "effects": [
+        {
+          "trigger": "onAllyPlayed",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "target": {
+                "kind": "enemyKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U385",
+      "name": "独生花",
+      "type": "unit",
+      "cost": 5,
+      "atk": 10,
+      "hp": 1,
+      "token": true,
+      "keywords": [
+        "spellImmune"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U386",
+      "name": "双嵴龙",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [
+        "amphibious"
+      ],
+      "text": "在水池线上打出:获得+1⚔+1♥",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "when": {
+            "lane": "water"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 1,
+              "maxHp": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U387",
+      "name": "坚韧",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "text": "一名队友获得装甲1，并+2♥",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "armor",
+          "x": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        },
+        {
+          "op": "buffMaxHp",
+          "amount": 2,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U390",
+      "name": "黑龙",
+      "type": "unit",
+      "cost": 13,
+      "atk": 3,
+      "hp": 3,
+      "keywords": [],
+      "text": "在手牌中:在你出牌时，这张牌获+1⚔+1♥，若超过6⚔，转而降低1花费；打出:额外攻击一次",
+      "inHand": [
+        {
+          "buff": {
+            "atk": 1,
+            "maxHp": 1
+          },
+          "ifAtkAbove": 6,
+          "thenInstead": {
+            "costDelta": -1
+          }
+        }
+      ],
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "extraAttack",
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U391",
+      "name": "经济爆炸",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "token": true,
+      "text": "在剩下的游戏时间里，你的◈+1",
+      "actions": [
+        {
+          "op": "gainManaCap",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U392",
+      "name": "扫地僧",
+      "type": "unit",
+      "cost": 3,
+      "atk": 1,
+      "hp": 4,
+      "keywords": [],
+      "text": "受到伤害:弹射本单位；打出:本单位的攻击力和防御力增加等同于本局对战中扫地僧进入战场次数的数值",
+      "effects": [
+        {
+          "trigger": "onDamaged",
+          "actions": [
+            {
+              "op": "bounce",
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        },
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": {
+                "perOwnEntry": 1
+              },
+              "maxHp": {
+                "perOwnEntry": 1
+              },
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U393",
+      "name": "歼-10",
+      "type": "unit",
+      "cost": 8,
+      "atk": 4,
+      "hp": 4,
+      "keywords": [
+        "nimble"
+      ],
+      "text": "打出:抉择:获-4花费和穿透1；或+4⚔+2♥和装甲1",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "choose",
+              "prompt": "抉择（歼-10）",
+              "options": [
+                {
+                  "label": "少花 4 费，并获得穿透1",
+                  "actions": [
+                    {
+                      "op": "gainMana",
+                      "amount": 4
+                    },
+                    {
+                      "op": "grantKeyword",
+                      "keyword": "pierce",
+                      "x": 1,
+                      "target": {
+                        "kind": "self"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "label": "+4⚔+2♥，并获得装甲1",
+                  "actions": [
+                    {
+                      "op": "modifyStats",
+                      "atk": 4,
+                      "maxHp": 2,
+                      "target": {
+                        "kind": "self"
+                      }
+                    },
+                    {
+                      "op": "grantKeyword",
+                      "keyword": "armor",
+                      "x": 1,
+                      "target": {
+                        "kind": "self"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U394",
+      "name": "盗贼",
+      "type": "unit",
+      "cost": 4,
+      "atk": 3,
+      "hp": 4,
+      "keywords": [],
+      "text": "回合开始:偷取对方国王 1 币（对方下回合少 1 点费用）",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "taxMana",
+              "side": "opponent",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U396",
+      "name": "强化士兵",
+      "type": "unit",
+      "cost": 2,
+      "atk": 2,
+      "hp": 3,
+      "keywords": [],
+      "choosesTarget": true,
+      "text": "拟定目标攻击；被消灭:召唤一张功勋",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "summonToHand",
+              "cardId": "U153"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U397",
+      "name": "风神翼龙",
+      "type": "unit",
+      "cost": 4,
+      "atk": 4,
+      "hp": 3,
+      "keywords": [
+        "combo",
+        "nimble"
+      ],
+      "text": ""
+    },
+    {
+      "id": "U398",
+      "name": "下界之风",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "demon",
+      "text": "对敌方所有单位造成2点伤害，并对敌方国王造成2点伤害",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "allEnemyUnits"
+          }
+        },
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "enemyKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U399",
+      "name": "鲜血祭典",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "demon",
+      "text": "献祭一名队友，为国王回复与其攻击力相等的生命",
+      "actions": [
+        {
+          "op": "sacrifice",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "excludeSource": true,
+            "prompt": "选择要献祭的队友"
+          }
+        },
+        {
+          "op": "heal",
+          "amount": {
+            "sacrificedAtk": true
+          },
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U400",
+      "name": "召唤仪式",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "demon",
+      "text": "抉择:在下个大回合开始时召唤 恶魔虚影；或对自己的国王造成2点伤害，立即召唤",
+      "actions": [
+        {
+          "op": "choose",
+          "prompt": "召唤仪式:怎么召唤 恶魔虚影？",
+          "options": [
+            {
+              "label": "下个大回合开始时召唤",
+              "actions": [
+                {
+                  "op": "delayedSummon",
+                  "cardId": "U402",
+                  "delay": 1
+                }
+              ]
+            },
+            {
+              "label": "国王扣除2点生命，立即召唤",
+              "actions": [
+                {
+                  "op": "damage",
+                  "amount": 2,
+                  "target": {
+                    "kind": "ownKing"
+                  }
+                },
+                {
+                  "op": "summon",
+                  "cardId": "U402"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U401",
+      "name": "死神",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 2,
+      "keywords": [],
+      "faction": "demon",
+      "text": "献祭一名队友:获得+1攻+1生命上限，对自己的国王造成3点伤害，对一个敌方目标造成5点伤害",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "choose",
+              "prompt": "死神:要献祭一名队友吗？",
+              "options": [
+                {
+                  "label": "不发动，直接打出",
+                  "actions": []
+                },
+                {
+                  "label": "献祭一名队友",
+                  "if": {
+                    "compare": "ownUnitsGE",
+                    "n": 1,
+                    "excludeSource": true
+                  },
+                  "actions": [
+                    {
+                      "op": "sacrifice",
+                      "target": {
+                        "kind": "chosenOwnUnit",
+                        "excludeSource": true,
+                        "prompt": "选择要献祭的队友"
+                      }
+                    },
+                    {
+                      "op": "buffAtk",
+                      "amount": 1,
+                      "target": {
+                        "kind": "self"
+                      }
+                    },
+                    {
+                      "op": "buffMaxHp",
+                      "amount": 1,
+                      "target": {
+                        "kind": "self"
+                      }
+                    },
+                    {
+                      "op": "damage",
+                      "amount": 3,
+                      "target": {
+                        "kind": "ownKing"
+                      }
+                    },
+                    {
+                      "op": "damage",
+                      "amount": 5,
+                      "target": {
+                        "kind": "chosenEnemyTarget",
+                        "prompt": "造成5点伤害的目标（可以是敌方国王）"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U402",
+      "name": "恶魔虚影",
+      "type": "unit",
+      "cost": 3,
+      "atk": 1,
+      "hp": 4,
+      "token": true,
+      "faction": "demon",
+      "keywords": [
+        "frenzy",
+        "spellImmune"
+      ],
+      "text": "狂热；锦囊免疫；每献祭一名己方单位，获得+2攻+1生命上限",
+      "effects": [
+        {
+          "trigger": "onAllySacrificed",
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 2,
+              "target": {
+                "kind": "self"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U403",
+      "name": "传教",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "god",
+      "text": "在场上召唤一个 上帝的信徒（选择一个位置）",
+      "actions": [
+        {
+          "op": "summon",
+          "cardId": "U407",
+          "prompt": "选择「上帝的信徒」的落点"
+        }
+      ]
+    },
+    {
+      "id": "U404",
+      "name": "圣经",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "god",
+      "text": "一名队友本回合获得无敌并+2生命，抽一张牌",
+      "actions": [
+        {
+          "op": "grantKeywordBuff",
+          "keyword": "invincible",
+          "untilTurnEnd": true,
+          "maxHp": 2,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名队友（本回合无敌，+2生命）"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U405",
+      "name": "庇佑",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "god",
+      "text": "所有友方单位和友方国王本回合获得无敌，抽一张牌",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "invincible",
+          "untilTurnEnd": true,
+          "target": {
+            "kind": "allOwnUnits"
+          }
+        },
+        {
+          "op": "kingInvincible"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U406",
+      "name": "祝福",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "god",
+      "text": "使一名队友获得祝福1，抽一张牌",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "blessing",
+          "x": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择一名队友（祝福1）"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U407",
+      "name": "上帝的信徒",
+      "type": "unit",
+      "cost": 3,
+      "atk": 2,
+      "hp": 4,
+      "token": true,
+      "faction": "god",
+      "keywords": [],
+      "text": "回合开始:所有队友获得+2生命，为友方国王回复2点生命",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "buffMaxHp",
+              "amount": 2,
+              "target": {
+                "kind": "allOwnUnits"
+              }
+            },
+            {
+              "op": "heal",
+              "amount": 2,
+              "target": {
+                "kind": "ownKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U408",
+      "name": "一式·刀客",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "sword",
+      "text": "选择一名队友：使其获得穿透 2 并 +1 攻击力。",
+      "actions": [
+        {
+          "op": "grantKeywordBuff",
+          "keyword": "pierce",
+          "x": 2,
+          "atk": 1,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U409",
+      "name": "回刃",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "sword",
+      "text": "召唤一张「连斩」加入手牌，并为友方国王回复 1 点生命。",
+      "actions": [
+        {
+          "op": "summonToHand",
+          "cardId": "U410"
+        },
+        {
+          "op": "heal",
+          "amount": 1,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U410",
+      "name": "连斩",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 0,
+      "faction": "sword",
+      "token": true,
+      "perUseCost": 1,
+      "text": "造成 2 点伤害，并召唤一张「回刃」加入手牌。本局友方每使用过一张「连斩」，这张牌的花费 +1。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "prompt": "「连斩」要打谁？"
+          }
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U409"
+        }
+      ]
+    },
+    {
+      "id": "U411",
+      "name": "二式·剑心",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "sword",
+      "text": "选择一名队友：其攻击力设为 4，并额外攻击一次；抽一张牌。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "setStats",
+              "atk": 4,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "extraAttack",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U412",
+      "name": "终式·万剑归宗",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "sword",
+      "text": "对所有敌人造成等于场上敌方单位数量的伤害；对敌方国王造成等于场上友方单位数量的伤害；抽一张牌。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": {
+            "perEnemyUnit": 1
+          },
+          "target": {
+            "kind": "allEnemyUnits"
+          }
+        },
+        {
+          "op": "damage",
+          "amount": {
+            "perOwnUnit": 1
+          },
+          "target": {
+            "kind": "enemyKing"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U413",
+      "name": "回旋曲",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "music",
+      "text": "选择一名敌人：其 -2 攻击力 -2 生命；选择并移动一名队友；抽一张牌。",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -2,
+          "maxHp": -2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "allowKing": false,
+            "prompt": "选择一名敌人"
+          }
+        },
+        {
+          "op": "move",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "prompt": "把队友移到哪条线路"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U414",
+      "name": "超重低音",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "music",
+      "text": "造成 3 点伤害；所有敌方单位 -2 攻击力 -2 生命。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "prompt": "选择目标"
+          }
+        },
+        {
+          "op": "modifyStats",
+          "atk": -2,
+          "maxHp": -2,
+          "target": {
+            "kind": "allEnemyUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U415",
+      "name": "降噪耳机",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 3,
+      "faction": "music",
+      "keywords": [],
+      "text": "在场：所有敌方单位 -1 攻击力 -1 生命。",
+      "auras": [
+        {
+          "kind": "buffAtk",
+          "amount": -1,
+          "to": "allEnemies"
+        },
+        {
+          "kind": "buffMaxHp",
+          "amount": -1,
+          "to": "allEnemies"
+        }
+      ]
+    },
+    {
+      "id": "U416",
+      "name": "和弦",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "music",
+      "inHandSpellTarget": {
+        "atk": -1,
+        "maxHp": -1
+      },
+      "text": "选择一名敌人：其 -1 攻击力 -1 生命。在手牌中：有敌方单位成为锦囊牌的目标时，使其 -1 攻击力 -1 生命。",
+      "actions": [
+        {
+          "op": "modifyStats",
+          "atk": -1,
+          "maxHp": -1,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "allowKing": false,
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U417",
+      "name": "反应堆",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 1,
+      "faction": "science",
+      "keywords": [
+        "combo"
+      ],
+      "text": "组合。回合开始：友方 +1 费用。被消灭：对这条线上的所有敌方单位造成 4 点伤害。",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "gainMana",
+              "amount": 1
+            }
+          ]
+        },
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 4,
+              "target": {
+                "kind": "allEnemyUnitsInLane"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U418",
+      "name": "博士",
+      "type": "unit",
+      "cost": 1,
+      "atk": 2,
+      "hp": 1,
+      "faction": "science",
+      "keywords": [
+        "spellImmune"
+      ],
+      "text": "锦囊免疫。回合开始：抽一张牌。",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U419",
+      "name": "克隆",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "science",
+      "text": "触发你使用的上一张锦囊牌的效果；抽一张牌。",
+      "actions": [
+        {
+          "op": "repeatLastSpell"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U420",
+      "name": "前沿科技",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "science",
+      "text": "召唤一张「新兴研究」加入手牌；下个回合开始时抽一张牌。",
+      "actions": [
+        {
+          "op": "summonToHand",
+          "cardId": "U421"
+        },
+        {
+          "op": "delayedDraw",
+          "n": 1,
+          "delay": 1
+        }
+      ]
+    },
+    {
+      "id": "U421",
+      "name": "新兴研究",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 4,
+      "faction": "science",
+      "token": true,
+      "text": "友方手中卡牌花费 -1。友方单位打出时：随机使其获得 +1 攻击力或 +1 生命。",
+      "actions": [
+        {
+          "op": "permanentHandCost",
+          "amount": -1,
+          "side": "controller"
+        },
+        {
+          "op": "attachKingEffect",
+          "side": "controller",
+          "effects": [
+            {
+              "trigger": "onAllyPlayed",
+              "actions": [
+                {
+                  "op": "randomOne",
+                  "options": [
+                    {
+                      "actions": [
+                        {
+                          "op": "buffAtk",
+                          "amount": 1,
+                          "target": {
+                            "kind": "payloadUnit"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "actions": [
+                        {
+                          "op": "buffMaxHp",
+                          "amount": 1,
+                          "target": {
+                            "kind": "payloadUnit"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U422",
+      "name": "神使",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 4,
+      "faction": "divine",
+      "keywords": [
+        "armor:1"
+      ],
+      "kingGuard": true,
+      "text": "装甲 1。替友方国王承受伤害。回合开始：获得 +1 装甲。",
+      "effects": [
+        {
+          "trigger": "onTurnStart",
+          "actions": [
+            {
+              "op": "buffKeywordX",
+              "keyword": "armor",
+              "x": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U423",
+      "name": "祈祷",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "divine",
+      "text": "友方国王本回合每次受伤 -2；为友方国王回复 3 点生命。",
+      "actions": [
+        {
+          "op": "kingDamageReduce",
+          "amount": 2,
+          "side": "controller"
+        },
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U424",
+      "name": "诅咒",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "divine",
+      "text": "选择一名敌人：将其攻击力永久设为 0（本局内无法再被加成提升）；抽一张牌。",
+      "actions": [
+        {
+          "op": "lockAtk",
+          "value": 0,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择一名敌人"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U425",
+      "name": "神罚",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "divine",
+      "text": "将所有攻击力大于等于 3 的敌人的攻击力永久设为 0。",
+      "actions": [
+        {
+          "op": "lockAtk",
+          "value": 0,
+          "target": {
+            "kind": "allEnemyUnits",
+            "filter": {
+              "minAtk": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "U426",
+      "name": "金沙",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "rawMaterial": true,
+      "text": "炼金原料。与手中其它原料一起炼药，按组合产出一张令牌。",
+      "actions": []
+    },
+    {
+      "id": "U427",
+      "name": "厄毒之尘",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "rawMaterial": true,
+      "text": "炼金原料。与手中其它原料一起炼药，按组合产出一张令牌。",
+      "actions": []
+    },
+    {
+      "id": "U428",
+      "name": "陨铁",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "rawMaterial": true,
+      "text": "炼金原料。与手中其它原料一起炼药，按组合产出一张令牌。",
+      "actions": []
+    },
+    {
+      "id": "U429",
+      "name": "硫磺",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "rawMaterial": true,
+      "text": "炼金原料。与手中其它原料一起炼药，按组合产出一张令牌。",
+      "actions": []
+    },
+    {
+      "id": "U430",
+      "name": "巫毒娃娃",
+      "type": "unit",
+      "cost": 1,
+      "atk": 0,
+      "hp": 2,
+      "faction": "alchemy",
+      "keywords": [
+        "spellImmune"
+      ],
+      "voodooDoll": true,
+      "text": "锦囊免疫。每回合，友方国王首次受到的伤害改为由敌方国王承受。",
+      "effects": []
+    },
+    {
+      "id": "U431",
+      "name": "未收录粉尘",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "text": "选择 2 张原料加入手牌，使其花费为 0。",
+      "actions": [
+        {
+          "op": "addRawMaterials",
+          "amount": 2,
+          "side": "controller",
+          "prompt": "选择一张原料"
+        }
+      ]
+    },
+    {
+      "id": "U432",
+      "name": "解禁",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "text": "使友方国王获：「可在自己的单位回合打出超能力锦囊牌」。",
+      "actions": [
+        {
+          "op": "unlockAlchemySpells",
+          "side": "controller"
+        }
+      ]
+    },
+    {
+      "id": "U433",
+      "name": "炼金潮",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "text": "本回合，友方打出非原料锦囊时，抽一张牌。",
+      "actions": [
+        {
+          "op": "alchemyTide",
+          "side": "controller"
+        }
+      ]
+    },
+    {
+      "id": "U434",
+      "name": "玄剑",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "text": "一名队友获得 +1 攻击 +2 血量，抽一张牌。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 1,
+              "maxHp": 2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U435",
+      "name": "财富药水",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "text": "友方当前费用 +3，若友方手牌数不大于 7，抽一张牌。",
+      "actions": [
+        {
+          "op": "gainMana",
+          "amount": 3,
+          "side": "controller"
+        },
+        {
+          "op": "conditional",
+          "if": {
+            "compare": "handCountLE",
+            "n": 7
+          },
+          "then": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U436",
+      "name": "湮灭药水",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "faction": "alchemy",
+      "token": true,
+      "text": "消灭一名敌人。",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U437",
+      "name": "生命药水",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "text": "友方国王回复 3 点血量。",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U438",
+      "name": "棘刺之甲",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "text": "一名队友获淬毒 1、荆棘 2 和 +1 生命。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "poison",
+              "x": 1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "grantKeyword",
+              "keyword": "thorns",
+              "x": 2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "modifyStats",
+              "maxHp": 1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U439",
+      "name": "高爆药水",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "text": "对一名敌人造成 4 点伤害。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 4,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U440",
+      "name": "狂热药水",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "faction": "alchemy",
+      "token": true,
+      "text": "一个单位获得 +5 攻击，并令其受到 5 点伤害。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenAnyUnit",
+            "prompt": "选择一个单位"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 5,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "damage",
+              "amount": 5,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U441",
+      "name": "精致金甲",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "text": "一名队友获得装甲 2，抽一张牌。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "armor",
+              "x": 2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U442",
+      "name": "毒雾药水",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "alchemy",
+      "token": true,
+      "keywords": [
+        "poison:1"
+      ],
+      "text": "淬毒 1。对所有敌人造成一点伤害。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 1,
+          "target": {
+            "kind": "allEnemyUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U443",
+      "name": "毒爆药水",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 2,
+      "faction": "alchemy",
+      "token": true,
+      "keywords": [
+        "poison:2"
+      ],
+      "text": "淬毒 2。造成 2 点伤害。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenEnemyTarget",
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "选择敌方单位或敌方国王"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U444",
+      "name": "事故",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 0,
+      "faction": "alchemy",
+      "token": true,
+      "autoUseOnAdd": true,
+      "text": "对所有单位造成 3 点伤害。这张牌加入手中时：自动使用，然后结束当前出牌回合。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "allUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U445",
+      "name": "燥热难忍",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "inferno",
+      "text": "一名队友获得狂热并+2生命，召唤一张怒火。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "frenzy",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "modifyStats",
+              "maxHp": 2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U449"
+        }
+      ]
+    },
+    {
+      "id": "U446",
+      "name": "活火山",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 4,
+      "faction": "inferno",
+      "keywords": [
+        "doubleStrike"
+      ],
+      "sweepAllEnemies": true,
+      "text": "双重打击。同时攻击所有敌人和敌方国王。"
+    },
+    {
+      "id": "U447",
+      "name": "黑曜石",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "inferno",
+      "text": "一名队友获得+3生命，并在每回合开始时+1攻击力，抽一张牌。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "maxHp": 3,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "attachEffect",
+              "target": {
+                "kind": "compoundTarget"
+              },
+              "effects": [
+                {
+                  "trigger": "onTurnStart",
+                  "actions": [
+                    {
+                      "op": "modifyStats",
+                      "atk": 1,
+                      "target": {
+                        "kind": "self"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U448",
+      "name": "炽热岩浆",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "inferno",
+      "text": "一名队友获得+3攻击力+1生命，召唤一张余温。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 3,
+              "maxHp": 1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U450"
+        }
+      ]
+    },
+    {
+      "id": "U449",
+      "name": "怒火",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "inferno",
+      "token": true,
+      "text": "造成3点伤害。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "chosenEnemyTarget"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U450",
+      "name": "余温",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "inferno",
+      "token": true,
+      "text": "移动一名队友，使其获得溅射2。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "move",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "grantKeyword",
+              "keyword": "splash",
+              "x": 2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U451",
+      "name": "寒星·霜",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "frost",
+      "text": "冻结一名敌人，使其获得-2攻击力，召唤一张寒星·追。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择一名敌人"
+          },
+          "actions": [
+            {
+              "op": "freeze",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "modifyStats",
+              "atk": -2,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U455"
+        }
+      ]
+    },
+    {
+      "id": "U452",
+      "name": "冰刃出击",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "frost",
+      "text": "选择两条相邻的线路，冻结那里的所有敌人，并对其造成2点伤害。",
+      "actions": [
+        {
+          "op": "chooseLanes",
+          "count": 2,
+          "adjacent": true,
+          "prompt": "选择两条相邻的线路"
+        },
+        {
+          "op": "freeze",
+          "target": {
+            "kind": "chosenLanesEnemyUnits"
+          }
+        },
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenLanesEnemyUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U453",
+      "name": "冰轮·旋舞",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "frost",
+      "text": "冻结一条线上的敌人，召唤一张冰轮·狂舞，抽一张牌。",
+      "actions": [
+        {
+          "op": "chooseLanes",
+          "count": 1,
+          "prompt": "选择一条线路"
+        },
+        {
+          "op": "freeze",
+          "target": {
+            "kind": "chosenLanesEnemyUnits"
+          }
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U454"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U454",
+      "name": "冰轮·狂舞",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "frost",
+      "token": true,
+      "keywords": [
+        "splash:2"
+      ],
+      "text": "溅射2。对所有被冻结的敌人造成2点伤害。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "allFrozenEnemyUnits"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U455",
+      "name": "寒星·追",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "frost",
+      "token": true,
+      "text": "对所有被冻结的敌人造成4点伤害，解除所有单位的冻结效果。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 4,
+          "target": {
+            "kind": "allFrozenEnemyUnits"
+          }
+        },
+        {
+          "op": "clearFreeze"
+        }
+      ]
+    },
+    {
+      "id": "U456",
+      "name": "雪人",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 3,
+      "faction": "frost",
+      "keywords": [
+        "evolve"
+      ],
+      "text": "有敌人被冻结时:获得+2攻击力+1生命。融合进化:冻结1个敌方单位。",
+      "effects": [
+        {
+          "trigger": "onEnemyFrozen",
+          "actions": [
+            {
+              "op": "modifyStats",
+              "atk": 2,
+              "maxHp": 1,
+              "target": {
+                "kind": "self"
+              }
+            }
+          ]
+        },
+        {
+          "trigger": "onPlay",
+          "when": "fused",
+          "actions": [
+            {
+              "op": "freeze",
+              "target": {
+                "kind": "chosenEnemyUnit",
+                "prompt": "冻结一个敌方单位"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U457",
+      "name": "色欲",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "sin",
+      "text": "一名队友获得捕猎和「攻击时:对敌方国王造成等同于本单位攻击力的伤害」。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "grantKeyword",
+              "keyword": "hunt",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "attachEffect",
+              "target": {
+                "kind": "compoundTarget"
+              },
+              "effects": [
+                {
+                  "trigger": "onAttack",
+                  "actions": [
+                    {
+                      "op": "damage",
+                      "amount": {
+                        "perSelfAtk": 1
+                      },
+                      "target": {
+                        "kind": "enemyKing"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U458",
+      "name": "妒忌",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "sin",
+      "text": "对敌方1个攻击力最高的单位造成5点伤害，召唤一张恶意。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 5,
+          "target": {
+            "kind": "highestAtkEnemyUnit"
+          }
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U459"
+        }
+      ]
+    },
+    {
+      "id": "U459",
+      "name": "恶意",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "sin",
+      "token": true,
+      "text": "随机弃置敌方一张牌，将那张卡牌的复制加入手中，抽一张牌。",
+      "actions": [
+        {
+          "op": "stealRandomHand"
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U460",
+      "name": "暴食",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "sin",
+      "text": "消灭一名生命最低的敌人，友方国王回复5点生命，抽一张牌。",
+      "actions": [
+        {
+          "op": "destroy",
+          "target": {
+            "kind": "lowestHpEnemyUnit"
+          },
+          "reason": "spell"
+        },
+        {
+          "op": "heal",
+          "amount": 5,
+          "target": {
+            "kind": "ownKing"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U461",
+      "name": "贪婪",
+      "type": "unit",
+      "cost": 1,
+      "atk": 3,
+      "hp": 2,
+      "faction": "sin",
+      "keywords": [
+        "hunt",
+        "combo"
+      ],
+      "text": "捕猎 组合。被消灭:友方国王回复4点生命。",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "heal",
+              "amount": 4,
+              "target": {
+                "kind": "ownKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U462",
+      "name": "小丑",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 2,
+      "faction": "party",
+      "text": "打出:所有单位额外攻击一次，立即进入下个回合。",
+      "effects": [
+        {
+          "trigger": "onPlay",
+          "actions": [
+            {
+              "op": "extraAttack",
+              "target": {
+                "kind": "allUnits"
+              }
+            },
+            {
+              "op": "endTurnNow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U463",
+      "name": "惊喜",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "party",
+      "text": "召唤一张随机的令牌，使其费用-1，友方国王回复3点生命。",
+      "actions": [
+        {
+          "op": "summonRandomToken",
+          "modify": {
+            "costDelta": -1
+          }
+        },
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U464",
+      "name": "爆炸水果蛋糕",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "party",
+      "text": "对一名敌人造成6点伤害，敌方抽一张牌。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 6,
+          "target": {
+            "kind": "chosenEnemyTarget"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1,
+          "side": "opponent"
+        }
+      ]
+    },
+    {
+      "id": "U465",
+      "name": "杂技演员",
+      "type": "unit",
+      "cost": 1,
+      "atk": 1,
+      "hp": 4,
+      "faction": "party",
+      "text": "受到伤害:抽一张牌。被消灭:召唤一张气球。",
+      "effects": [
+        {
+          "trigger": "onDamaged",
+          "actions": [
+            {
+              "op": "draw",
+              "amount": 1
+            }
+          ]
+        },
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "summon",
+              "cardId": "U466"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U466",
+      "name": "气球",
+      "type": "unit",
+      "cost": 2,
+      "atk": 0,
+      "hp": 1,
+      "faction": "party",
+      "token": true,
+      "keywords": [
+        "combo"
+      ],
+      "text": "组合。被消灭:对这条线上的所有敌人和敌方国王造成3点伤害。",
+      "effects": [
+        {
+          "trigger": "onDeath",
+          "actions": [
+            {
+              "op": "damage",
+              "amount": 3,
+              "target": {
+                "kind": "allEnemyUnitsInLane"
+              }
+            },
+            {
+              "op": "damage",
+              "amount": 3,
+              "target": {
+                "kind": "enemyKing"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U467",
+      "name": "陨落心炎",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "flame",
+      "token": true,
+      "flame": true,
+      "text": "一名敌人获得-1攻击力-1生命，一名队友获得+1攻击力+1生命。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择一名敌人"
+          },
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": -1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": -1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        },
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          },
+          "actions": [
+            {
+              "op": "buffAtk",
+              "amount": 1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "buffMaxHp",
+              "amount": 1,
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U468",
+      "name": "骨灵冷火",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 2,
+      "faction": "flame",
+      "token": true,
+      "flame": true,
+      "text": "冻结一名敌人，封印其异能。",
+      "actions": [
+        {
+          "op": "compound",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "prompt": "选择一名敌人"
+          },
+          "actions": [
+            {
+              "op": "freeze",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            },
+            {
+              "op": "seal",
+              "target": {
+                "kind": "compoundTarget"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U469",
+      "name": "净莲妖火",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "faction": "flame",
+      "token": true,
+      "flame": true,
+      "text": "友方国王下次受到的伤害为0，友方回复3点生命。",
+      "actions": [
+        {
+          "op": "kingShield",
+          "side": "controller"
+        },
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U470",
+      "name": "生灵之焱",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 3,
+      "faction": "flame",
+      "token": true,
+      "flame": true,
+      "keywords": [
+        "trap"
+      ],
+      "kingLethal": true,
+      "text": "陷阱：友方国王受到致命伤害时，免除这次伤害，友方国王回复3点生命，选择并弃置友方的一张手牌。",
+      "actions": [
+        {
+          "op": "heal",
+          "amount": 3,
+          "target": {
+            "kind": "ownKing"
+          }
+        },
+        {
+          "op": "discard",
+          "amount": 1,
+          "side": "controller",
+          "prompt": "选择要弃置的手牌"
+        }
+      ]
+    },
+    {
+      "id": "U471",
+      "name": "三千焱炎火",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "flame",
+      "token": true,
+      "flame": true,
+      "text": "一名队友本回合获得无敌。",
+      "actions": [
+        {
+          "op": "grantKeyword",
+          "keyword": "invincible",
+          "untilTurnEnd": true,
+          "target": {
+            "kind": "chosenOwnUnit",
+            "prompt": "选择一名队友"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U472",
+      "name": "焰分噬浪尺",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "flame",
+      "keywords": [
+        "burn:1"
+      ],
+      "text": "灼烧1。对两条相邻线上的敌人造成2点伤害，召唤一张六合游身尺。",
+      "actions": [
+        {
+          "op": "chooseLanes",
+          "count": 2,
+          "adjacent": true,
+          "prompt": "选择两条相邻的线路"
+        },
+        {
+          "op": "damage",
+          "amount": 2,
+          "target": {
+            "kind": "chosenLanesEnemyUnits"
+          }
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U476",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "U473",
+      "name": "大天造化掌",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "flame",
+      "text": "抉择：对所有敌人和敌方国王造成3点伤害，下回合友方费用-3；或选择2个词条，一名队友获得它们，X=2（不可选无敌或祝福X）。",
+      "actions": [
+        {
+          "op": "choose",
+          "prompt": "抉择",
+          "options": [
+            {
+              "label": "对所有敌人和敌方国王造成3点伤害，下回合友方费用-3",
+              "actions": [
+                {
+                  "op": "damage",
+                  "amount": 3,
+                  "target": {
+                    "kind": "allEnemyUnits"
+                  }
+                },
+                {
+                  "op": "damage",
+                  "amount": 3,
+                  "target": {
+                    "kind": "enemyKing"
+                  }
+                },
+                {
+                  "op": "taxMana",
+                  "side": "controller",
+                  "amount": 3
+                }
+              ]
+            },
+            {
+              "label": "选择2个词条给一名队友（X=2）",
+              "actions": [
+                {
+                  "op": "chooseKeywords",
+                  "count": 2,
+                  "x": 2,
+                  "exclude": [
+                    "invincible",
+                    "blessing"
+                  ],
+                  "target": {
+                    "kind": "chosenOwnUnit",
+                    "prompt": "选择一名队友"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U474",
+      "name": "焚决",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "flame",
+      "text": "使友方国王获得「有单位被消灭时，抽一张异火」。",
+      "actions": [
+        {
+          "op": "attachKingEffect",
+          "side": "controller",
+          "effects": [
+            {
+              "trigger": "onAnyUnitDestroyed",
+              "actions": [
+                {
+                  "op": "drawFlame"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U475",
+      "name": "天火三玄变",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "flame",
+      "text": "抉择：一个单位获得+3攻击力，将其生命设为1；或敌方下回合无法使用锦囊牌。抽一张异火。",
+      "actions": [
+        {
+          "op": "choose",
+          "prompt": "抉择",
+          "options": [
+            {
+              "label": "一个单位获得+3攻击力，生命设为1",
+              "actions": [
+                {
+                  "op": "compound",
+                  "target": {
+                    "kind": "chosenAnyUnit",
+                    "prompt": "选择一个单位"
+                  },
+                  "actions": [
+                    {
+                      "op": "buffAtk",
+                      "amount": 3,
+                      "target": {
+                        "kind": "compoundTarget"
+                      }
+                    },
+                    {
+                      "op": "setStats",
+                      "hp": 1,
+                      "target": {
+                        "kind": "compoundTarget"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "敌方下回合无法使用锦囊牌",
+              "actions": [
+                {
+                  "op": "spellLock",
+                  "side": "opponent"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "drawFlame"
+        }
+      ]
+    },
+    {
+      "id": "U476",
+      "name": "六合游身尺",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "flame",
+      "token": true,
+      "text": "所有单位本回合攻击力为0。",
+      "actions": [
+        {
+          "op": "lockAtk",
+          "untilTurnEnd": true
+        }
+      ]
+    },
+    {
+      "id": "U477",
+      "name": "佛怒火莲",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 5,
+      "faction": "flame",
+      "token": true,
+      "text": "异火堆和手牌中均没有异火牌时，将这张牌加入手中。对所有敌方单位和敌方国王造成3点伤害，重置异火堆。",
+      "actions": [
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "allEnemyUnits"
+          }
+        },
+        {
+          "op": "damage",
+          "amount": 3,
+          "target": {
+            "kind": "enemyKing"
+          }
+        },
+        {
+          "op": "resetFlamePile"
+        }
+      ]
+    },
+    {
+      "id": "U478",
+      "name": "恶堕の催眠",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "heart",
+      "text": "控制一名花费≤3的敌人。",
+      "actions": [
+        {
+          "op": "control",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "controlRoom": true,
+            "filter": {
+              "maxCost": 3,
+              "spellTargetable": true
+            },
+            "prompt": "控制一名花费≤3的敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U479",
+      "name": "绝对の服从",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "heart",
+      "text": "控制一名攻击力≤2的敌人，召唤一张最强の诱惑。",
+      "actions": [
+        {
+          "op": "control",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "controlRoom": true,
+            "filter": {
+              "maxAtk": 2,
+              "spellTargetable": true
+            },
+            "prompt": "控制一名攻击力≤2的敌人"
+          }
+        },
+        {
+          "op": "summonToHand",
+          "cardId": "U480"
+        }
+      ]
+    },
+    {
+      "id": "U480",
+      "name": "最强の诱惑",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 7,
+      "faction": "heart",
+      "token": true,
+      "text": "控制一名敌人。",
+      "actions": [
+        {
+          "op": "control",
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "controlRoom": true,
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "控制一名敌人"
+          }
+        }
+      ]
+    },
+    {
+      "id": "U481",
+      "name": "人性の爱",
+      "type": "spell",
+      "spellKind": "attack",
+      "cost": 1,
+      "faction": "heart",
+      "text": "选择一个单位，指定另一个单位与其战斗，抽一张牌。",
+      "actions": [
+        {
+          "op": "duel",
+          "target": {
+            "kind": "chosenAnyUnit",
+            "prompt": "选择第一个单位"
+          },
+          "second": {
+            "kind": "chosenAnyUnit",
+            "prompt": "指定另一个单位与其战斗"
+          }
+        },
+        {
+          "op": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "U482",
+      "name": "魔醉の臣服",
+      "type": "spell",
+      "spellKind": "item",
+      "cost": 1,
+      "faction": "heart",
+      "text": "控制一名敌人并将其冻结，下个回合开始时，将其返回敌方手牌。",
+      "actions": [
+        {
+          "op": "control",
+          "freeze": true,
+          "returnAtTurnStart": true,
+          "target": {
+            "kind": "chosenEnemyUnit",
+            "controlRoom": true,
+            "filter": {
+              "spellTargetable": true
+            },
+            "prompt": "控制一名敌人"
+          }
+        }
+      ]
+    }
+  ]
+}

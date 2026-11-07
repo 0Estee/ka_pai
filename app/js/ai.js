@@ -55,6 +55,17 @@ const kwX = (unit, id) => {
  *   「预判 + 额外优势」，而不是只靠预判。
  */
 const BASE = {
+  /**
+   * defense —— 「防守意识」（单位生命在选目标时的权重系数）。
+   *
+   * ⚠ 2026-11-07 修复：这个键**从来没写进 BASE / 任何难度表**，
+   *   bestSpellTarget 里的 `u.hp * 0.4 * P.defense` 因此一直是 NaN，
+   *   `scored[0].score > 0` 恒为假 ⇒ **AI 从来没自己挑过锦囊目标**，
+   *   一律把空 opts 交给引擎兜底（引擎取「血最少的合法目标」）。
+   *   证据：tools/parity 的 JS↔GDScript 对拍里，JS 侧所有指定单体目标的锦囊
+   *   都是 opts={}。补上 1.0（旧注释里「defense 调高到 1.6 反而更弱」即以此值为基准）。
+   */
+  defense: 1.0,
   wHp: 0.7,
   wFront: 2.0,
   wBlockUrgent: 5.0,

@@ -1,0 +1,39 @@
+; 王座交锋 · Godot 工程配置
+;
+; 本工程是 E:/ka_pai 的 Godot 重构版，规则数值与卡牌数据均来自旧 JS 工程
+; （engine/ 与 data/）。战斗外壳是 scripts/engine/kp_game.gd 自己实现的；
+; third_party/card_combat（AGPL-3.0，6068 行）只作参考保留，**不参与构建** ——
+; 裁决理由见 docs/重构决策-0001-卡牌战斗引擎.md。
+
+config_version=5
+
+[application]
+
+config/name="王座交锋"
+config/description="四线路制卡牌对战"
+config/version="0.80.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=450
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/custom="res://assets/theme.tres"
+theme/default_font_multichannel_signed_distance_field=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=1
+environment/defaults/default_clear_color=Color(0.07, 0.08, 0.11, 1)

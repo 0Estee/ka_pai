@@ -1,0 +1,38 @@
+[
+  {
+    "file": "js-ai-seed4001.json",
+    "seed": 4001,
+    "key0": "hard",
+    "key1": "hard"
+  },
+  {
+    "file": "js-ai-seed4002.json",
+    "seed": 4002,
+    "key0": "normal",
+    "key1": "normal"
+  },
+  {
+    "file": "js-ai-seed4003.json",
+    "seed": 4003,
+    "key0": "easy",
+    "key1": "easy"
+  },
+  {
+    "file": "js-ai-seed4004.json",
+    "seed": 4004,
+    "key0": "hard",
+    "key1": "easy"
+  },
+  {
+    "file": "js-ai-seed4005.json",
+    "seed": 4005,
+    "key0": "nightmare",
+    "key1": "normal"
+  },
+  {
+    "file": "js-ai-seed4006.json",
+    "seed": 4006,
+    "key0": "hard",
+    "key1": "nightmare"
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "file": "js-seed1001.json",
+    "seed": 1001,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      "demon",
+      "god"
+    ]
+  },
+  {
+    "file": "js-seed1002.json",
+    "seed": 1002,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      "sword",
+      "music"
+    ]
+  },
+  {
+    "file": "js-seed1003.json",
+    "seed": 1003,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      "science",
+      "divine"
+    ]
+  },
+  {
+    "file": "js-seed1004.json",
+    "seed": 1004,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      "alchemy",
+      "inferno"
+    ]
+  },
+  {
+    "file": "js-seed1005.json",
+    "seed": 1005,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      "frost",
+      "sin"
+    ]
+  },
+  {
+    "file": "js-seed1006.json",
+    "seed": 1006,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      "party",
+      "flame"
+    ]
+  },
+  {
+    "file": "js-seed1007.json",
+    "seed": 1007,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      null,
+      "heart"
+    ]
+  },
+  {
+    "file": "js-seed1008.json",
+    "seed": 1008,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      null,
+      null
+    ]
+  },
+  {
+    "file": "js-seed1009.json",
+    "seed": 1009,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      "demon",
+      "god"
+    ]
+  },
+  {
+    "file": "js-seed1010.json",
+    "seed": 1010,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      "sword",
+      "music"
+    ]
+  },
+  {
+    "file": "js-seed1011.json",
+    "seed": 1011,
+    "firstPlayer": 0,
+    "deckSize": 80,
+    "factions": [
+      "science",
+      "divine"
+    ]
+  },
+  {
+    "file": "js-seed1012.json",
+    "seed": 1012,
+    "firstPlayer": 1,
+    "deckSize": 80,
+    "factions": [
+      "alchemy",
+      "inferno"
+    ]
+  }
+]

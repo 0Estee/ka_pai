@@ -1,0 +1,7 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="24" fill="#1b1f2a"/>
+  <rect x="24" y="30" width="34" height="48" rx="6" fill="#c9a227" transform="rotate(-12 41 54)"/>
+  <rect x="70" y="34" width="34" height="48" rx="6" fill="#8e44ad" transform="rotate(12 87 58)"/>
+  <rect x="40" y="66" width="48" height="34" rx="8" fill="#2ecc71" opacity="0.9"/>
+  <text x="64" y="91" font-size="22" text-anchor="middle" fill="#10131a" font-family="sans-serif">王</text>
+</svg>

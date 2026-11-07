@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "keywords": {
+    "doubleStrike": {
+      "name": "双重打击",
+      "params": false,
+      "kind": "trigger",
+      "note": "交战且未被消灭后，额外再攻击一次"
+    },
+    "frenzy": {
+      "name": "狂热",
+      "params": false,
+      "kind": "trigger",
+      "note": "交战并消灭敌方单位且自身存活后，额外再攻击一次"
+    },
+    "disease": {
+      "name": "疾病",
+      "params": false,
+      "kind": "trigger",
+      "note": "造成>0伤害后，目标下回合开始时被消灭"
+    },
+    "armor": {
+      "name": "装甲",
+      "params": true,
+      "kind": "replace",
+      "note": "受到伤害时减少X"
+    },
+    "thorns": {
+      "name": "荆棘",
+      "params": true,
+      "kind": "trigger",
+      "note": "受到伤害时对来源造成X点伤害"
+    },
+    "blessing": {
+      "name": "祝福",
+      "params": true,
+      "kind": "replace",
+      "note": "受到伤害时若伤害>X则设为X"
+    },
+    "aquatic": {
+      "name": "水生",
+      "params": false,
+      "kind": "restrict",
+      "note": "只能在水路打出"
+    },
+    "amphibious": {
+      "name": "两栖",
+      "params": false,
+      "kind": "restrict",
+      "note": "可在水路打出"
+    },
+    "nimble": {
+      "name": "轻灵",
+      "params": false,
+      "kind": "static",
+      "note": "原「飞行」。生命≥生命上限一半(上取整)时获得两栖，否则失去两栖；失去时若在水路则被消灭"
+    },
+    "spellImmune": {
+      "name": "锦囊免疫",
+      "params": false,
+      "kind": "static",
+      "note": "无法作为锦囊牌的目标"
+    },
+    "crit": {
+      "name": "暴击",
+      "params": true,
+      "kind": "trigger",
+      "note": "造成伤害时50%几率额外造成X点"
+    },
+    "rooted": {
+      "name": "扎根",
+      "params": false,
+      "kind": "static",
+      "note": "无法被移动，无法被弹射"
+    },
+    "invincible": {
+      "name": "无敌",
+      "params": false,
+      "kind": "static",
+      "note": "无法受到伤害或被弹射；但不免疫「消灭」"
+    },
+    "combo": {
+      "name": "组合",
+      "params": false,
+      "kind": "static",
+      "note": "解锁该线路第2个身位（前排1+后排1）"
+    },
+    "splash": {
+      "name": "溅射",
+      "params": true,
+      "kind": "trigger",
+      "note": "发动攻击时，对相邻左右各一条线路上的所有敌方单位(含后排)造成X点伤害"
+    },
+    "poison": {
+      "name": "淬毒",
+      "params": true,
+      "kind": "trigger",
+      "note": "造成>0伤害时，目标下回合开始时受X点伤害，无视机制（无敌除外）"
+    },
+    "burn": {
+      "name": "灼烧",
+      "params": true,
+      "kind": "trigger",
+      "note": "造成>0伤害时，目标下回合开始时受X点伤害（普通伤害，无敌/减伤按常规生效）；标记结算一次即消费"
+    },
+    "pierce": {
+      "name": "穿透",
+      "params": true,
+      "kind": "trigger",
+      "note": "攻击时额外对本线路X个敌方单位(含后排)造成伤害；不足则溢出打国王"
+    },
+    "firstStrike": {
+      "name": "先制",
+      "params": false,
+      "kind": "static",
+      "note": "开战时本单位的伤害先于同线路其他单位结算；被它打死的敌人当回合不反击。卡面写作「这张牌在开战时优先攻击」"
+    },
+    "freeze": {
+      "name": "冻结",
+      "params": false,
+      "kind": "static",
+      "note": "被冻结的单位下一次攻击时不进行此次攻击，然后解除冻结。状态型，不是印在卡面上的词条"
+    },
+    "hunt": {
+      "name": "捕猎",
+      "params": false,
+      "kind": "trigger",
+      "note": "有敌方单位被打出时，若可能则移动至该单位的线路；多个捕猎单位按「山地→水路」的优先级依次移动"
+    },
+    "trueStrike": {
+      "name": "必中",
+      "params": false,
+      "kind": "static",
+      "note": "攻击时忽略敌方单位的阻挡，仅攻击国王，且这次伤害不可被免疫（无敌/祝福/装甲都不生效）"
+    },
+    "rebirth": {
+      "name": "复生",
+      "params": false,
+      "kind": "trigger",
+      "note": "被消灭后，在原处复活一次并失去复生；复活不触发打出效果"
+    },
+    "fuse": {
+      "name": "融合",
+      "params": false,
+      "kind": "restrict",
+      "note": "可打在友方单位现在的位置上（融合牌自己被消灭、队友留下）；也可以把普通单位打在带融合的队友身上（新牌留下、带融合的那张被消灭）。融合后效果永远结算在留场的那张牌上（裁决 D78）"
+    },
+    "evolve": {
+      "name": "融合进化",
+      "params": false,
+      "kind": "restrict",
+      "note": "在一个友方单位现在的位置上打出：该友方单位「消失」（离场但不触发任何被消灭效果），新单位占据这个位置（裁决 D34）"
+    },
+    "cannotAttack": {
+      "name": "无法攻击",
+      "params": false,
+      "kind": "static",
+      "note": "开战时不出手，即使攻击力被加成正数也不攻击（卡牌「卫兵」）"
+    },
+    "trap": {
+      "name": "陷阱",
+      "params": false,
+      "kind": "static",
+      "note": "标记类词条（卡牌「反应装甲」）：这张牌是埋伏/反制型，效果按卡面文字结算"
+    }
+  }
+}

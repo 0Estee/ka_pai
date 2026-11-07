@@ -46,3 +46,17 @@ cloudflare/assets/
 # 部署用的本地 token（绝不提交）
 .cf-token
 .gh-token
+
+#  重构：Web 端（React + PixiJS）
+web/node_modules/
+web/dist/
+web/e2e/.chrome-profile/
+
+#  重构：Godot 端（导入缓存与 user:// 数据）
+godot/.godot/
+godot/Godot/
+
+#  Agent 本地脚手架（卡表规格草稿 / 编辑器配置 / 临时脚本）
+.card-spec/
+.claude/
+tools/tmp/

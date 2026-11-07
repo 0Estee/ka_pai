@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "rules": {
+    "lanes": [
+      "mountain",
+      "plainL",
+      "plainR",
+      "water"
+    ],
+    "laneName": {
+      "mountain": "山地",
+      "plainL": "平地(左)",
+      "plainR": "平地(右)",
+      "water": "水路"
+    },
+    "rows": [
+      "front",
+      "back"
+    ],
+    "sideName": {
+      "0": "玩家0",
+      "1": "玩家1"
+    },
+    "phases": [
+      "TURN_START",
+      "DEPLOY_FIRST",
+      "DEPLOY_SECOND",
+      "SPELL_FIRST",
+      "SPELL_SECOND",
+      "COMBAT",
+      "TURN_END"
+    ],
+    "phaseAllowedCardType": {
+      "DEPLOY_FIRST": "unit",
+      "DEPLOY_SECOND": "unit",
+      "SPELL_FIRST": "spell",
+      "SPELL_SECOND": "spell"
+    },
+    "cardType": {
+      "UNIT": "unit",
+      "SPELL": "spell",
+      "TRAP": "trap"
+    },
+    "kingMaxHp": 20,
+    "rebirthHp": null,
+    "drawOnFirstTurn": true,
+    "maxTurns": 30,
+    "factions": {
+      "demon": {
+        "key": "demon",
+        "name": "恶魔"
+      },
+      "god": {
+        "key": "god",
+        "name": "上帝"
+      },
+      "sword": {
+        "key": "sword",
+        "name": "剑道"
+      },
+      "music": {
+        "key": "music",
+        "name": "音乐"
+      },
+      "science": {
+        "key": "science",
+        "name": "科学"
+      },
+      "divine": {
+        "key": "divine",
+        "name": "神佑"
+      },
+      "alchemy": {
+        "key": "alchemy",
+        "name": "炼金"
+      },
+      "inferno": {
+        "key": "inferno",
+        "name": "炼狱"
+      },
+      "frost": {
+        "key": "frost",
+        "name": "极寒"
+      },
+      "sin": {
+        "key": "sin",
+        "name": "罪恶"
+      },
+      "party": {
+        "key": "party",
+        "name": "派对"
+      },
+      "flame": {
+        "key": "flame",
+        "name": "炎帝"
+      },
+      "heart": {
+        "key": "heart",
+        "name": "心驭"
+      }
+    },
+    "superpowerThresholds": [
+      15,
+      9,
+      3
+    ],
+    "keywordsNotGrantable": [
+      "invincible",
+      "blessing",
+      "aquatic",
+      "firstStrike",
+      "freeze",
+      "fuse",
+      "evolve",
+      "cannotAttack",
+      "trap"
+    ],
+    "rawMaterialIds": [
+      "U426",
+      "U427",
+      "U428",
+      "U429"
+    ],
+    "rawCombos": {
+      "U426+U426": "U435",
+      "U427+U427": "U437",
+      "U428+U428": "U434",
+      "U429+U429": "U439",
+      "U426+U427": "U442",
+      "U426+U428": "U441",
+      "U426+U429": "U440",
+      "U427+U428": "U438",
+      "U427+U429": "U443",
+      "U428+U429": "U444",
+      "U426+U427+U428+U429": "U436"
+    },
+    "flameIds": [
+      "U467",
+      "U468",
+      "U469",
+      "U470",
+      "U471"
+    ],
+    "flamePileMakeup": [
+      {
+        "cardId": "U467",
+        "count": 1
+      },
+      {
+        "cardId": "U468",
+        "count": 1
+      },
+      {
+        "cardId": "U469",
+        "count": 1
+      },
+      {
+        "cardId": "U470",
+        "count": 1
+      },
+      {
+        "cardId": "U471",
+        "count": 1
+      }
+    ],
+    "flameLotusId": "U477",
+    "deckSize": 40,
+    "openingHandFirst": 5,
+    "openingHandSecond": 4
+  }
+}

@@ -1,0 +1,606 @@
+# Card Combat Engine — domain-agnostic card combat engine
+
+Turn-based combat engine for a card game (creatures + spells, mana, draw,
+attack/defense/block, damage resolution and AI). **It does not depend on the
+concrete game**: it knows nothing about the GDD, rarities, specific abilities, or
+`CardLoader`/`GameManager`. Everything game-specific is injected from the game
+layer.
+
+Same pattern and lifecycle as the `hex_strategy_map` addon: it lives in-repo
+under `addons/`, registers itself via `class_name` (the `plugin.cfg` is for
+packaging / future export) and can be mirrored to a standalone repo.
+
+## Classes
+
+| Class | Role |
+|-------|------|
+| `Combatant` | Generic participant: `current_health/max_health`, `take_damage`, `heal`, signals. Each side's hero is one of these (`heroes[side]`) |
+| `CardData` | Card core (id/cost/stats) + `play_kind` (UNIT / EFFECT / PERSISTENT) + opaque `metadata: Dictionary` for game-specific fields |
+| `CardInstance` | Card in play (turn state, health, flags, `is_combatant`). Fires ability triggers via `ability_fn`; carries permanent/temp/continuous stat layers |
+| `CombatCommand` | Serializable driver intention (input); fed to `CombatSession.apply_command` and accumulated in `command_log` |
+| `HiddenCardStats` | Declared vs. hidden stats for bluffing |
+| `CombatDeck` | Hand, deck, board, graveyard and mana for one side, plus game-defined extra zones |
+| `CombatSession` | Combat FSM over N sides grouped by `teams`: orchestrates turns, decks, AI and resolution |
+| `TickCombatSession` | Opt-in tick paradigm (`extends CombatSession`): every tick each ready side independently selects one card/action, then all declared attacks from all sides resolve in a single simultaneous damage batch. Recovery times via `recovery_fn`; save/resume with `mode: "tick"` |
+| `CombatState` | Phase enum |
+| `CombatTriggerQueue` | FIFO queue of deferred ability triggers, used by `trigger_mode = QUEUED` to resolve chained triggers breadth-first. Owns the pending list; idle in INLINE mode |
+| `CombatPair` | Declared attacker/defender pair |
+| `CombatDamageResolver` | Resolves damage for the combat pairs |
+| `SpellEffect` | Spell effect (damage/heal/summon) |
+| `CombatConfig` | Balance parameters (mana, cap, starting hand, board/hand limits, permanent-buff cap) |
+| `CombatAI` | Base AI contract: defines the 5 signatures; subclass for a custom AI |
+| `DummyAI` | Reference/default AI (random, optional seed); `extends CombatAI` |
+| `HeuristicAI` | Optional stronger AI (greedy, deterministic): curve-filling plays, value trades, threat blocking; `extends CombatAI`. Inject via `ais[side]`; DummyAI stays the default |
+| `AbilityLibrary` | Opt-in keyword interpreter (`abilities/`): CHARGE/IMMUNITY/LIFESTEAL/THORNS via `ability_fn`, TAUNT via `attack_restriction_fn`. Not part of the core; the game wires it in or ignores it |
+
+## Injection points (how the game layer specializes it)
+
+1. **`CombatSession.ability_fn: Callable`** — ability semantics. Empty = pure
+   engine. The game injects its `AbilityHandler`. It is propagated to the
+   `CardInstance`s via `CombatDeck.setup(..., ability_fn)`. **Signature (v2):**
+   `(inst: CardInstance, trigger: int, context: Dictionary)`. The handler reacts to
+   the lifecycle triggers in `CardInstance.Trigger`:
+   `ON_SETUP, ON_TURN_REFRESH, ON_DEATH, ON_REVEAL, ON_ATTACK, ON_BLOCK,
+   ON_DAMAGE_TAKEN, ON_DAMAGE_DEALT, ON_HEAL, ON_TURN_START, ON_TURN_END, ON_DRAW,
+   ON_PLAY, ON_CAST`.
+   `context` carries trigger-specific primitives (e.g. `{"amount": n, "source": who}`
+   for `ON_DAMAGE_TAKEN`, where `source` is the dealer — a `CardInstance` in combat,
+   `null` for sourceless damage like spells or fatigue; `{"target": inst}` for
+   `ON_ATTACK`, and the chosen target for `ON_PLAY` — the battlecry hook, fired on play
+   right after `ON_SETUP`), `{}` when there is none.
+   `ON_DAMAGE_DEALT` (creature-vs-creature combat only) also carries
+   `{"lethal": bool, "excess": int}`: `lethal` is whether the hit killed the target and
+   `excess` is the overkill (damage past the target's life total, `0` unless lethal and
+   `0` for a hero swing) — the hook for trample / overkill effects.
+   `inst` is `null` for the side-level `ON_DRAW` (the drawn card travels in
+   `context["card"]`) and `ON_CAST` (fired once per spell cast, *after* its effects
+   resolve, with `context = {"card", "owner"}` — the spell-synergy hook, "whenever you
+   cast a spell …"), so a handler must tolerate `inst == null`.
+2. **`SpellEffect.id_fn: Callable`** — resolves the id of a summoned creature
+   (`id_fn.call(summon_name, index, summon_count)`). Empty = no summoning that
+   depends on the game catalog.
+3. **`CombatSession.config: CombatConfig`** — reassign before `setup()` to
+   change balance without touching the engine. Includes
+   `max_permanent_buffs_per_card` (cap of permanent buffs per card;
+   `-1` = unlimited), `max_board_size` (creatures allowed on a side's board;
+   `-1` = unlimited; a full board rejects `play_creature` and drops extra summons)
+   and `max_hand_size` (cards held in hand; `-1` = unlimited; an overdraw burns the
+   drawn card to the graveyard, see `discard_fn`). The engine knows no rules like
+   "+1/+1 cap 3": the game sets the caps here and applies whatever delta it wants
+   with `apply_permanent_buff`.
+4. **`Combatant`** — the game passes its hero (subclass) and builds the enemy
+   `Combatant` from its own templates.
+5. **`CombatSession.damage_fn: Callable`** — damage formula, seeded into the
+   resolver on `setup()`. Signature: `(attacker, defender) -> int`. Empty = engine
+   default (attacker's attack, floored at 1; ignores the defender). Inject it to
+   factor in the defender, e.g. armor:
+   ```gdscript
+   session.damage_fn = func(attacker, defender):
+       return maxi(attacker.current_attack - defender.card_data.metadata.get("armor", 0), 0)
+   ```
+6. **`CombatSession.exhaust_fn: Callable`** — fatigue hook, seeded into both decks
+   on `setup()`. Signature: `(owner_id: int)`. Called when a draw fails on an empty
+   deck. Empty = the deck only emits `deck_exhausted` (default). Inject it to burn
+   the hero on fatigue:
+   ```gdscript
+   session.exhaust_fn = func(owner_id):
+       session.heroes[owner_id].take_damage(1)
+   ```
+7. **`SpellEffect.effect_fn: Callable`** — full override of effect resolution, for
+   effect types outside the engine's `EffectType` catalog. Signature:
+   `(effect: SpellEffect, target, context) -> Dictionary`. When set, it replaces
+   the built-in `match`; empty = engine default. Lets the game add custom spells
+   without editing the engine:
+   ```gdscript
+   var drain := SpellEffect.new()
+   drain.effect_fn = func(effect, target, context):
+       # game-defined semantics, reading effect.value / context as needed
+       return {"success": true, "drained": effect.value}
+   ```
+8. **`CombatSession.discard_fn: Callable`** — discard hook, seeded into both decks
+   on `setup()`. Signature: `(card: CardData, owner_id: int)`. Called whenever a card
+   reaches the graveyard without being played: overdraw (a card drawn with a full
+   hand, `config.max_hand_size`) or a deliberate `CombatDeck.discard_card(card)`.
+   Empty = the card is discarded silently.
+9. **`CombatSession.attack_restriction_fn: Callable`** — attack-targeting restriction
+   (e.g. TAUNT). Signature: `(attacker: CardInstance, enemy_creatures: Array) ->
+   Array`. Returns the subset of living enemy creatures the attacker is **restricted**
+   to: a non-empty list means the attacker MUST hit one of them (a hero swing or any
+   other creature is illegal); an empty list means no restriction (any creature / hero,
+   the previous behavior). Enforced in `declare_attacker`; in `auto_resolve` an
+   illegal AI choice is redirected to the first required creature. Empty Callable = no
+   restriction, so a game that never sets it behaves exactly as before. Re-injected via
+   the `deserialize` hooks like the other Callables. Agnostic: the engine never reads
+   what makes a creature "taunt"; the hook decides.
+10. **`CombatSession.incoming_damage_fn: Callable`** — pre-damage interception, seeded
+    into every `CardInstance` (via the decks) on `setup()`. Signature:
+    `(inst, amount, source) -> int`. Runs **before** damage lands (combat AND spell
+    alike), so the game can reduce (armor), prevent (return `0`) or cap incoming damage.
+    Empty = damage unchanged. Re-injected via the `deserialize` hooks.
+11. **`CombatSession.cost_fn: Callable`** — effective card cost, seeded into both decks
+    on `setup()`. Signature: `(card: CardData, owner_id: int) -> int`. Honored by
+    affordability and mana spend (e.g. a board-aware discount). Empty = the card's own
+    `get_total_cost()`.
+12. **`CombatSession.spell_power_fn: Callable`** — spell-damage bonus of the caster.
+    Signature: `(owner_id: int) -> int`. Added to the value of the caster's damage
+    spells (built-in `DAMAGE` / `AOE_DAMAGE` and the `ENEMY_HERO` bolt) and travels in
+    the spell `context` as `"spell_power"`, so a custom `effect_fn` can read it too.
+    Empty = no bonus.
+13. **`CombatSession.aura_fn: Callable`** — aura recompute hook. Signature:
+    `(session: CombatSession) -> void`. The engine calls it whenever board membership
+    changes (a creature enters, is summoned, or dies), so the game can re-apply
+    `continuous_modifier`s idempotently (a "lord" buffing its neighbours). The engine
+    owns *when* to recompute; the hook owns *what* each aura does, reading the boards off
+    the session. Also callable directly via `recompute_auras()`. Empty = no auras.
+14. **`CombatSession.draw_for(side, count)` / `add_mana(side, amount)`** — ability-facing
+    APIs (methods, not Callables): let an `ability_fn` draw cards (firing `card_drawn` +
+    the side-level `ON_DRAW`, respecting fatigue/overdraw) or grant/spend mana (clamped to
+    `config.max_mana_cap`; a negative amount is overload) from inside a trigger.
+15. **`CombatAI.choose_play_target(card, own_board, enemy_board)`** — optional 6th AI
+    method (default `null`), queried in `auto_resolve` to pick the target of a creature's
+    `ON_PLAY` (battlecry) before it fires. Only consulted when an `ability_fn` is wired.
+16. **`TickCombatSession.recovery_fn: Callable`** — scheduling hook of the tick paradigm.
+    Signature: `(card: CardData, owner_id: int) -> int`, the number of ticks a side waits
+    after playing that card (recovery gates the side's **actions**, not its economy).
+    Empty = 0 for every card: recovery is opt-in exactly like `cost_fn`, and the engine
+    never reads what "recovery" means (typically a `metadata` field of the game).
+
+### Trigger dispatch order (`trigger_mode`)
+
+`CombatSession.trigger_mode` (set before `setup()`) picks how ability triggers are
+dispatched. It is **opt-in**; the default reproduces the previous behavior exactly:
+
+- **`INLINE`** (default) — `ability_fn` fires the instant a trigger happens. A
+  chained trigger (an ability that kills a creature, firing its `ON_DEATH`, which
+  triggers another) resolves **depth-first**, mid-sweep, as before.
+- **`QUEUED`** — every trigger is deferred into a `CombatTriggerQueue` (FIFO) and
+  drained at safe points (before each board sweep and at the end of each driver
+  action), so a chain resolves **breadth-first** in one flat order.
+
+Both are deterministic; they differ only in the order of *chained* reactions, so a
+combat with no chained triggers (or no `ability_fn`) is byte-identical either way.
+`trigger_mode` round-trips through `serialize()`/`deserialize()` (a legacy save with
+no field resumes as `INLINE`).
+
+**Depth limit of INLINE.** Because INLINE resolves chains depth-first through real
+recursion, an extremely long single chain (hundreds of back-to-back reactions —
+e.g. two mutual reflectors with huge health pools trading 1-damage hits) can
+exceed the GDScript interpreter's call-stack limit (~1024 frames, several frames
+per reaction). If your game can produce chains beyond ~150 reactions, use
+`QUEUED`: it resolves the same chain iteratively at constant stack depth.
+
+### Permanent buffs (generic)
+
+`CardInstance.apply_permanent_buff(attack_delta, health_delta, max_buffs := -1)`
+applies a permanent stat buff. The delta is decided by the game layer; the cap
+comes from `max_buffs` (one-off override) or from `max_permanent_buffs` (seeded
+from `CombatConfig`). It also raises `current_max_health`, which is the cap
+respected by `heal()`. For "+1/+1 with cap 3", the game sets
+`config.max_permanent_buffs_per_card = 3` and calls `inst.apply_permanent_buff(1, 1)`.
+
+### Continuous modifiers (auras)
+
+Where a permanent buff is one-shot and a temp buff expires on the next refresh, a
+**continuous modifier** stays only while its source keeps it applied — the model for
+an aura/enchantment. The engine provides the primitive; the game decides when to add
+and remove it (typically the source's `ON_SETUP` / `ON_DEATH`):
+
+```gdscript
+inst.add_continuous_modifier("aura:hill_giant", 1, 1)   # +1/+1 while the aura lives
+inst.remove_continuous_modifier("aura:hill_giant")      # rolled back exactly
+inst.has_continuous_modifier("aura:hill_giant")
+```
+
+Modifiers are keyed by an opaque `source_id`: re-adding the same id **replaces** its
+delta instead of stacking (idempotent refresh), and different ids sum. Removal caps
+current health to the restored max rather than subtracting blindly (damage already
+absorbed by the buffer is not double-counted), exactly like temp buffs. Continuous
+modifiers survive `reveal()` and round-trip through `serialize()`/`deserialize()`.
+
+### Non-combatant permanents (`PlayKind.PERSISTENT`)
+
+A `PERSISTENT` card goes to the board and persists (it fires lifecycle triggers like
+a creature) but **never fights**: it cannot attack or block. The engine derives
+`CardInstance.is_combatant` from `play_kind` (UNIT = true, PERSISTENT = false), so a
+PERSISTENT permanent never gains `can_attack_this_turn` on refresh and is excluded
+from `get_defenders()`. It is the engine primitive for an aura/enchantment that lives
+on the board and drives continuous modifiers on other creatures via `ability_fn`.
+Game-domain types (Weapon, Land, Trap) still belong in `metadata`, not in `play_kind`.
+
+### Keyword library (`abilities/`, opt-in)
+
+`AbilityLibrary` (in `addons/card_combat/abilities/`) is a **ready-made**,
+**opt-in** interpreter for a few common keywords — it is *not* part of the agnostic
+core. A game wires it in explicitly (or ignores it and writes its own handler):
+
+```gdscript
+var lib := AbilityLibrary.new(session)
+session.ability_fn = lib.ability_handler              # most keywords (ON_* triggers)
+session.attack_restriction_fn = lib.taunt_restriction # TAUNT
+session.incoming_damage_fn = lib.armor_damage         # ARMOR
+session.spell_power_fn = lib.spell_power              # SPELLPOWER
+session.aura_fn = lib.recompute_auras                 # LORD
+```
+
+Keywords are declared per card in `metadata["keywords"]` (an opaque `Array[String]`
+the engine never reads):
+
+| Keyword | Effect |
+|---------|--------|
+| `CHARGE` | can attack the turn it enters play (clears summoning sickness; combatants only) |
+| `IMMUNITY` | absorbs the next N hits (`metadata["immunity_hits"]`, default 1; `-1` = all) |
+| `LIFESTEAL` | combat damage it deals heals its owner's hero by the same amount |
+| `TAUNT` | while alive, enemy attackers must target it (drives `attack_restriction_fn`) |
+| `THORNS` | when hit, deals `metadata["thorns"]` (default 1) back to the dealer (reads the `source` in `ON_DAMAGE_TAKEN`; sourceless damage like spells/fatigue reflects nothing) |
+| `STEALTH` | cannot be chosen as an attack target until it attacks (via `can_be_attacked`) |
+| `WINDFURY` | may attack `metadata["windfury_attacks"]` (default 2) times per turn (sets `attacks_per_turn`) |
+| `FREEZE` | freezes the creatures it damages for `metadata["freeze_turns"]` (default 1) turns — they skip their next attack |
+| `ARMOR` | reduces each incoming hit by `metadata["armor"]` (needs `incoming_damage_fn = lib.armor_damage`) |
+| `BATTLECRY` | on play, deals `metadata["battlecry_damage"]` (default 1) to the chosen `ON_PLAY` target |
+| `SPELLPOWER` | adds `metadata["spell_power"]` to its owner's spell damage (needs `spell_power_fn = lib.spell_power`) |
+| `LORD` | buffs other friendly creatures by `metadata["aura_attack"]`/`["aura_health"]` (needs `aura_fn = lib.recompute_auras`) |
+| `OVERKILL` | lethal combat damage with excess tramples `metadata["overkill_factor"]` (default 1) × the excess to the slain creature's controller's hero (reads `lethal`/`excess` from `ON_DAMAGE_DEALT`) |
+| `SPELLBURST` | each time its owner casts a spell, gains `metadata["spellburst_attack"]`/`["spellburst_health"]` (default 1/1) as a permanent buff — recurring, capped by the permanent-buff limit (reacts to side-level `ON_CAST`) |
+
+The library holds a **weak** reference to the session (LIFESTEAL heals through
+`session.heal_hero`, LORD recomputes auras off the board), so it never forms a
+reference cycle with the session that owns its Callable. It is a convenience layer
+built entirely on the public engine surface (`ability_fn` triggers,
+`attack_restriction_fn`, and the opt-in `incoming_damage_fn` / `spell_power_fn` /
+`aura_fn` hooks); everything it does, a game could also do by hand.
+
+### Extra card zones (generic)
+
+Beyond the four core zones (draw pile, hand, board, graveyard), the game can
+keep any number of its own zones — an *exile* pile, an *extra deck*, a *banished*
+stack — without touching the engine. Zones are keyed by an opaque string the
+engine never interprets, mirroring `CardData.metadata`:
+
+```gdscript
+deck.add_to_zone("exile", card)        # creates the zone on first use
+deck.get_zone("exile")                 # live Array[CardData]; [] if absent
+deck.remove_from_zone("exile", card)   # false if the zone or card is absent
+deck.zone_names()                      # names of the zones in use
+```
+
+Extra zones are part of `serialize()`/`deserialize()`, so they survive
+save/resume. Moving a card across zones is the game's job (the engine has no
+rules about what exile or an extra deck *mean*).
+
+To send a card from the hand to the graveyard on purpose (a *discard* ability),
+use the public deck API instead of touching the zones directly:
+
+```gdscript
+deck.discard_card(card)   # hand -> graveyard; false if the card is not in hand.
+                          # Fires discard_fn, just like an overdraw burn.
+```
+
+Which card to discard (random, leftmost, player-chosen) is the game's policy —
+the engine only moves the one you hand it.
+
+## Turn model (N sides + teams, symmetric, PvP-ready)
+
+The combat is **symmetric per side** and supports any number of sides: there is
+no built-in "player vs enemy". Each turn one side is **active** (takes its turn
+and attacks) and every other side is **passive** (can declare blockers). The
+engine is agnostic to who drives each side — human UI, AI, or a network peer —
+which is what makes it PvP-ready. `turn_number` counts side turns.
+
+Sides are grouped by `teams: Array[int]` indexed by side (same id = allies):
+
+- 1v1 (default) → `[0, 1]`, behaves exactly like the classic two-side model.
+- FFA → `[0, 1, 2, 3]` (each side its own team).
+- 2v2 → `[0, 0, 1, 1]`.
+
+"Enemy" / "ally" are resolved by team (`enemies_of(side)` / `allies_of(side)` —
+allies **include** the side itself), so an `ENEMY_CREATURES` AoE hits every enemy
+team's board and `PLAYER_CREATURES` covers the caster and its teammates. Turn
+order is **interleaved by team** (round-robin), so teammates don't act back to
+back; dead sides are skipped. The combat ends when one team is left standing:
+`winner_team` names it, and `winner_side` reports a representative living side of
+that team (so 1v1 keeps returning `0`/`1`). Both are `-1` for no winner.
+
+FSM per side turn:
+`PREPARATION → MAIN → ATTACK → DEFENSE → RESOLVE → (next living side) → …`
+
+| Phase | Driven by | What |
+|-------|-----------|------|
+| `PREPARATION` | active | only the active side ramps mana, draws and refreshes |
+| `MAIN` | active | `play_card` |
+| `ATTACK` | active | `declare_attacker(attacker, target?, target_side?)` (target = an enemy creature; null swings at a hero, `target_side` picks which enemy hero; `attack_restriction_fn` can force a target, e.g. TAUNT) |
+| `DEFENSE` | **passive** | `declare_blocker(attacker, blocker)` — any enemy side's defender redirects that attack to itself |
+| `RESOLVE` | engine | resolves the active side's attacks, then hands the turn to the next living side |
+
+State is indexed by side: `heroes[]`, `decks[]`, `ais[]`, `teams[]`,
+`active_side`, `winner_side` / `winner_team` (`-1` = no winner). Assign
+`ais[side]` before setup to inject a controller for a side; otherwise setup seeds
+a reference `DummyAI`.
+
+`setup(side0_hero, side0_cards, side1_hero, side1_cards, seed)` is the 1v1
+convenience wrapper. For N sides use
+`setup_sides(sides, teams, seed)` where each entry of `sides` is
+`{"hero": Combatant, "cards": Array[CardData]}` (empty `teams` = free-for-all).
+
+## Tick model (`TickCombatSession`, opt-in)
+
+For automated combats (auto-battlers, simulators) the engine ships a second battle
+loop: `TickCombatSession extends CombatSession`. There is no alternating turn and
+no player phase — every **tick**, each *ready* side independently selects **one**
+card/action, and all declared attacks from all sides resolve in a **single
+simultaneous damage batch**:
+
+```gdscript
+var session := TickCombatSession.new()
+session.recovery_fn = func(card: CardData, _owner: int) -> int:
+    return int(card.metadata.get("recovery", 0))   # game-defined
+session.cards_drawn_per_tick = 1                   # optional per-tick economy
+session.setup(hero_a, deck_a, hero_b, deck_b, seed)
+session.run_until_end()          # or run_tick() once per tick
+```
+
+Honest simultaneity contract, in three layers:
+
+- **Selection** is truly simultaneous: every ready side freezes its choice
+  against the same pre-tick board; nobody sees another side's in-flight play.
+- **Attack damage** is truly simultaneous: every declared pair from every side
+  goes through `CombatDamageResolver` in ONE call (mutual trades across sides,
+  overkill and reflects all compute before anything applies).
+- **Card plays** resolve sequentially in side order (spells are sequential state
+  mutation). A declared target that already died this tick **fizzles without
+  consuming the card** (the atomic-fizzle contract) — there is no frozen-target
+  resolution.
+
+Per tick: recovery ticks down (readiness is evaluated *before* the decrement, so
+recovery N skips exactly N ticks), mana refills/ramps for **every** living side
+(`mana_refill_per_tick` / `mana_ramp_per_tick` / `cards_drawn_per_tick` knobs;
+recovery gates actions, not the economy), creatures refresh, `ON_TURN_START` /
+`ON_TURN_END` fire per tick for every living side, and victory settles once at
+the close (`config.stalemate_turn_limit` reads as a tick limit; both heroes
+falling in the same batch is a draw). A side that played a card does not also
+attack that tick; a side whose AI passes swings instead. Non-AI drivers override
+one tick's selection via `declare_tick_intent(side, card?, target?, target_side?)`.
+
+`phase` stays `BEGIN` until the victory settle moves it to `END` (a UI consulting
+`CombatState.is_auto_phase` never asks for input); the sequential driver surface
+(`start`, `play_card`, `declare_attacker`, `end_*_phase`, `apply_command`) is
+inert. Everything else is inherited as-is: decks/hand/graveyard, spell effects
+and targeting, N-side teams, all hooks, `trigger_mode`, signals and `event_log`
+(a `TICK` event delimits each tick for replays). Determinism is **per-mode**: a
+fixed seed reproduces a tick match bit-for-bit and save/resume continues it
+identically, but the same seed yields a different match than the sequential
+paradigm (the AI-call interleaving differs).
+
+## Minimal wiring
+
+```gdscript
+var session := CombatSession.new()
+session.ability_fn = my_ability_handler   # optional
+session.config.starting_max_mana = 2      # optional
+session.ais[0] = my_player_ai             # optional; else a seeded DummyAI
+session.setup(side0_hero, side0_cards, side1_hero, side1_cards, seed)
+session.start()                           # or session.auto_resolve() to run headless
+```
+
+### Casting single-target spells
+
+A spell with a `PLAYER_CREATURE` effect needs an explicit, living target. Pass it
+as the last argument of `play_card`:
+
+```gdscript
+var ok := session.play_card(spell, false, 0, 0, chosen_creature)
+```
+
+If no valid target is given, the spell **fizzles**: it is not consumed (mana and
+card stay in hand), `play_card` returns `false`, and the session emits
+`spell_fizzled(card)`. GDScript has no exceptions, so the contract is expressed
+through the return value plus the signal — the caller (UI or AI) reacts by
+prompting for a target and retrying, instead of wasting the card.
+
+For an `ENEMY_HERO` spell in FFA / team games, pass `target_side` (the last
+argument of `play_card`) to pick which enemy hero is hit; `-1` (default) resolves
+to the first living enemy side. A `target_side` pointing at an ally is rejected and
+falls back to that default, so a hero spell can never hit a teammate. In 1v1 the
+default keeps hitting the lone opponent, unchanged.
+
+### Targeting limits (non-goals)
+
+Spell targeting is intentionally minimal and caster-relative. `TargetType`
+resolves everything from the caster's point of view (`ENEMY_HERO`, `PLAYER_HERO`,
+`PLAYER_CREATURE`, `ENEMY_CREATURES`, `PLAYER_CREATURES`, `SUMMON_BOARD`,
+`CHOSEN_CREATURES`) — now team-aware, so the "enemy"/"ally" sets span every
+enemy/allied side. A spell has one explicit **single**-target slot
+(`PLAYER_CREATURE`, target = a `CardInstance`) and one bounded **multi**-target slot
+(`CHOSEN_CREATURES`, target = an `Array` of `target_count` `CardInstance`s; the
+effect applies to each). Both fizzle if too few living targets are supplied (single:
+none; multi: fewer than `target_count`) — mana and card stay, `play_card` returns
+`false`, `spell_fizzled` fires. Via `CombatCommand`, single-target is encoded as
+`{target_side, target_index}` and multi-target as `target_specs` (an Array of
+`{side, index}`). The engine does **not** provide split targets, "choose up to N", or
+conditional targeting — those are game rules: express them through an injected
+`effect_fn` (full control over resolution) rather than by extending the built-in
+`TargetType` catalog.
+
+## AI
+
+The AI contract lives in the base class `CombatAI`, which defines five
+signatures: `choose_card_to_play`, `choose_attackers`, `choose_attack_target`,
+`choose_spell_target`, `choose_blockers`. Its stubs return empty and emit
+`push_error`, so an incomplete subclass fails loudly. `DummyAI extends CombatAI`
+is the default AI and the reference example. For a stronger AI, subclass
+`CombatAI` and override those methods. It operates only on `CardData` and
+`CardInstance`. Both the attacking (`choose_attackers`/`choose_attack_target`)
+and defending (`choose_blockers`) sides go through this same contract — an AI is
+just a driver for whichever side(s) you assign it to via `ais[side]`.
+
+The attack-step methods receive the **enemy heroes as an array** (one per living
+enemy side) so an AI can reason about lethal across sides:
+`choose_attackers(board, enemy_heroes)` and `choose_attack_target(attacker,
+enemy_board, enemy_heroes)`, where `enemy_board` is the combined enemy creatures
+(each carries its `owner_id`). `enemy_heroes` may be empty in board-only
+scenarios. `choose_attack_target` returns an enemy creature, or `null` to swing at
+a hero — the engine routes a null hit to the first living enemy side.
+`HeuristicAI` measures lethal against the first living enemy hero. A custom AI
+subclassing `CombatAI` must use the `enemy_heroes: Array[Combatant]` parameter in
+these two overrides (breaking change from the old single `enemy_hero`).
+
+`choose_spell_target(spell, own_board, enemy_board)` is consulted by `auto_resolve`
+when the AI plays a spell that needs explicit targets: both boards are passed
+because the engine is agnostic about which side a spell hits — inspect
+`spell.spell_effects` to decide (a DAMAGE wants enemies, a HEAL/BUFF allies). It
+returns a single `CardInstance` for a `PLAYER_CREATURE` spell, or an `Array` of up
+to `target_count` for a `CHOSEN_CREATURES` spell. If it returns no living target (or
+fewer than `target_count`), the spell is skipped (not consumed) for that turn.
+
+## Observability (signals + event_log)
+
+The engine exposes its state two ways: live **signals** (below), and a structured
+**`CombatSession.event_log: Array[CombatEvent]`** that mirrors the signals as a
+replay-friendly stream. Each `CombatEvent` has a `type` (`PHASE_CHANGED`,
+`COMBATANT_DAMAGED`, `COMBATANT_HEALED`, `CREATURE_DIED`, `CREATURE_SUMMONED`,
+`COMBAT_ENDED`, `SPELL_FIZZLED`, plus the card-level `CARD_DRAWN`, `CARD_PLAYED`,
+`MANA_CHANGED`, `MAX_MANA_CHANGED`, `DECK_EXHAUSTED`) and a
+serializable `payload`; `event.serialize()` round-trips it (e.g. `creature_died`
+logs `{owner, card_id}`, not the live instance). The log is cleared on `setup()`
+(initial-hand draws are logged). The session mirrors the per-side deck signals
+into the log, so the log **alone** is a full replay/spectator stream; the deck
+signals stay intact for live listeners. Consume the log when you want the whole
+run as data; use the signals when you want live object references.
+
+**Opt-out for balancing (`config.record_events`).** Recording the `event_log` costs a
+`CombatEvent.new` + append on every event, which is pure overhead when you run thousands
+of headless `auto_resolve()` combats for balancing and never read the log. Set
+`config.record_events = false` (default `true`) before `setup()` to skip those appends:
+the live **signals still fire**, but `event_log` stays empty (so replay-from-log is off
+by choice, and a serialized session carries an empty log). It is pure observability —
+the combat result is byte-identical either way. On a creature-only workload this measured
+~30% faster; with spells/AI in the mix the relative saving is smaller but real.
+
+**Rejection feedback (`action_rejected` / `config.emit_action_rejections`).** Every public
+driver action (`play_card`, `declare_attacker`, `declare_blocker`, `apply_command`, ...)
+that returns `false` first emits `action_rejected(action: StringName, reason: StringName)`
+with a machine-readable reason (`&"cannot_attack"`, `&"invalid_hand_index"`, ...), so a UI
+can explain *why* an input was refused instead of failing silently. Gated by
+`config.emit_action_rejections` (default `true`); set it to `false` in headless mass
+simulation to skip the emission. It is a live signal only — rejections are intentionally
+not recorded into `event_log` (they are input noise, not combat history).
+
+Signal catalog per class:
+
+| Class | Signal | When |
+|-------|--------|------|
+| `CombatSession` | `phase_changed(old, new)` | every FSM transition |
+| `CombatSession` | `combat_ended(winner_side)` | on entering `END` (`-1` = no winner) |
+| `CombatSession` | `creature_died(card, owner)` | a creature dies, whether in combat or by a spell (AOE/single-target) |
+| `CombatSession` | `creature_summoned(card, owner)` | a creature enters the board via a SUMMON spell (not a hand play) |
+| `CombatSession` | `combatant_damaged(side, amount)` | the hero of `side` takes damage |
+| `CombatSession` | `combatant_healed(side, amount)` | the hero of `side` is healed (actual amount restored) |
+| `CombatSession` | `spell_fizzled(card)` | a single-target spell was cast with no valid target (not consumed) |
+| `CombatSession` | `action_rejected(action, reason)` | a driver action was refused, with a machine-readable reason (gated by `config.emit_action_rejections`) |
+| `CombatDeck` | `card_drawn(card)` | a card is drawn from the deck |
+| `CombatDeck` | `deck_exhausted` | failed draw on empty deck (see `exhaust_fn` hook) |
+| `CombatDeck` | `card_played(instance)` | a creature enters the board |
+| `CombatDeck` | `mana_changed(new_mana)` | available mana changes |
+| `CombatDeck` | `max_mana_changed(new_max)` | the maximum mana ramps up (new crystal) |
+| `CardInstance` | `card_died(card)` | the instance dies |
+| `CardInstance` | `card_damaged(card, amount)` | the instance takes damage |
+| `CardInstance` | `card_revealed(card)` | a hidden card is revealed |
+| `Combatant` | `health_changed(new_health)` | the participant's health changes |
+| `Combatant` | `died` | health reaches 0 |
+
+### Serialization / save-resume
+
+Beyond seed-based replay, the engine can snapshot live state for save/resume or
+authoritative networking: `CombatSession.serialize() -> Dictionary` captures the
+full graph (phase, sides, heroes, decks, board instances with buffs/hidden stats,
+the `event_log`, dead creatures, and the in-flight attack pairs/blockers by board
+index). `CombatSession.deserialize(data, hooks)` rebuilds it. The non-serializable
+pieces are re-injected through `hooks`:
+
+```gdscript
+var data := session.serialize()           # persist this Dictionary
+# ... later ...
+var resumed := CombatSession.deserialize(data, {
+    "config": my_config,                  # else a default CombatConfig
+    "ability_fn": my_ability_handler,     # re-wired into every CardInstance
+    "damage_fn": my_damage_fn,
+    "exhaust_fn": my_exhaust_fn,
+    "discard_fn": my_discard_fn,
+    "heroes": [my_hero0, my_hero1],       # optional: a game's subclassed heroes
+    "ais": [ai0, ai1],                    # optional: deterministic resume
+})
+```
+
+`CardData`/`SpellEffect` round-trip the built-in `EffectType` data; spells that
+rely on an injected `effect_fn`/`id_fn` must be re-hydrated by the game (by
+`card_id`), same as the other Callables. Deserializing a `CardInstance` rebuilds
+its state directly **without** firing `ON_SETUP`, so resuming never re-applies
+on-play effects.
+
+A `TickCombatSession` save adds `"mode": "tick"` plus a `tick` sub-dict (tick
+clock, recovery counters, economy knobs, pending manual card intents by index)
+on top of the base snapshot — the base format and `schema_version` stay
+untouched. `TickCombatSession.deserialize(data, hooks)` **refuses** a sequential
+save (warning + `null`); the base `CombatSession.deserialize` loads a tick save
+by ignoring the tick keys (forward-compat, documented loss); and
+`TickCombatSession.deserialize_any(data, hooks)` dispatches by `mode`.
+`recovery_fn` re-injects through `hooks` like every other Callable.
+
+### History / replay
+
+The engine is deterministic for a fixed seed. `CombatSession.setup(..., ai_seed)`
+seeds both deck shuffles and, for any side without an injected AI, a reference
+`DummyAI` (one per side, derived from `ai_seed`). With the seed and the starting
+cards fixed, the same inputs reproduce the same match bit-for-bit — including a
+byte-identical serialized `event_log`. Two ways to use this: persist just the seed
+(and the starting cards) and re-run the combat to rebuild the history, or capture
+`event_log` (via `serialize()`) as the recorded run directly. Either way the
+engine stores no extra state of its own.
+
+## Command layer (authoritative input / replay-from-input)
+
+Where `event_log` records what the combat **did** (output), `command_log` records
+what a driver **asked for** (input). `CombatSession.apply_command(cmd)` validates a
+`CombatCommand` and routes it to the matching action method (`play_card`,
+`declare_attacker`, `declare_blocker`, `end_*_phase`, `advance`); it returns `false`
+without mutating when a precondition fails, and on success appends the command to
+`command_log`. This gives an authoritative server a single validated entry point for
+client input, and lets a match be replayed from input alone. `command_log`
+round-trips with the session via `serialize()`/`deserialize()`.
+
+```gdscript
+var cmd := CombatCommand.new(CombatCommand.CommandType.PLAY_CARD, side, {
+    "hand_index": 0,
+    # single-target spells: encode the target creature by side + board index
+    "target_side": 1, "target_index": 2,
+    # ENEMY_HERO spells: which enemy hero to hit (-1 = first living enemy)
+    "hero_target_side": 1,
+})
+if session.apply_command(cmd):
+    ...  # accepted; mirrored into command_log
+```
+
+Cards and creatures are referenced by index (hand index, board index per side), the
+same primitive encoding the session uses for attack pairs, so commands stay
+serializable. `CommandType`: `PLAY_CARD, DECLARE_ATTACKER, DECLARE_BLOCKER,
+END_MAIN, END_ATTACK, END_DEFENSE, ADVANCE`.
+
+## What does NOT live here (game layer)
+
+- `CardLoader` / JSON parsing, rarities (`CardRarity`), abilities.
+- `AbilityHandler` (concrete semantics of CHARGE/IMMUNITY/…), `EnemyData`.
+- `CombatSerializer` / `BoardState`: the **game's PvP serialization** (they
+  depend on `PlayerData` and its specific state — mana, reputation, sacrifice).
+  These are game scaffolding, not engine scaffolding; that is why they stay in
+  the game layer.
+
+## License
+
+Card Combat Engine is **dual-licensed**:
+
+- **GNU AGPL v3.0** (default, see `LICENSE`) — free for open-source use. Note the
+  AGPL is copyleft over a network: if you run the engine server-side as part of a
+  product, you must release that product's source under the AGPL too.
+- **Commercial license** (see `LICENSE_COMMERCIAL.md`) — exempts you from the AGPL
+  obligations for use in closed-source projects, including server-side play.
+
+For a commercial license: **islasjavieralf@gmail.com**.
