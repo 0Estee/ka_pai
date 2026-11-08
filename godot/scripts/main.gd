@@ -19,10 +19,13 @@ const KPForgePage := preload("res://scripts/ui/kp_forge_page.gd")
 const KPForge := preload("res://scripts/ui/kp_forge.gd")
 const KPProfile := preload("res://scripts/ui/kp_profile.gd")
 const KPData := preload("res://scripts/ui/kp_data.gd")
+const KPLoginPage := preload("res://scripts/ui/kp_login_page.gd")
+const KPCloud := preload("res://scripts/ui/kp_cloud.gd")
 
 var _screen: Control = null
 var _fade: ColorRect = null
 var _last_cfg: Dictionary = {}
+var _cloud: KPCloud = null
 
 
 func _ready() -> void:
@@ -33,6 +36,8 @@ func _ready() -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.color = Color(0.045, 0.055, 0.08, 1.0)
 	add_child(_fade)
+	_cloud = KPCloud.new()
+	add_child(_cloud)
 	show_home()
 
 
@@ -81,7 +86,9 @@ func show_page(page_name: String) -> void:
 			page = KPPageOnline.new()
 		"forge":
 			page = KPForgePage.new()
-		"login", "range", "spectate":
+		"login":
+			page = KPLoginPage.new()
+		"range", "spectate":
 			page = _todo_page(page_name)
 		_:
 			show_home()
@@ -97,16 +104,6 @@ func show_page(page_name: String) -> void:
 func _todo_page(which: String) -> Control:
 	var tp := KPPageTodo.new()
 	match which:
-		"login":
-			tp.head_text = "登 录"
-			tp.crumb_line = "账号 · 云存档"
-			tp.lines = [
-				{"text": "手机号 + 验证码登录，把金币、卡组、强化进度存到云端。", "h": 26},
-				{"text": "旧版 app/js/cloud.js 里有现成的账号与云存档逻辑。", "h": 24},
-				{"text": "缺口：新的服务端要重写；本机还没有登录界面与令牌存储。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
-			]
-			tp.when_text = "排期：批次 F"
-			tp.note_text = "作者 m01990 第 17 条"
 		"range":
 			tp.head_text = "靶 场"
 			tp.crumb_line = "随便摆牌试效果"
@@ -207,6 +204,8 @@ func _settle_profile(sess) -> void:
 	}
 	if _screen != null and _screen.has_method("show_reward"):
 		_screen.show_reward(info)
+	if _cloud != null and _cloud.logged_in():
+		_cloud.auto_push(res.profile)   # 不 await：同步失败不影响对局结果
 
 
 func _on_restart() -> void:

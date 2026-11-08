@@ -14,6 +14,8 @@ const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
 const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
 const PAGE_TODO := preload("res://scripts/ui/kp_todo_page.gd")
 const PAGE_FORGE := preload("res://scripts/ui/kp_forge_page.gd")
+const PAGE_LOGIN := preload("res://scripts/ui/kp_login_page.gd")
+const CLOUD := preload("res://scripts/ui/kp_cloud.gd")
 const KPProfile := preload("res://scripts/ui/kp_profile.gd")
 const KPData := preload("res://scripts/ui/kp_data.gd")
 const REPLAY := preload("res://scripts/ui/kp_replay.gd")
@@ -402,6 +404,15 @@ func _shot_pages() -> void:
 	await _page_shot(fp, "refactor-godot-forge")
 	KPProfile.path = prof_backup
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://shot_forge_profile.json"))
+
+	# 登录页（作者 m01990 第 17 条）：截图要的是未登录的表单
+	var auth_backup := CLOUD.auth_path
+	CLOUD.auth_path = "user://shot_cloud_auth.json"
+	if FileAccess.file_exists(CLOUD.auth_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(CLOUD.auth_path))
+	var lp = PAGE_LOGIN.new()
+	await _page_shot(lp, "refactor-godot-login")
+	CLOUD.auth_path = auth_backup
 	var tp := PAGE_TODO.new()
 	tp.head_text = "登 录"
 	tp.crumb_line = "账号 · 云存档 · 同步"

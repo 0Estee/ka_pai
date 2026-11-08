@@ -14,6 +14,7 @@ const ANIM_SPEED := "anim_speed"    # 0 慢 / 1 标准 / 2 快
 const AI_PACE := "ai_pace"          # 0 无停顿 / 1 短 / 2 标准
 const DIFFICULTY := "difficulty"
 const DECK_SIZE := "deck_size"
+const CLOUD_BASE := "cloud_base"    # 云存档 / 联机的服务器根地址
 
 const DEFAULTS := {
 	"fx_level": 0,
@@ -21,6 +22,7 @@ const DEFAULTS := {
 	"ai_pace": 2,
 	"difficulty": "normal",
 	"deck_size": 80,
+	"cloud_base": "https://wangzuo.icu",
 }
 
 ## 动画时长倍率（越大越慢）：慢 1.35 / 标准 1.0 / 快 0.7
@@ -95,6 +97,12 @@ static func ai_pace() -> float:
 
 static func difficulty() -> String:
 	return get_str(DIFFICULTY)
+
+
+## 云存档 / 联机的服务器根地址（结尾不留斜杠）
+static func cloud_base() -> String:
+	var v := get_str(CLOUD_BASE).strip_edges().trim_suffix("/")
+	return v if not v.is_empty() else "https://wangzuo.icu"
 
 
 static func deck_size() -> int:

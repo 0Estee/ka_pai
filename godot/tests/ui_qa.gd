@@ -7,6 +7,7 @@ const KPSession := preload("res://scripts/ui/kp_session.gd")
 const PAGE_SET := preload("res://scripts/ui/kp_settings_page.gd")
 const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
 const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
+const PAGE_LOGIN := preload("res://scripts/ui/kp_login_page.gd")
 const REPLAY := preload("res://scripts/ui/kp_replay.gd")
 const SETTINGS := preload("res://scripts/ui/kp_settings.gd")
 
@@ -149,7 +150,8 @@ func _check_pages() -> void:
 			"cardsPlayed": 14, "kingHp": [20, -2]}}
 	var saved := REPLAY.save(rec)
 
-	var pages := [["设置", PAGE_SET.new()], ["联机", PAGE_ONLINE.new()], ["回放", PAGE_REPLAY.new()]]
+	var pages := [["设置", PAGE_SET.new()], ["联机", PAGE_ONLINE.new()], ["回放", PAGE_REPLAY.new()],
+		["登录", PAGE_LOGIN.new()]]
 	for pair in pages:
 		var page = pair[1]
 		root.add_child(page)
