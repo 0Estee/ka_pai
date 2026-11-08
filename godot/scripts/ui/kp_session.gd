@@ -42,6 +42,8 @@ var busy := false
 ## 回放：记录「人类这侧的动作序列」（引擎确定性 ⇒ 几 KB 就能复现整局）
 var recording := true
 var record: Array = []
+## 这一局的奖励已经结算过没有（外壳在 finished 里结算一次就够）
+var rewarded := false
 var replay_mode := false
 var deck_size := 80
 var _replay_actions: Array = []
@@ -76,6 +78,8 @@ func start(cfg: Dictionary = {}) -> void:
 		"cardLib": DATA.lib(),
 		"shuffleDeck": true,
 		"factions": factions,
+		# 强化工坊的增量表（[我方, 对手]），缺省为空 ⇒ 跟没强化时一模一样
+		"enhance": cfg.get("enhance", []),
 	})
 
 	game.choice_needed.connect(Callable(self, "_on_choice_needed"))

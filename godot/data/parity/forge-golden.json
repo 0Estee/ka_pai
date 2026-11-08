@@ -1,0 +1,8356 @@
+{
+ "generatedAt": "2026-11-08T08:22:46.369Z",
+ "libSize": 256,
+ "costs": {
+  "enhanceGold": [
+   12,
+   16,
+   20,
+   24,
+   28,
+   32,
+   36,
+   40,
+   44,
+   44
+  ],
+  "masteryDust": [
+   20,
+   40,
+   40,
+   40
+  ],
+  "enhanceValue": [
+   0,
+   0.1,
+   0.2,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8,
+   1,
+   1
+  ]
+ },
+ "stats": [
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U01",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U02",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 1.4,
+   "hp": 1.4,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 1,
+   "hp": 3.4,
+   "cost": 2,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 2,
+   "kw": [
+    [
+     "pierce",
+     1
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 2,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 2,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U03",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 1.4,
+   "hp": 1.4,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 1,
+   "hp": 3.4,
+   "cost": 1,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 1,
+   "kw": [
+    [
+     "pierce",
+     1
+    ],
+    [
+     "disease",
+     0
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U04",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 2.4,
+   "hp": 3.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 2,
+   "hp": 5.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 4,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "splash",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 2,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U05",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U06",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 4.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 6.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U07",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U08",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U09",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 4.4,
+   "hp": 4.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 4,
+   "hp": 6.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 6,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "splash",
+     1
+    ],
+    [
+     "disease",
+     0
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U10",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 8,
+   "hp": 9,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 8.4,
+   "hp": 9.4,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 9,
+   "hp": 10,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 9,
+   "hp": 10,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 8,
+   "hp": 11.4,
+   "cost": 10,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 10,
+   "hp": 9,
+   "cost": 10,
+   "kw": [
+    [
+     "crit",
+     1
+    ],
+    [
+     "splash",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 9,
+   "hp": 10,
+   "cost": 10,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 8,
+   "hp": 9,
+   "cost": 10,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 8,
+   "hp": 9,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U11",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 8,
+   "hp": 9,
+   "cost": 10,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 2.4,
+   "hp": 4.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 2,
+   "hp": 6.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "splash",
+     1
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U12",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U13",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U14",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 4.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 6.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     1
+    ],
+    [
+     "splash",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U15",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 0,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 0.4,
+   "hp": 5.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 1,
+   "hp": 6,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 1,
+   "hp": 6,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 0,
+   "hp": 7.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 2,
+   "hp": 5,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     1
+    ],
+    [
+     "splash",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 1,
+   "hp": 6,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 0,
+   "hp": 5,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 0,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U16",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 0,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U17",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U20",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 6,
+   "hp": 8,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 6.4,
+   "hp": 8.4,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 7,
+   "hp": 9,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 7,
+   "hp": 9,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 6,
+   "hp": 10.4,
+   "cost": 6,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 8,
+   "hp": 8,
+   "cost": 6,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 7,
+   "hp": 9,
+   "cost": 6,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 6,
+   "hp": 8,
+   "cost": 6,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 6,
+   "hp": 8,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U21",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 6,
+   "hp": 8,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 3.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 5.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U22",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U23",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 8,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U24",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U25",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U26",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 0.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 0,
+   "hp": 7,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 0.4,
+   "hp": 7.4,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 1,
+   "hp": 8,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 1,
+   "hp": 8,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 0,
+   "hp": 9.4,
+   "cost": 2,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 2,
+   "hp": 7,
+   "cost": 2,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 1,
+   "hp": 8,
+   "cost": 2,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 0,
+   "hp": 7,
+   "cost": 2,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 0,
+   "hp": 7,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U27",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 0,
+   "hp": 7,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 2.4,
+   "hp": 5.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 6,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 3,
+   "hp": 6,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 2,
+   "hp": 7.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "splash",
+     1
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 3,
+   "hp": 6,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 2,
+   "hp": 5,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U28",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 5,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 3,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 4.4,
+   "hp": 3.4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 4,
+   "hp": 5.4,
+   "cost": 4,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 6,
+   "hp": 3,
+   "cost": 4,
+   "kw": [
+    [
+     "blessing",
+     3
+    ],
+    [
+     "splash",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 4,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 4,
+   "hp": 3,
+   "cost": 4,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 3,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U31",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 3,
+   "cost": 4,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U32",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U33",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U34",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 4.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 6.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 5,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U35",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 1.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 2,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 2,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 3.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 1,
+   "cost": 3,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 2,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U36",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 5.4,
+   "hp": 5.4,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 5,
+   "hp": 7.4,
+   "cost": 6,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 7,
+   "hp": 5,
+   "cost": 6,
+   "kw": [
+    [
+     "splash",
+     1
+    ],
+    [
+     "disease",
+     0
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 6,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 6,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U37",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 6,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 5.4,
+   "hp": 5.4,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 5,
+   "hp": 7.4,
+   "cost": 5,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 7,
+   "hp": 5,
+   "cost": 5,
+   "kw": [
+    [
+     "disease",
+     0
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 6,
+   "hp": 6,
+   "cost": 5,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 5,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U38",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 5,
+   "hp": 5,
+   "cost": 5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 3.4,
+   "hp": 3.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 3,
+   "hp": 5.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 5,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     1
+    ],
+    [
+     "disease",
+     0
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U60",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 3,
+   "hp": 3,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.75,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U61",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1.5,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 2.4,
+   "hp": 4.4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 2,
+   "hp": 6.4,
+   "cost": 3,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 4,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "blessing",
+     3
+    ],
+    [
+     "crit",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 3,
+   "hp": 5,
+   "cost": 3,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 3,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U62",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 2,
+   "hp": 4,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 4,
+   "hp": 7,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 4.4,
+   "hp": 7.4,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 5,
+   "hp": 8,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 5,
+   "hp": 8,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 4,
+   "hp": 9.4,
+   "cost": 7,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 6,
+   "hp": 7,
+   "cost": 7,
+   "kw": [
+    [
+     "blessing",
+     3
+    ],
+    [
+     "pierce",
+     1
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 5,
+   "hp": 8,
+   "cost": 7,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 4,
+   "hp": 7,
+   "cost": 7,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 7,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U63",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 4,
+   "hp": 7,
+   "cost": 7,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 3,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 2,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U64",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": null,
+   "hp": null,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": []
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 4,
+    "masteries": []
+   },
+   "atk": 1.4,
+   "hp": 1.4,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 9,
+    "masteries": []
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_temper"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "w_tough",
+     "w_fury"
+    ]
+   },
+   "atk": 1,
+   "hp": 3.4,
+   "cost": 1,
+   "kw": [
+    [
+     "crit",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "o_almighty"
+    ]
+   },
+   "atk": 3,
+   "hp": 1,
+   "cost": 1,
+   "kw": [
+    [
+     "blessing",
+     3
+    ],
+    [
+     "disease",
+     0
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "g_twist",
+     "p_undying"
+    ]
+   },
+   "atk": 2,
+   "hp": 2,
+   "cost": 1,
+   "kw": [
+    [
+     "armor",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "swapStats"
+   ],
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "p_focus",
+     "o_sacred"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [
+    [
+     "pierce",
+     2
+    ],
+    [
+     "blessing",
+     2
+    ]
+   ],
+   "fxCount": 0,
+   "flagKeys": [
+    "critAfterTurn",
+    "critChance"
+   ],
+   "kingAura": {
+    "blessing": 2
+   }
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  },
+  {
+   "id": "U65",
+   "rec": {
+    "lvl": 0,
+    "masteries": [
+     "spell_cost",
+     "spell_cost"
+    ]
+   },
+   "atk": 1,
+   "hp": 1,
+   "cost": 1,
+   "kw": [],
+   "fxCount": 0,
+   "flagKeys": [],
+   "kingAura": null
+  }
+ ],
+ "forgeProfile": {
+  "forge": {
+   "v": 1,
+   "cards": {
+    "U01": {
+     "lvl": 0,
+     "masteries": []
+    },
+    "U02": {
+     "lvl": 4,
+     "masteries": []
+    },
+    "U03": {
+     "lvl": 9,
+     "masteries": []
+    },
+    "U04": {
+     "lvl": 0,
+     "masteries": [
+      "w_temper"
+     ]
+    },
+    "U05": {
+     "lvl": 0,
+     "masteries": [
+      "w_tough",
+      "w_fury"
+     ]
+    },
+    "U06": {
+     "lvl": 0,
+     "masteries": [
+      "o_almighty"
+     ]
+    },
+    "U07": {
+     "lvl": 0,
+     "masteries": [
+      "g_twist",
+      "p_undying"
+     ]
+    },
+    "U08": {
+     "lvl": 0,
+     "masteries": [
+      "p_focus",
+      "o_sacred"
+     ]
+    },
+    "U09": {
+     "lvl": 0,
+     "masteries": [
+      "spell_cost"
+     ]
+    },
+    "U10": {
+     "lvl": 0,
+     "masteries": [
+      "spell_cost",
+      "spell_cost"
+     ]
+    },
+    "U11": {
+     "lvl": 0,
+     "masteries": []
+    },
+    "U12": {
+     "lvl": 4,
+     "masteries": []
+    },
+    "U13": {
+     "lvl": 9,
+     "masteries": []
+    },
+    "U14": {
+     "lvl": 0,
+     "masteries": [
+      "w_temper"
+     ]
+    },
+    "U15": {
+     "lvl": 0,
+     "masteries": [
+      "w_tough",
+      "w_fury"
+     ]
+    },
+    "U16": {
+     "lvl": 0,
+     "masteries": [
+      "o_almighty"
+     ]
+    },
+    "U17": {
+     "lvl": 0,
+     "masteries": [
+      "g_twist",
+      "p_undying"
+     ]
+    },
+    "U20": {
+     "lvl": 0,
+     "masteries": [
+      "p_focus",
+      "o_sacred"
+     ]
+    },
+    "U21": {
+     "lvl": 0,
+     "masteries": [
+      "spell_cost"
+     ]
+    },
+    "U22": {
+     "lvl": 0,
+     "masteries": [
+      "spell_cost",
+      "spell_cost"
+     ]
+    },
+    "U23": {
+     "lvl": 0,
+     "masteries": []
+    },
+    "U24": {
+     "lvl": 4,
+     "masteries": []
+    },
+    "U25": {
+     "lvl": 9,
+     "masteries": []
+    },
+    "U26": {
+     "lvl": 0,
+     "masteries": [
+      "w_temper"
+     ]
+    }
+   }
+  }
+ },
+ "sideEnhance": {
+  "U03": {
+   "atk": 1,
+   "hp": 1,
+   "cost": 0,
+   "kw": []
+  },
+  "U04": {
+   "atk": 1,
+   "hp": 1,
+   "cost": 0,
+   "kw": []
+  },
+  "U05": {
+   "atk": 0,
+   "hp": 2.4,
+   "cost": 0,
+   "kw": [
+    {
+     "id": "crit",
+     "x": 2
+    }
+   ]
+  },
+  "U06": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -0.25,
+   "kw": []
+  },
+  "U07": {
+   "atk": 1,
+   "hp": 1,
+   "cost": 0,
+   "kw": [
+    {
+     "id": "armor",
+     "x": 2
+    }
+   ],
+   "flags": {
+    "swapStats": true
+   },
+   "kingAura": {
+    "hpFloor": 1
+   }
+  },
+  "U08": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -0.5,
+   "kw": []
+  },
+  "U09": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -1,
+   "kw": []
+  },
+  "U12": {
+   "atk": 0.4,
+   "hp": 0.4,
+   "cost": 0,
+   "kw": []
+  },
+  "U14": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -1,
+   "kw": []
+  },
+  "U15": {
+   "atk": 0,
+   "hp": 2.4,
+   "cost": 0,
+   "kw": [
+    {
+     "id": "crit",
+     "x": 2
+    }
+   ]
+  },
+  "U16": {
+   "atk": 2,
+   "hp": 0,
+   "cost": 0,
+   "kw": [
+    {
+     "id": "pierce",
+     "x": 1
+    },
+    {
+     "id": "splash",
+     "x": 1
+    }
+   ]
+  },
+  "U17": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -2,
+   "kw": []
+  },
+  "U20": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -0.5,
+   "kw": []
+  },
+  "U26": {
+   "atk": 0,
+   "hp": 0,
+   "cost": -0.25,
+   "kw": []
+  }
+ },
+ "aiForge": {
+  "easy:1001": {
+   "count": 0,
+   "sample": []
+  },
+  "easy:2024": {
+   "count": 0,
+   "sample": []
+  },
+  "normal:1001": {
+   "count": 19,
+   "sample": [
+    {
+     "id": "U08",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U09",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U100",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U105",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U109",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U141",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U143",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U146",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U155",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U17",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U202",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U212",
+     "lvl": 9,
+     "masteries": []
+    }
+   ]
+  },
+  "normal:2024": {
+   "count": 23,
+   "sample": [
+    {
+     "id": "U02",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U100",
+     "lvl": 9,
+     "masteries": [
+      "spell_cost"
+     ]
+    },
+    {
+     "id": "U101",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U105",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U108",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U113",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U13",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U141",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U142",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U146",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U20",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U210",
+     "lvl": 1,
+     "masteries": []
+    }
+   ]
+  },
+  "hard:1001": {
+   "count": 37,
+   "sample": [
+    {
+     "id": "U09",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U10",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U101",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U103",
+     "lvl": 9,
+     "masteries": []
+    },
+    {
+     "id": "U104",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U105",
+     "lvl": 3,
+     "masteries": []
+    },
+    {
+     "id": "U109",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U112",
+     "lvl": 9,
+     "masteries": [
+      "w_temper"
+     ]
+    },
+    {
+     "id": "U12",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U143",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U15",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U20",
+     "lvl": 3,
+     "masteries": []
+    }
+   ]
+  },
+  "hard:2024": {
+   "count": 44,
+   "sample": [
+    {
+     "id": "U01",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U02",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U06",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U09",
+     "lvl": 9,
+     "masteries": []
+    },
+    {
+     "id": "U10",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U100",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U102",
+     "lvl": 9,
+     "masteries": [
+      "p_universal"
+     ]
+    },
+    {
+     "id": "U11",
+     "lvl": 3,
+     "masteries": []
+    },
+    {
+     "id": "U113",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U140",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U141",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U143",
+     "lvl": 7,
+     "masteries": []
+    }
+   ]
+  },
+  "nightmare:1001": {
+   "count": 74,
+   "sample": [
+    {
+     "id": "U01",
+     "lvl": 9,
+     "masteries": [
+      "spell_cost"
+     ]
+    },
+    {
+     "id": "U02",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U03",
+     "lvl": 4,
+     "masteries": []
+    },
+    {
+     "id": "U05",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U06",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U07",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U08",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U09",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U101",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U103",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U105",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U107",
+     "lvl": 4,
+     "masteries": []
+    }
+   ]
+  },
+  "nightmare:2024": {
+   "count": 80,
+   "sample": [
+    {
+     "id": "U01",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U02",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U03",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U04",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U05",
+     "lvl": 3,
+     "masteries": []
+    },
+    {
+     "id": "U06",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U08",
+     "lvl": 3,
+     "masteries": []
+    },
+    {
+     "id": "U100",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U101",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U105",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U107",
+     "lvl": 6,
+     "masteries": []
+    },
+    {
+     "id": "U108",
+     "lvl": 6,
+     "masteries": []
+    }
+   ]
+  },
+  "impossible:1001": {
+   "count": 107,
+   "sample": [
+    {
+     "id": "U01",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U02",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U03",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U05",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U07",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U08",
+     "lvl": 9,
+     "masteries": [
+      "spell_cost",
+      "spell_cost"
+     ]
+    },
+    {
+     "id": "U09",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U10",
+     "lvl": 9,
+     "masteries": []
+    },
+    {
+     "id": "U100",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U101",
+     "lvl": 8,
+     "masteries": []
+    },
+    {
+     "id": "U102",
+     "lvl": 9,
+     "masteries": [
+      "w_temper"
+     ]
+    },
+    {
+     "id": "U103",
+     "lvl": 8,
+     "masteries": []
+    }
+   ]
+  },
+  "impossible:2024": {
+   "count": 107,
+   "sample": [
+    {
+     "id": "U01",
+     "lvl": 5,
+     "masteries": []
+    },
+    {
+     "id": "U02",
+     "lvl": 9,
+     "masteries": [
+      "spell_cost"
+     ]
+    },
+    {
+     "id": "U03",
+     "lvl": 3,
+     "masteries": []
+    },
+    {
+     "id": "U04",
+     "lvl": 9,
+     "masteries": [
+      "g_brutal"
+     ]
+    },
+    {
+     "id": "U06",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U07",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U08",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U10",
+     "lvl": 2,
+     "masteries": []
+    },
+    {
+     "id": "U101",
+     "lvl": 7,
+     "masteries": []
+    },
+    {
+     "id": "U102",
+     "lvl": 9,
+     "masteries": [
+      "g_twist",
+      "o_arcane"
+     ]
+    },
+    {
+     "id": "U103",
+     "lvl": 1,
+     "masteries": []
+    },
+    {
+     "id": "U106",
+     "lvl": 9,
+     "masteries": [
+      "spell_cost",
+      "spell_cost"
+     ]
+    }
+   ]
+  }
+ },
+ "drawSkills": [
+  [
+   "w_precise",
+   "w_holy",
+   "g_bloodthirst"
+  ],
+  [
+   "w_precise",
+   "o_almighty",
+   "g_evolve"
+  ],
+  [
+   "w_precise",
+   "w_temper",
+   "g_evolve"
+  ],
+  [
+   "g_evolve",
+   "o_arcane",
+   "o_stealth"
+  ]
+ ],
+ "skills": [
+  {
+   "id": "w_temper",
+   "rarity": "white",
+   "name": "淬身",
+   "text": "+1 攻击 +1 生命"
+  },
+  {
+   "id": "w_fury",
+   "rarity": "white",
+   "name": "狂暴",
+   "text": "暴击 2"
+  },
+  {
+   "id": "w_precise",
+   "rarity": "white",
+   "name": "精准",
+   "text": "若有暴击效果，则必定触发"
+  },
+  {
+   "id": "w_tough",
+   "rarity": "white",
+   "name": "强体",
+   "text": "+2.4 生命"
+  },
+  {
+   "id": "w_venom",
+   "rarity": "white",
+   "name": "恶毒",
+   "text": "淬毒 1"
+  },
+  {
+   "id": "w_holy",
+   "rarity": "white",
+   "name": "圣光",
+   "text": "祝福 3"
+  },
+  {
+   "id": "g_plenty",
+   "rarity": "green",
+   "name": "富足",
+   "text": "打出:抽一张牌"
+  },
+  {
+   "id": "g_bloodthirst",
+   "rarity": "green",
+   "name": "嗜血",
+   "text": "造成伤害:友方国王回复 1.5 生命"
+  },
+  {
+   "id": "g_evolve",
+   "rarity": "green",
+   "name": "进化",
+   "text": "两栖，+1 生命"
+  },
+  {
+   "id": "g_unyielding",
+   "rarity": "green",
+   "name": "不屈",
+   "text": "装甲 1，受到的来自锦囊的伤害 -1"
+  },
+  {
+   "id": "g_twist",
+   "rarity": "green",
+   "name": "扭曲",
+   "text": "+1 攻击 +1 生命，交换攻击数值和生命数值"
+  },
+  {
+   "id": "g_brutal",
+   "rarity": "green",
+   "name": "残暴",
+   "text": "暴击 3，暴击触发概率设为 65%"
+  },
+  {
+   "id": "o_stealth",
+   "rarity": "orange",
+   "name": "隐蔽",
+   "text": "锦囊免疫"
+  },
+  {
+   "id": "o_teamwork",
+   "rarity": "orange",
+   "name": "协作",
+   "text": "减少等同于场上队友数的费用"
+  },
+  {
+   "id": "o_sacred",
+   "rarity": "orange",
+   "name": "圣洁",
+   "text": "祝福 2。在场:友方国王获祝福 2"
+  },
+  {
+   "id": "o_arcane",
+   "rarity": "orange",
+   "name": "奥义",
+   "text": "回合开始:若回合数≥4，随机对两名敌人造成 3 点伤害，对敌方国王造成 2 点伤害"
+  },
+  {
+   "id": "o_almighty",
+   "rarity": "orange",
+   "name": "全能",
+   "text": "随机获得[穿透1][疾病][暴击1][祝福3][溅射1]中的两个，增加等同于词条数的攻击"
+  },
+  {
+   "id": "p_eternal",
+   "rarity": "purple",
+   "name": "永恒",
+   "text": "-2 攻击。开战回合:获得无敌。锦囊牌回合:获得锦囊免疫"
+  },
+  {
+   "id": "p_combo",
+   "rarity": "purple",
+   "name": "连击",
+   "text": "-1 攻击，双重打击。[双重打击]触发后，若本回合友方打出过 2 张锦囊，额外攻击一次"
+  },
+  {
+   "id": "p_undying",
+   "rarity": "purple",
+   "name": "不灭",
+   "text": "装甲 2。在场:友方国王生命至少为 1"
+  },
+  {
+   "id": "p_focus",
+   "rarity": "purple",
+   "name": "会心",
+   "text": "穿透 2。若回合数≥9，获得暴击 20。暴击触发概率设为 10%"
+  },
+  {
+   "id": "p_devour",
+   "rarity": "purple",
+   "name": "吞噬",
+   "text": "打出:消灭一名敌人"
+  },
+  {
+   "id": "p_trick",
+   "rarity": "purple",
+   "name": "戏法",
+   "text": "打出:把所有敌人变为兔子"
+  },
+  {
+   "id": "p_clone",
+   "rarity": "purple",
+   "name": "复制",
+   "text": "打出:在场上召唤本单位的同名卡牌"
+  },
+  {
+   "id": "p_universal",
+   "rarity": "purple",
+   "name": "兼爱",
+   "text": "开战回合开始前，双方国王和所有单位回复 10 点生命"
+  },
+  {
+   "id": "u_annihilate",
+   "rarity": "rainbow",
+   "name": "湮灭",
+   "text": "打出:弃置敌方手中的单位牌，消灭所有敌人"
+  },
+  {
+   "id": "u_heatDeath",
+   "rarity": "rainbow",
+   "name": "热寂",
+   "text": "打出:若回合数≥12，消灭敌方国王"
+  },
+  {
+   "id": "u_endless",
+   "rarity": "rainbow",
+   "name": "无尽",
+   "text": "打出:若友方国王生命为 1，将友方国王生命设为 99"
+  }
+ ],
+ "economy": {
+  "perfForLevel": [
+   0,
+   200,
+   450,
+   750,
+   1100,
+   1500,
+   1950,
+   2450,
+   3000,
+   3600,
+   4250,
+   4950
+  ],
+  "levelFor": [
+   1,
+   1,
+   2,
+   2,
+   3,
+   5,
+   12,
+   67
+  ],
+  "rewards": [
+   {
+    "total": 30,
+    "dust": 8,
+    "perf": 194,
+    "lines": [
+     "剩余国王生命 12 → +24",
+     "第 6 回合内取胜 → +40",
+     "消灭 3 个敌方单位 → +30",
+     "胜利基础 +30",
+     "星尘 +8",
+     "表现分 +194"
+    ]
+   },
+   {
+    "total": 5,
+    "dust": 3,
+    "perf": 30,
+    "lines": [
+     "战败基础 +5",
+     "星尘 +3",
+     "表现分 +30"
+    ]
+   },
+   {
+    "total": 15,
+    "dust": 5,
+    "perf": 80,
+    "lines": [
+     "消灭 2 个敌方单位 → +20",
+     "平局基础 +15",
+     "星尘 +5",
+     "表现分 +80"
+    ]
+   },
+   {
+    "total": -20,
+    "dust": 0,
+    "perf": 120,
+    "lines": [
+     "消灭 5 个敌方单位 → +50",
+     "联机战败 −20",
+     "表现分 +120"
+    ]
+   },
+   {
+    "total": 90,
+    "dust": 8,
+    "perf": 186,
+    "lines": [
+     "剩余国王生命 7 → +14",
+     "消灭 1 个敌方单位 → +10",
+     "联机胜利 +30 ×2 +30",
+     "星尘 +8",
+     "表现分 +186"
+    ]
+   }
+  ],
+  "results": [
+   {
+    "gold": 1000,
+    "dust": 500,
+    "perf": 574,
+    "games": 4,
+    "wins": 2,
+    "losses": 2,
+    "draws": 0,
+    "leveledUp": true,
+    "levelBefore": 2,
+    "levelAfter": 3
+   },
+   {
+    "gold": 995,
+    "dust": 493,
+    "perf": 410,
+    "games": 4,
+    "wins": 1,
+    "losses": 3,
+    "draws": 0,
+    "leveledUp": false,
+    "levelBefore": 2,
+    "levelAfter": 2
+   },
+   {
+    "gold": 1005,
+    "dust": 495,
+    "perf": 460,
+    "games": 4,
+    "wins": 1,
+    "losses": 2,
+    "draws": 1,
+    "leveledUp": true,
+    "levelBefore": 2,
+    "levelAfter": 3
+   },
+   {
+    "gold": 970,
+    "dust": 490,
+    "perf": 500,
+    "games": 4,
+    "wins": 1,
+    "losses": 3,
+    "draws": 0,
+    "leveledUp": true,
+    "levelBefore": 2,
+    "levelAfter": 3
+   },
+   {
+    "gold": 1000,
+    "dust": 500,
+    "perf": 566,
+    "games": 4,
+    "wins": 2,
+    "losses": 2,
+    "draws": 0,
+    "leveledUp": true,
+    "levelBefore": 2,
+    "levelAfter": 3
+   }
+  ],
+  "buyDust": [
+   {
+    "ok": true,
+    "gained": 1,
+    "profile": {
+     "gold": 90,
+     "dust": 61
+    }
+   },
+   {
+    "ok": false,
+    "reason": "金币不足（需要 10）"
+   },
+   {
+    "ok": false,
+    "reason": "星尘已满（500）"
+   }
+  ],
+  "capGold": [
+   {
+    "gold": 1000,
+    "dust": 30,
+    "melted": 20
+   },
+   {
+    "gold": 1005,
+    "dust": 500,
+    "melted": 0
+   },
+   {
+    "gold": 0,
+    "dust": 0,
+    "melted": 0
+   }
+  ]
+ }
+}

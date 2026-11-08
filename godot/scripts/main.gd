@@ -15,6 +15,10 @@ const KPPageSettings := preload("res://scripts/ui/kp_settings_page.gd")
 const KPPageReplay := preload("res://scripts/ui/kp_replay_page.gd")
 const KPPageOnline := preload("res://scripts/ui/kp_online_page.gd")
 const KPPageTodo := preload("res://scripts/ui/kp_todo_page.gd")
+const KPForgePage := preload("res://scripts/ui/kp_forge_page.gd")
+const KPForge := preload("res://scripts/ui/kp_forge.gd")
+const KPProfile := preload("res://scripts/ui/kp_profile.gd")
+const KPData := preload("res://scripts/ui/kp_data.gd")
 
 var _screen: Control = null
 var _fade: ColorRect = null
@@ -75,7 +79,9 @@ func show_page(page_name: String) -> void:
 			page = rp
 		"online":
 			page = KPPageOnline.new()
-		"forge", "login", "range", "spectate":
+		"forge":
+			page = KPForgePage.new()
+		"login", "range", "spectate":
 			page = _todo_page(page_name)
 		_:
 			show_home()
@@ -91,17 +97,6 @@ func show_page(page_name: String) -> void:
 func _todo_page(which: String) -> Control:
 	var tp := KPPageTodo.new()
 	match which:
-		"forge":
-			tp.head_text = "强 化"
-			tp.crumb_line = "卡组工坊 · 金币把牌练上去"
-			tp.lines = [
-				{"text": "把牌库里的一张牌升到 +1 / +2：费用不变，攻血加一档。", "h": 26},
-				{"text": "网页端已经有一版工坊（浏览器 localStorage 存进度），", "h": 24},
-				{"text": "手机端要把同一套强化规则搬成 GDScript，并存进手机本地档。", "h": 24},
-				{"text": "缺口：强化公式与价格表尚未移植；存档层还没有。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
-			]
-			tp.when_text = "排期：账号与存档做完之后（见「登录」）"
-			tp.note_text = "作者 m01990 第 18 条"
 		"login":
 			tp.head_text = "登 录"
 			tp.crumb_line = "账号 · 云存档"
@@ -137,8 +132,13 @@ func _todo_page(which: String) -> Control:
 
 
 func _on_start(cfg: Dictionary) -> void:
-	_last_cfg = cfg.duplicate()
-	start_battle(cfg)
+	var c := cfg.duplicate()
+	# 我方带上工坊里练出来的增量；对手按难度与种子自己练（不消耗对局 rng）
+	var lib: Dictionary = KPData.lib()
+	var foe: Dictionary = KPForge.ai_forge(lib, int(c.get("seed", 0)), str(c.get("difficulty", "normal")))
+	c["enhance"] = KPForge.build_enhance_pair(lib, KPProfile.load_profile(), foe)
+	_last_cfg = c.duplicate()
+	start_battle(c)
 	_veil(Color(1, 1, 1, 1), 0.55)   # 接住首页最后那一片白光再化开
 
 
@@ -156,7 +156,9 @@ func start_battle(cfg: Dictionary) -> void:
 	_screen = battle
 	if _fade != null:
 		move_child(_fade, get_child_count() - 1)
-	sess.finished.connect(func(): _save_record(sess))
+	sess.finished.connect(func():
+		_save_record(sess)
+		_settle_profile(sess))
 	sess.start(cfg)             # 不 await：协程自己跑，状态通过 changed 回来
 
 
@@ -181,6 +183,30 @@ func _save_record(sess) -> void:
 	if sess == null or sess.replay_mode or sess.record.is_empty():
 		return
 	KPReplayData.save(sess.make_record())
+
+
+## 一局打完：算奖励、写档案、把结算塞进结果面板（重放不算战绩）
+func _settle_profile(sess) -> void:
+	if sess == null or sess.replay_mode or sess.rewarded:
+		return
+	if sess.game == null or not sess.game.is_over():
+		return
+	sess.rewarded = true
+	var st: Dictionary = sess.game.state
+	var human := int(sess.human_side)
+	var kills := int((st.stats.get("killsBySide", [0, 0]) as Array)[human])
+	var res := KPProfile.apply_result(KPProfile.load_profile(), st.get("winner", null), human,
+		int(st.turn), float(st.players[human].kingHp), kills, "ai")
+	KPProfile.save_profile(res.profile)
+	var reward: Dictionary = res.reward
+	var info := {
+		"lines": reward.get("lines", []), "gold": int(reward.get("total", 0)),
+		"dust": int(reward.get("dust", 0)), "perf": int(reward.get("perf", 0)),
+		"goldAfter": int(res.profile.gold), "dustAfter": int(res.profile.dust),
+		"levelAfter": int(res.levelAfter), "leveledUp": bool(res.leveledUp),
+	}
+	if _screen != null and _screen.has_method("show_reward"):
+		_screen.show_reward(info)
 
 
 func _on_restart() -> void:

@@ -13,6 +13,9 @@ const PAGE_SET := preload("res://scripts/ui/kp_settings_page.gd")
 const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
 const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
 const PAGE_TODO := preload("res://scripts/ui/kp_todo_page.gd")
+const PAGE_FORGE := preload("res://scripts/ui/kp_forge_page.gd")
+const KPProfile := preload("res://scripts/ui/kp_profile.gd")
+const KPData := preload("res://scripts/ui/kp_data.gd")
 const REPLAY := preload("res://scripts/ui/kp_replay.gd")
 
 var out_dir := "user://"
@@ -378,16 +381,36 @@ func _shot_pages() -> void:
 	var p2 := REPLAY.save(fake2)
 
 	await _page_shot(PAGE_SET.new(), "refactor-godot-page-settings")
+	# 强化工坊（作者 m01990 第 18 条）：截之前先给几张牌上强化，否则列表全是 +0 看不出样子
+	var prof_backup := KPProfile.path
+	KPProfile.path = "user://shot_forge_profile.json"
+	var prof := KPProfile.default_profile()
+	prof["gold"] = 268.0
+	prof["dust"] = 74.0
+	prof["perf"] = 640.0
+	prof["games"] = 12
+	prof["wins"] = 8
+	prof["losses"] = 4
+	var lib_forge := KPData.lib()
+	var recs := {"U01": 9, "U04": 5, "U12": 3, "U23": 1}
+	for cid in recs:
+		prof["forge"]["cards"][cid] = {"lvl": int(recs[cid]), "masteries": []}
+	for cid in ["U02", "U09"]:
+		prof["forge"]["cards"][cid] = {"lvl": 2, "masteries": ["w_temper"]}
+	KPProfile.save_profile(prof)
+	var fp = PAGE_FORGE.new()
+	await _page_shot(fp, "refactor-godot-forge")
+	KPProfile.path = prof_backup
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://shot_forge_profile.json"))
 	var tp := PAGE_TODO.new()
-	tp.head_text = "强 化"
-	tp.crumb_line = "卡组工坊 · 金币把牌练上去"
+	tp.head_text = "登 录"
+	tp.crumb_line = "账号 · 云存档 · 同步"
 	tp.lines = [
-		{"text": "把牌库里的一张牌升到 +1 / +2：费用不变，攻血加一档。", "h": 26},
-		{"text": "网页端已经有一版工坊，手机端要把同一套规则搬成 GDScript。", "h": 24},
-		{"text": "缺口：强化公式与价格表尚未移植；存档层还没有。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+		{"text": "旧版有手机号账号与云存档（金币、卡组跟着账号走）。", "h": 26},
+		{"text": "新版要先做本地档案，再接 cloudflare 的账号接口。", "h": 24},
 	]
-	tp.when_text = "排期：账号与存档做完之后"
-	tp.note_text = "作者 m01990 第 18 条"
+	tp.when_text = "排期：强化工坊之后"
+	tp.note_text = "作者 m01990 第 17 条"
 	await _page_shot(tp, "refactor-godot-page-todo")
 	# 点一下「光球特效：省电」，让药丸有选中态
 	var online = PAGE_ONLINE.new()

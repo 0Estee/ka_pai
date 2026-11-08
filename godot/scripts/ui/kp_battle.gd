@@ -59,6 +59,8 @@ var _cell_nodes: Dictionary = {}   # "lane:half" -> Control
 var _detail_card := ""             # 详情浮层的卡牌 id
 var _detail_uid := -1              # 详情浮层的场上单位 uid
 var _result_shown := false
+## 结算信息（金币 / 星尘 / 表现分）：外壳算好塞进来，结果面板显示
+var reward_info: Dictionary = {}
 
 # ── 动画状态 ────────────────────────────────────────────────────────────────
 # anim 是全局速度倍率：1.0 正常，0.0 代表整套动画关掉（自检脚本用，点一下就生效）
@@ -1397,28 +1399,56 @@ func _build_detail() -> void:
 	panel.add_child(close)
 
 
+## 外壳在对局结束后调这个：把「本局结算」塞进结果面板
+func show_reward(info: Dictionary) -> void:
+	reward_info = info
+	if _result_shown:
+		_refresh()
+
+
 func _build_result(st: Dictionary) -> void:
 	_dim_full()
 	var won: bool = int(st.get("winner", -1)) == session.human_side
+	var has_reward := not reward_info.is_empty()
+	var ph := 520.0 if has_reward else 460.0
 	var panel := Panel.new()
-	panel.size = Vector2(620, 460)
+	panel.size = Vector2(620, ph)
 	panel.position = Vector2(50, 340)
 	panel.add_theme_stylebox_override("panel", U.box(Color("161c27"), 20, U.GOLD if won else U.BAD, 2))
 	_overlay.add_child(panel)
 
-	_lab(panel, "胜利" if won else "败北", Rect2(0, 34, 620, 70), 46,
+	_lab(panel, "胜利" if won else ("平局" if str(st.get("winner", "")) == "draw" else "败北"), Rect2(0, 30, 620, 70), 46,
 		U.GOLD if won else U.BAD, HORIZONTAL_ALIGNMENT_CENTER)
-	_lab(panel, str(st.get("winReason", "")), Rect2(30, 116, 560, 60), 17, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_lab(panel, str(st.get("winReason", "")), Rect2(30, 104, 560, 30), 17, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	_lab(panel, "第 %d 回合结束 · 国王 %s/%s" % [
 		int(st.turn), U.num(st.players[session.human_side].kingHp), U.num(st.players[session.human_side].kingMaxHp)],
-		Rect2(30, 186, 560, 26), 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		Rect2(30, 140, 560, 26), 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	_lab(panel, "你出牌 %d 张 · 击破对手单位 %d 个" % [
 		int(st.stats.get("cardsPlayed", 0)), int(st.stats.get("killsBySide", [0, 0])[session.human_side])],
-		Rect2(30, 214, 560, 26), 14, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		Rect2(30, 166, 560, 26), 14, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
 
-	var again := _big_button("再来一局", Rect2(60, 300, 240, 76), true, func(): restart_requested.emit())
+	if has_reward:
+		var ry := 200.0
+		_lab(panel, "本 局 结 算", Rect2(30, ry, 560, 22), 14, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		ry += 26.0
+		for line in (reward_info.get("lines", []) as Array):
+			_lab(panel, str(line), Rect2(60, ry, 500, 20), 12, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+			ry += 20.0
+		var total := int(reward_info.get("gold", 0))
+		var bits := "金币 %s · 星尘 %s · 表现分 +%d" % [
+			("+" if total >= 0 else "") + str(total), "+" + str(int(reward_info.get("dust", 0))),
+			int(reward_info.get("perf", 0))]
+		_lab(panel, bits, Rect2(30, ry + 6.0, 560, 24), 15, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		ry += 30.0
+		var after := "现有 金币 %d · 星尘 %d · LV %d" % [
+			int(reward_info.get("goldAfter", 0)), int(reward_info.get("dustAfter", 0)), int(reward_info.get("levelAfter", 1))]
+		_lab(panel, after, Rect2(30, ry + 4.0, 560, 20), 12, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		if bool(reward_info.get("leveledUp", false)):
+			_lab(panel, "升 级 了 ！", Rect2(30, ry + 22.0, 560, 20), 13, U.GOOD, HORIZONTAL_ALIGNMENT_CENTER)
+
+	var again := _big_button("再来一局", Rect2(60, ph - 120.0, 240, 76), true, func(): restart_requested.emit())
 	panel.add_child(again)
-	var home := _big_button("返回首页", Rect2(320, 300, 240, 76), true, func(): back_to_home.emit())
+	var home := _big_button("返回首页", Rect2(320, ph - 120.0, 240, 76), true, func(): back_to_home.emit())
 	panel.add_child(home)
 
 
