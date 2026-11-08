@@ -76,10 +76,29 @@ static func hpbar(ratio: float, color: Color, height: int = 12) -> ProgressBar:
 static func on_click(ctrl: Control, cb: Callable) -> void:
 	ctrl.mouse_filter = Control.MOUSE_FILTER_STOP
 	ctrl.gui_input.connect(func(ev: InputEvent) -> void:
-		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
-			ctrl.accept_event()
-			cb.call()
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			if ev.pressed:
+				ctrl.accept_event()
+				press_fx(ctrl, true)
+				cb.call()
+			else:
+				press_fx(ctrl, false)
 	)
+
+
+## 按下缩一点、松开弹回来 —— 所有可点面板共用的按压反馈。
+## 没有子节点的空 Control（铺满屏幕的「点空白返回」那种）不缩，缩了也看不出来。
+static func press_fx(ctrl: Control, down: bool) -> void:
+	if ctrl == null or not is_instance_valid(ctrl) or not ctrl.is_inside_tree():
+		return
+	if ctrl.get_child_count() == 0 and not (ctrl is Panel):
+		return
+	if down:
+		ctrl.pivot_offset = ctrl.size * 0.5
+	var tw := ctrl.create_tween()
+	tw.set_ease(Tween.EASE_OUT)
+	tw.set_trans(Tween.TRANS_SINE if down else Tween.TRANS_BACK)
+	tw.tween_property(ctrl, "scale", Vector2.ONE * (0.96 if down else 1.0), 0.07 if down else 0.12)
 
 
 ## 一排小标签（词条、标记）拼成的一行文字

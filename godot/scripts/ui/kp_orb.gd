@@ -63,7 +63,7 @@ var tint: Color = U.GOLD
 var rad := 96.0
 var anim := 1.0        # 0 = 静止（自检/截图）
 var power := 1.0       # 亮度倍率
-var fx_level := 2      # 0 关 / 1 省电 / 2 全质量（shader 能量流）
+var fx_level := 0      # 0 纯色实心（作者 2026-11-08 定的默认）/ 1 省电 / 2 全质量（shader 能量流）
 
 var _body: Control
 var _halo2: TextureRect
@@ -121,9 +121,10 @@ func _build() -> void:
 ## 会把上面那层加色流丝整个冲掉），关 shader 时恢复厚度，否则球会发灰。
 func _core_stops() -> Array:
 	if fx_level <= 0:
-		return [[0.0, Color(1, 1, 1, 0.98)], [0.22, Color(tint.lightened(0.55), 0.94)],
-			[0.46, Color(tint, 0.74)], [0.72, Color(tint.darkened(0.10), 0.20)],
-			[1.0, Color(tint, 0.0)]]
+		# 纯色球：整个球面就一个颜色，只有最外沿 6% 收边（当抗锯齿用），
+		# 不再有中心白斑和双色渐变 —— 作者要求「光球要是纯色的」。
+		var c := tint
+		return [[0.0, c], [0.88, c], [0.94, Color(c, 0.85)], [1.0, Color(c, 0.0)]]
 	return [[0.0, Color(1, 1, 1, 0.60)], [0.20, Color(tint.lightened(0.55), 0.46)],
 		[0.44, Color(tint, 0.28)], [0.72, Color(tint.darkened(0.10), 0.08)],
 		[1.0, Color(tint, 0.0)]]

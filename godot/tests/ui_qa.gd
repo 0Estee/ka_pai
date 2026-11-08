@@ -102,6 +102,23 @@ func _check_battle() -> void:
 			break
 	await process_frame
 	_walk(battle._frame, battle.DESIGN, "对局屏")
+	# 手牌内部：每个 Label 必须完全落在卡面里，且两两不重叠（查「文字跑出卡面」与两框相压）
+	for card in battle._hand_row.get_children():
+		if not (card is Control):
+			continue
+		checks += 1
+		var box := Rect2(Vector2.ZERO, card.size)
+		var boxes: Array = []
+		for sub in card.get_children():
+			if sub is Label and (sub as Label).text.strip_edges() != "":
+				var lr := Rect2(sub.position, sub.size)
+				boxes.append([sub.name, lr])
+				if lr.position.y < -1.0 or lr.position.x < -2.0 or lr.end.y > box.size.y + 1.0 or lr.end.x > box.size.x + 2.0:
+					problems.append("对局屏: 手牌「%s」里的 %s 跑出卡面 %s (卡面 %s)" % [card.name, sub.name, lr, box])
+		for a in boxes.size():
+			for b in range(a + 1, boxes.size()):
+				if (boxes[a][1] as Rect2).intersects(boxes[b][1]):
+					problems.append("对局屏: 手牌「%s」里 %s 与 %s 重叠 %s / %s" % [card.name, boxes[a][0], boxes[b][0], boxes[a][1], boxes[b][1]])
 	print("BATTLE hand_cards=%d hand_row_size=%s hand_rect=%s" % [
 		battle._hand_row.get_child_count(), battle._hand_row.size, battle.HAND_RECT.size])
 	if battle._hand_row.get_child_count() <= 8 and battle._hand_row.size.x > battle.HAND_RECT.size.x + 1.0:

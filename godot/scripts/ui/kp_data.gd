@@ -63,7 +63,6 @@ static func keyword_note(kw_id) -> String:
 # ── 阵营 ────────────────────────────────────────────────────────────────────
 ## 与 engine/src/factions.js 的 FACTIONS 一致（key 原样存进卡牌定义的 faction 字段）
 const FACTIONS := [
-	{"key": "", "name": "中立", "note": "不选阵营，没有超能力"},
 	{"key": "demon", "name": "恶魔", "note": "以伤害换取资源"},
 	{"key": "god", "name": "上帝", "note": "治疗与庇护"},
 	{"key": "sword", "name": "剑道", "note": "单体爆发与连击"},
@@ -85,9 +84,10 @@ static func factions() -> Array:
 
 
 static func faction_name(key) -> String:
+	# 作者 2026-11-08：没有「中立」这个阵营了，空 key 只是没选，显示占位
 	var k := str(key)
 	if k == "" or k == "null":
-		return "中立"
+		return "未选阵营"
 	for f in FACTIONS:
 		if str(f.key) == k:
 			return str(f.name)
@@ -114,7 +114,7 @@ static func _mix_seed(x: int) -> int:
 	return (v ^ (v >> 16)) & 0xFFFFFFFF
 
 
-## 178 张可入牌库的中立牌（去掉令牌与阵营超能力）
+## 可入牌库的牌：非令牌、无阵营、且不是白板测试卡（126 张）
 static func build_deck(size: int, seed_v: int) -> Array:
 	ensure_loaded()
 	var pool: Array = []
@@ -124,7 +124,12 @@ static func build_deck(size: int, seed_v: int) -> Array:
 			continue
 		if c.get("faction", null) != null:
 			continue
-		pool.append(str(id))
+		# 白板测试卡（W/K/E 前缀，来自 test-cards.js 的 DEMO_CARDS）不进牌库。
+		# 数据文件里留着它们给回归测试与对拍用 —— 作者 2026-11-08：测试卡牌要去掉。
+		var cid := str(id)
+		if cid.begins_with("W") or cid.begins_with("K") or cid.begins_with("E"):
+			continue
+		pool.append(cid)
 	if pool.is_empty():
 		return []
 	pool.sort()

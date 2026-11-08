@@ -36,7 +36,7 @@ var _level := "root"
 var _busy := false
 var _ready_level := false
 var _t := 0.0
-var _faction_key := ""
+var _faction_key := "demon"   # 作者 2026-11-08：阵营没有中立了，默认恶魔
 var _difficulty_key := "normal"
 var _seed_v := 0
 var _started := false
@@ -240,22 +240,21 @@ func _spec(level: String) -> Array:
 			{"action": "pick_seed", "payload": "3001", "title": "3001", "subtitle": "固定种子",
 				"tint": U.GOOD, "w": 168.0, "h": 70.0},
 		]
-	# 七个环位：上阵营 / 右上难度 / 右设置 / 右下联机 / 下开始 / 左下回放 / 左种子
+	# 六个环位：上阵营 / 右上难度 / 右设置 / 下开始 / 左下回放 / 左上联机
+	# 作者 2026-11-08：「前面不要有种子」—— 种子挪进设置页，首页不再露出来。
 	return [
 		{"action": "level", "payload": "faction", "title": "阵 营", "subtitle": DATA.faction_name(_faction_key),
 			"tint": U.FACTION, "angle": -90.0, "w": 168.0, "h": 72.0},
 		{"action": "level", "payload": "difficulty", "title": "难 度", "subtitle": _diff_name(),
-			"tint": U.MANA, "angle": -45.0, "w": 168.0, "h": 72.0},
+			"tint": U.MANA, "angle": -30.0, "w": 168.0, "h": 72.0},
 		{"action": "page", "payload": "settings", "title": "设 置", "subtitle": "特效 · 速度 · 牌库",
-			"tint": U.LINE, "angle": 0.0, "w": 168.0, "h": 72.0},
-		{"action": "page", "payload": "online", "title": "联 机", "subtitle": "局域网 · 热座",
-			"tint": U.GOOD, "angle": 45.0, "w": 168.0, "h": 72.0},
+			"tint": U.LINE, "angle": 30.0, "w": 168.0, "h": 72.0},
 		{"action": "start", "payload": "", "title": "开 始 对 局", "subtitle": "",
 			"tint": U.GOLD, "emphasized": true, "angle": 90.0, "w": 196.0, "h": 84.0},
 		{"action": "page", "payload": "replay", "title": "回 放", "subtitle": "重看旧局",
-			"tint": U.MANA, "angle": 135.0, "w": 168.0, "h": 72.0},
-		{"action": "level", "payload": "seed", "title": "种 子", "subtitle": _seed_label(),
-			"tint": U.GOLD, "angle": 180.0, "w": 168.0, "h": 72.0},
+			"tint": U.MANA, "angle": 150.0, "w": 168.0, "h": 72.0},
+		{"action": "page", "payload": "online", "title": "联 机", "subtitle": "局域网 · 热座",
+			"tint": U.GOOD, "angle": 210.0, "w": 168.0, "h": 72.0},
 	]
 
 
@@ -375,7 +374,7 @@ func _go_level(level: String, item) -> void:
 	if not _anim_on():
 		_enter_level(level)
 		return
-	_absorb(item, func(): _delay(0.02, func(): _enter_level(level)))
+	_absorb_all(item, func(): _delay(0.02, func(): _enter_level(level)))
 
 
 ## 去二级页面：选项钻进光球，页面自己从光球里长出来
@@ -384,8 +383,7 @@ func _go_page(page: String, item) -> void:
 	if not _anim_on():
 		open_page.emit(page)
 		return
-	_absorb(item, func(): open_page.emit(page))
-	_collapse_items()
+	_absorb_all(item, func(): open_page.emit(page))
 
 
 func _pick_and_return(item) -> void:
@@ -393,7 +391,7 @@ func _pick_and_return(item) -> void:
 	if not _anim_on():
 		_enter_level("root")
 		return
-	_absorb(item, func(): _delay(0.02, func(): _enter_level("root")))
+	_absorb_all(item, func(): _delay(0.02, func(): _enter_level("root")))
 
 
 func _enter_level(level: String) -> void:
@@ -405,18 +403,18 @@ func _enter_level(level: String) -> void:
 
 # ── 动作：吸进光球 / 胀开吞屏 ────────────────────────────────────────────────
 
-## 把一张选项沿弧线送进光球，碎光四散，光球在牌到嘴边时吸一口气
-func _absorb(item, cb: Callable) -> void:
-	_items.erase(item)
+## 一张选项沿弧线飞进光球（只负责这一张，回调在落地时打）
+func _fly_item(item, dur: float, delay: float, cb: Callable = Callable()) -> void:
 	if item == null or not is_instance_valid(item):
-		cb.call()
+		if cb.is_valid():
+			cb.call()
 		return
 	var start: Vector2 = item.position
 	var dest: Vector2 = ORB_CENTER - item.size * 0.5
 	var ctrl: Vector2 = (start + dest) * 0.5 + Vector2(0, -70)
-	var dur := 0.32
-	_trail(item, 5, dur * 0.9)
 	var tw: Tween = item.create_tween()
+	if delay > 0.0:
+		tw.tween_interval(_T(delay))
 	tw.tween_method(func(t: float): item.position = _bez(start, ctrl, dest, t), 0.0, 1.0, _T(dur)) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(item, "scale", Vector2(0.14, 0.14), _T(dur)) \
@@ -426,7 +424,40 @@ func _absorb(item, cb: Callable) -> void:
 	tw.tween_callback(func():
 		if is_instance_valid(item):
 			item.queue_free()
-		cb.call())
+		if cb.is_valid():
+			cb.call())
+
+
+## 作者 2026-11-08：「选择后所有选项进入光球」——
+## 被点的那张先飞，其余选项依次跟上（不做原地缩没），最后一起被光球吸掉。
+func _absorb_all(item, cb: Callable) -> void:
+	var pick = item
+	var others: Array = _items.duplicate()
+	others.erase(pick)
+	_items.clear()
+	if not _anim_on():
+		for o in others:
+			if o != null and is_instance_valid(o):
+				o.queue_free()
+		if pick != null and is_instance_valid(pick):
+			pick.queue_free()
+		cb.call()
+		return
+	if pick == null or not is_instance_valid(pick):
+		for o in others:
+			if o != null and is_instance_valid(o):
+				o.queue_free()
+		cb.call()
+		return
+	var dur := 0.32
+	_trail(pick, 5, dur * 0.9)
+	_fly_item(pick, dur, 0.0, cb)
+	var k := 0
+	for o in others:
+		if o == null or not is_instance_valid(o):
+			continue
+		_fly_item(o, dur * 0.82, 0.06 + 0.05 * float(k), Callable())
+		k += 1
 	_delay(dur * 0.74, func():
 		_orb.pulse(1.0)
 		_orb.ripple(1.1))
@@ -440,8 +471,7 @@ func _launch(item) -> void:
 	if not _anim_on():
 		start_requested.emit(_cfg_out)
 		return
-	_absorb(item, _blast)
-	_collapse_items()
+	_absorb_all(item, _blast)
 
 
 func _blast() -> void:

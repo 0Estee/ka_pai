@@ -16,7 +16,7 @@ const DIFFICULTY := "difficulty"
 const DECK_SIZE := "deck_size"
 
 const DEFAULTS := {
-	"fx_level": 2,
+	"fx_level": 0,
 	"anim_speed": 1,
 	"ai_pace": 2,
 	"difficulty": "normal",

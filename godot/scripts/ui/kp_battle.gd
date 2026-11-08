@@ -35,6 +35,7 @@ var session = null
 
 var _frame: Control
 var _top: Control
+var _top_refs: Dictionary = {}   # HUD 里会被反复改写的节点
 var _banner: Control
 var _board: Control
 var _hint: Label
@@ -214,11 +215,14 @@ func _refresh() -> void:
 func _lab(parent: Node, text: String, rect: Rect2, fs: int, col: Color,
 		align: int = HORIZONTAL_ALIGNMENT_LEFT, clip := true) -> Label:
 	var l := U.label(text, fs, col, align)
-	l.position = rect.position
-	l.size = rect.size
 	l.clip_text = clip
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
+	# 先入树再定尺寸：Label 还没算过最小尺寸时设 size 会被「文字原宽」钳住，
+	# 于是 88 宽的框变成 109 宽跑出卡面（这就是作者看到的文字出界）
+	l.update_minimum_size()
+	l.position = rect.position
+	l.size = rect.size
 	return l
 
 
@@ -231,74 +235,133 @@ func _text_h(parent: Control, text: String, width: float, fs: int) -> float:
 	return sz.y
 
 
+## 把一段文字塞进「宽度 width × 高度 max_h」的框：先试大字号，放不下就降字号，
+## 最小字号还放不下就二分找最长能放下的前缀、补省略号。返回 [文字, 字号]。
+## wrap=false 按单行量宽（名字那种），wrap=true 按自动换行量高（效果文字）。
+func _fit_text(parent: Control, text: String, width: float, sizes: Array, max_h: float,
+		wrap: bool) -> Array:
+	if text == "":
+		return ["", int(sizes[0])]
+	var f: Font = parent.get_theme_font("font")
+	if f == null or width <= 4.0:
+		return [text, int(sizes[0])]
+	for sv in sizes:
+		var fs := int(sv)
+		if wrap:
+			if f.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y <= max_h:
+				return [text, fs]
+		else:
+			var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			if w <= width:
+				return [text, fs]
+	var last := int(sizes[sizes.size() - 1])
+	var lo := 0
+	var hi := text.length()
+	while lo < hi:
+		var mid := int((lo + hi + 1) / 2)
+		var probe: String = text.substr(0, mid) + "…"
+		var ok := false
+		if wrap:
+			ok = f.get_multiline_string_size(probe, HORIZONTAL_ALIGNMENT_LEFT, width, last).y <= max_h
+		else:
+			ok = f.get_string_size(probe, HORIZONTAL_ALIGNMENT_LEFT, -1, last).x <= width
+		if ok:
+			lo = mid
+		else:
+			hi = mid - 1
+	return [text.substr(0, lo) + "…", last]
+
+
 func _wrap(parent: Node, text: String, rect: Rect2, fs: int, col: Color,
 		align: int = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := U.label(text, fs, col, align)
-	l.position = rect.position
-	l.size = rect.size
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.clip_text = true
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
+	l.update_minimum_size()
+	l.position = rect.position
+	l.size = rect.size
 	return l
 
 
 # ── 顶部 HUD ────────────────────────────────────────────────────────────────
 
+## HUD 只在开局建一次，之后原地改文字/血条 —— 每次 _refresh 重建 14 个节点要 6ms，
+## 手机上就是「点一下卡半拍」。现在常态刷新降到 0.1ms 级。
 func _build_top(st: Dictionary, me: Dictionary, foe: Dictionary) -> void:
-	_clear(_top)
-	var sb := U.box(U.PANEL, 0)
-	_top.add_theme_stylebox_override("panel", sb)
-
-	_side_block(_top, me, 14.0, session.human_side, true)
-	_side_block(_top, foe, 492.0, session.ai_side, false)
-
-	var phase_name := str(KPC.PHASES.find(str(st.phase)))
-	_lab(_top, "回合 %d" % int(st.turn), Rect2(288, 8, 144, 26), 17, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	_lab(_top, _phase_name(str(st.phase)), Rect2(288, 34, 144, 34), 22, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	_lab(_top, "牌库 %d · 弃牌 %d" % [st.deck.size(), st.discard.size()],
-		Rect2(288, 70, 144, 20), 12, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	if _top.get_child_count() == 0:
+		_top.add_theme_stylebox_override("panel", U.box(U.PANEL, 0))
+		_top_refs["me"] = _side_block(_top, 14.0, true)
+		_top_refs["foe"] = _side_block(_top, 492.0, false)
+		_top_refs["turn"] = _lab(_top, "", Rect2(288, 8, 144, 26), 17, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		_top_refs["phase"] = _lab(_top, "", Rect2(288, 34, 144, 34), 22, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		_top_refs["counts"] = _lab(_top, "", Rect2(288, 70, 144, 20), 12, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		_top_refs["role"] = _lab(_top, "", Rect2(288, 90, 144, 20), 13, U.FACTION, HORIZONTAL_ALIGNMENT_CENTER)
+		var back := Button.new()
+		back.text = "‹"
+		back.position = Vector2(668, 6)
+		back.size = Vector2(44, 44)
+		back.add_theme_font_size_override("font_size", 26)
+		back.add_theme_stylebox_override("normal", U.box(U.PANEL_HI, 10, U.LINE))
+		back.add_theme_stylebox_override("hover", U.box(U.PANEL_HI, 10, U.GOLD))
+		back.add_theme_stylebox_override("pressed", U.box(U.PANEL, 10, U.GOLD))
+		back.pressed.connect(func(): back_to_home.emit())
+		_top.add_child(back)
+	_update_side_block(_top_refs["me"], me, true)
+	_update_side_block(_top_refs["foe"], foe, false)
+	_top_refs["turn"].text = "回合 %d" % int(st.turn)
+	_top_refs["phase"].text = _phase_name(str(st.phase))
+	_top_refs["counts"].text = "牌库 %d · 弃牌 %d" % [st.deck.size(), st.discard.size()]
 	var role := "先手" if int(st.firstPlayer) == session.human_side else "后手"
-	_lab(_top, "你是" + role, Rect2(288, 90, 144, 20), 13, U.FACTION, HORIZONTAL_ALIGNMENT_CENTER)
-
-	# 返回按钮
-	var back := Button.new()
-	back.text = "‹"
-	back.position = Vector2(668, 6)
-	back.size = Vector2(44, 44)
-	back.add_theme_font_size_override("font_size", 26)
-	back.add_theme_stylebox_override("normal", U.box(U.PANEL_HI, 10, U.LINE))
-	back.add_theme_stylebox_override("hover", U.box(U.PANEL_HI, 10, U.GOLD))
-	back.add_theme_stylebox_override("pressed", U.box(U.PANEL, 10, U.GOLD))
-	back.pressed.connect(func(): back_to_home.emit())
-	_top.add_child(back)
+	_top_refs["role"].text = "你是" + role
 
 
-func _side_block(parent: Control, p: Dictionary, x: float, side: int, is_me: bool) -> void:
+func _side_block(parent: Control, x: float, is_me: bool) -> Dictionary:
 	var align := HORIZONTAL_ALIGNMENT_LEFT if is_me else HORIZONTAL_ALIGNMENT_RIGHT
-	var name_text := "你" if is_me else "对手"
+	var refs := {}
+	refs["align"] = align
+	refs["hp_last"] = -999
+	refs["name"] = _lab(parent, "", Rect2(x, 8, 206, 24), 16, U.TEXT, align)
+	refs["hp"] = _lab(parent, "", Rect2(x, 32, 206, 28), 20, U.GOOD, align)
+	refs["bar"] = U.hpbar(1.0, U.GOOD, 12)
+	refs["bar"].position = Vector2(x, 64)
+	refs["bar"].size = Vector2(206, 12)
+	refs["bar"].mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(refs["bar"])
+	refs["bits"] = _lab(parent, "", Rect2(x, 82, 206, 22), 13, U.DIM, align)
+	return refs
+
+
+func _update_side_block(refs: Dictionary, p: Dictionary, is_me: bool) -> void:
 	var fname := DATA.faction_name(p.get("faction", ""))
-	if fname != "中立":
+	var plain := fname == "中立" or fname == "未选阵营" or fname == ""
+	var name_text := "你" if is_me else "对手"
+	if not plain:
 		name_text += " · " + fname
-	_lab(parent, name_text, Rect2(x, 8, 206, 24), 16, U.FACTION if fname != "中立" else U.TEXT, align)
+	if refs["name"].text != name_text:
+		refs["name"].text = name_text
+		refs["name"].add_theme_color_override("font_color", U.TEXT if plain else U.FACTION)
 
 	var hp := float(p.kingHp)
 	var maxhp := maxf(1.0, float(p.kingMaxHp))
-	_lab(parent, "♥ %s/%s" % [U.num(hp), U.num(maxhp)], Rect2(x, 32, 206, 28), 20,
-		U.GOOD if hp > maxhp * 0.5 else (U.GOLD if hp > maxhp * 0.2 else U.BAD), align)
-
-	var bar := U.hpbar(hp / maxhp, U.BAD if hp <= maxhp * 0.25 else U.GOOD, 12)
-	bar.position = Vector2(x, 64)
-	bar.size = Vector2(206, 12)
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(bar)
+	if int(refs["hp_last"]) != int(roundf(hp * 10.0)):
+		refs["hp_last"] = int(roundf(hp * 10.0))
+		refs["hp"].text = "♥ %s/%s" % [U.num(hp), U.num(maxhp)]
+		var col: Color = U.GOOD if hp > maxhp * 0.5 else (U.GOLD if hp > maxhp * 0.2 else U.BAD)
+		refs["hp"].add_theme_color_override("font_color", col)
+		var bar_col: Color = U.BAD if hp <= maxhp * 0.25 else U.GOOD
+		refs["bar"].value = clampf(hp / maxhp, 0.0, 1.0)
+		refs["bar"].add_theme_stylebox_override("fill", U.box(bar_col, 6))
 
 	var bits: Array = []
 	bits.append("费用 %s/%s" % [U.num(p.mana), U.num(p.manaCap)])
 	bits.append("手牌 %d" % p.hand.size())
 	if p.get("superpowers", []).size() > 0:
 		bits.append("超能力 %d" % p.superpowers.size())
-	_lab(parent, " · ".join(bits), Rect2(x, 82, 206, 22), 13, U.DIM, align)
+	var bits_text := " · ".join(bits)
+	if refs["bits"].text != bits_text:
+		refs["bits"].text = bits_text
 
 
 func _phase_name(phase: String) -> String:
@@ -356,10 +419,13 @@ func _cell_rect(lane_i: int, half_i: int) -> Rect2:
 func _build_board(st: Dictionary) -> void:
 	var me_side: int = session.human_side
 	var my_places: Dictionary = {}
-	if _selected_iid >= 0 and _legal.has(_selected_iid):
+	var picking := _selected_iid >= 0 and _legal.has(_selected_iid)
+	if picking:
 		for pl in _legal[_selected_iid].get("places", []):
 			if pl != null:
-				my_places["%s:%s" % [pl.lane, pl.row]] = true
+				# 键里必须带「哪一方」：front/back 两方同名，只按 lane:row 存会把
+				# 对手半场同名的格子也点亮 —— 作者 2026-11-08「只高亮自己方的」。
+				my_places["%s:%d:%s" % [pl.lane, me_side, pl.row]] = true
 
 	# 只重建「内容变了」的格子：同一个单位留在同一个格子里时，节点原样保留，
 	# 它身上正在跑的补间（进场、受击、抖动）就不会被清空重来。
@@ -371,7 +437,7 @@ func _build_board(st: Dictionary) -> void:
 			var side: int = me_side if half.begins_with("my") else session.ai_side
 			var row := "front" if half.ends_with("front") else "back"
 			var u = st.board[lane].units[side][row]
-			var is_legal := my_places.has("%s:%s" % [lane, row])
+			var is_legal := my_places.has("%s:%d:%s" % [lane, side, row])
 			var key := "%s:%s" % [lane, half]
 			seen[key] = true
 			var sig := _cell_signature(u, is_legal)
@@ -388,6 +454,8 @@ func _build_board(st: Dictionary) -> void:
 			node.position = rect.position
 			node.size = rect.size
 			node.pivot_offset = rect.size * 0.5
+			# 选中手牌时，对方半场整片压暗 —— 不给人「这里也能放」的错觉
+			node.modulate = Color(1, 1, 1, 0.55) if picking and side != me_side else Color(1, 1, 1, 1)
 
 	for key in _cell_nodes.keys():
 		if not seen.has(key):
@@ -518,7 +586,11 @@ func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) 
 	_lab(cost_badge, U.num(cost), Rect2(0, 4, 34, 26), 19, Color("dce9ff"), HORIZONTAL_ALIGNMENT_CENTER)
 
 	var inner := cw - 20.0
-	_lab(card, str(def.get("name", card_id)), Rect2(46, 12, cw - 54.0, 26), 15, U.TEXT)
+	# 名字：15px 放不下就降到 14/13/12，再放不下就截断加省略号（原来直接硬裁）
+	var name_w := cw - 54.0
+	var nf := _fit_text(card, str(def.get("name", card_id)), name_w, [15, 14, 13, 12], 26.0, false)
+	_lab(card, str(nf[0]), Rect2(46, 12, name_w, 26), int(nf[1]), U.TEXT)
+
 	var kind := "单位"
 	var stat_line := ""
 	if str(def.get("type", "")) == "spell":
@@ -526,14 +598,32 @@ func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) 
 	else:
 		stat_line = "  ⚔%s ♥%s" % [U.num(def.get("atk", 0)), U.num(def.get("hp", 0))]
 	_lab(card, kind + stat_line, Rect2(10, 46, inner, 22), 12, U.DIM)
-	var text_h := ch - 46.0 - 34.0
-	_wrap(card, str(def.get("text", "")), Rect2(10, 70, inner, maxf(40.0, text_h)), 11, Color("c3cde0"))
+
+	# 词条先量出真实高度占好位置，效果文字只吃剩下的那一段 ——
+	# 原来效果框写到 70+133=203、词条又画在 181，两框重叠 22px，字就压到卡面外了。
 	var kws: Array = def.get("keywords", [])
+	var kw_text := ""
 	if kws.size() > 0:
 		var names: Array = []
 		for k in kws:
 			names.append(DATA.keyword_name(k))
-		_wrap(card, " · ".join(names), Rect2(10, ch - 32.0, inner, 26), 10, U.GOLD)
+		kw_text = " · ".join(names)
+	var kw_h := 0.0
+	if kw_text != "":
+		var kh := _text_h(card, kw_text, inner, 10)
+		if kh > 34.0:
+			var kf := _fit_text(card, kw_text, inner, [10], 34.0, true)
+			kw_text = str(kf[0])
+			kh = _text_h(card, kw_text, inner, 10)
+		kw_h = clampf(kh + 2.0, 14.0, 36.0)
+
+	var text_top := 70.0
+	var text_bottom := ch - 8.0 - (kw_h + 3.0 if kw_text != "" else 0.0)
+	var text_max := maxf(24.0, text_bottom - text_top)
+	var body := _fit_text(card, str(def.get("text", "")), inner, [11, 10], text_max, true)
+	_wrap(card, str(body[0]), Rect2(10, text_top, inner, text_max), int(body[1]), Color("c3cde0"))
+	if kw_text != "":
+		_wrap(card, kw_text, Rect2(10, ch - 8.0 - kw_h, inner, kw_h), 10, U.GOLD)
 	U.on_click(card, func(): _on_card_click(iid, card))
 	return card
 
@@ -649,6 +739,9 @@ func _on_card_click(iid: int, from: Control = null) -> void:
 
 func _on_cell_click(lane: String, half: String) -> void:
 	if _busy_anim:
+		return
+	# 手里选着要放的牌时，对方半场不接受落点（作者 2026-11-08：只能选自己方的）
+	if _selected_iid >= 0 and _legal.has(_selected_iid) and half.begins_with("foe"):
 		return
 	if _replay():
 		var uu = session.game.state.board[lane].units[int(session.human_side) if half.begins_with("my") else int(session.ai_side)]["front" if half.ends_with("front") else "back"]
@@ -1280,10 +1373,10 @@ func _fly_card(iid: int, card_id: String, from: Control, target: Rect2, on_land:
 	var land := target.position + (target.size - src.size) * 0.5
 	var tw := card.create_tween()
 	# 起手：抬起来、放大一点
-	tw.tween_property(card, "position", lift, _t(0.1)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(card, "scale", Vector2(1.08, 1.08), _t(0.1))
+	tw.tween_property(card, "position", lift, _t(0.07)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(card, "scale", Vector2(1.08, 1.08), _t(0.07))
 	# 飞行：抛物线，一路带一点旋转，越飞越正
-	tw.tween_method(_flight_step.bind(card, lift, land), 0.0, 1.0, _t(0.3)) \
+	tw.tween_method(_flight_step.bind(card, lift, land), 0.0, 1.0, _t(0.22)) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	# 落地：压扁 + 消散 + 地面波纹，然后才把牌交给引擎
 	tw.tween_callback(_flight_land.bind(card, target, on_land))
