@@ -90,3 +90,65 @@ static func chips_text(kws: Array, marks: Array = []) -> String:
 	for m in marks:
 		parts.append(str(m))
 	return " · ".join(parts)
+
+
+# ── 柔光：径向渐变贴图（光球、选项背后的光都用它）────────────────────────────
+
+static var _radial_cache: Dictionary = {}
+
+
+## stops = [[0.0, Color(...)], [0.4, Color(...)], [1.0, Color(...)]]，必须首 0 尾 1。
+## 同一组参数只建一次贴图（14 个阵营选项共用一张）。
+static func radial(stops: Array, px: int = 256) -> GradientTexture2D:
+	var key := str(px)
+	for s in stops:
+		key += "|%s:%s" % [str(s[0]), (s[1] as Color).to_html()]
+	if _radial_cache.has(key):
+		return _radial_cache[key]
+	var g := Gradient.new()
+	var n := stops.size()
+	g.set_offset(0, float(stops[0][0]))
+	g.set_color(0, stops[0][1])
+	g.set_offset(1, float(stops[n - 1][0]))
+	g.set_color(1, stops[n - 1][1])
+	for i in range(1, n - 1):
+		g.add_point(float(stops[i][0]), stops[i][1])
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(0.5, 0.0)
+	t.width = px
+	t.height = px
+	_radial_cache[key] = t
+	return t
+
+
+## 一团白色柔光（想要颜色就调 modulate）
+static func glow_tex() -> GradientTexture2D:
+	return radial([[0.0, Color(1, 1, 1, 0.90)], [0.30, Color(1, 1, 1, 0.42)],
+		[0.62, Color(1, 1, 1, 0.10)], [1.0, Color(1, 1, 1, 0.0)]])
+
+
+## 加色混合：光叠光才亮得起来
+static func additive(ctrl: CanvasItem) -> CanvasItem:
+	var m := CanvasItemMaterial.new()
+	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	ctrl.material = m
+	return ctrl
+
+
+## 一张占满给定尺寸的柔光贴图（居中，可超出父控件，标记为装饰件以便自检跳过）
+static func glow_rect(size_v: Vector2, col: Color, alpha: float = 1.0) -> TextureRect:
+	var t := TextureRect.new()
+	t.texture = glow_tex()
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_SCALE
+	t.size = size_v
+	t.position = Vector2.ZERO
+	t.pivot_offset = size_v * 0.5
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.modulate = Color(col.r, col.g, col.b, alpha)
+	t.set_meta("decor", true)
+	additive(t)
+	return t

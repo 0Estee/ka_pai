@@ -11,7 +11,7 @@ var checks := 0
 
 func _initialize() -> void:
 	await process_frame
-	_check_home()
+	await _check_home()
 	await _check_battle()
 	print("QA checks=%d problems=%d" % [checks, problems.size()])
 	for p in problems:
@@ -31,8 +31,10 @@ func _walk(node: Node, design: Vector2, region: String) -> void:
 		if c is Control:
 			var ctl: Control = c
 			var r := Rect2(ctl.position, ctl.size)
+			# 光晕/星云/暗角/碎光这类装饰节点故意画到画面外，不算越界
+			var decor := ctl.has_meta("decor")
 			# 越界（允许 1px 误差）；ScrollContainer 里的东西由滚动负责，跳过
-			if not (ctl.get_parent() is ScrollContainer) and not (ctl.get_parent().get_parent() is ScrollContainer):
+			if not decor and not (ctl.get_parent() is ScrollContainer) and not (ctl.get_parent().get_parent() is ScrollContainer):
 				if r.position.x < -1 or r.position.y < -1 or r.end.x > design.x + 1 or r.end.y > design.y + 1:
 					problems.append("%s: %s 越界 rect=%s (设计稿 %s)" % [region, ctl.name, r, design])
 			if ctl is Label:
@@ -54,11 +56,26 @@ func _walk(node: Node, design: Vector2, region: String) -> void:
 
 func _check_home() -> void:
 	var home := KPHome.new()
+	home.anim = 0.0          # 自检要看静态画面：选项直接落在环上
 	root.add_child(home)
 	home.size = home.DESIGN
 	home._fit()
-	_walk(home._frame, home.DESIGN, "首页")
-	print("HOME frame children=%d" % home._frame.get_child_count())
+	_walk(home._frame, home.DESIGN, "首页:一级")
+	print("HOME frame children=%d level=%s items=%d" % [
+		home._frame.get_child_count(), home._level, home._items.size()])
+	for lv in ["faction", "difficulty", "seed"]:
+		home._enter_level(lv)
+		for i in 4:
+			await process_frame
+		_walk(home._items_root, home.DESIGN, "首页:" + lv)
+		var max_r := 0.0
+		for it in home._items:
+			if is_instance_valid(it):
+				max_r = maxf(max_r, (it.position + it.size * 0.5 - home.ORB_CENTER).length())
+		print("HOME level=%s items=%d 最远半径=%.1f" % [lv, home._items.size(), max_r])
+	home._enter_level("root")
+	for i in 4:
+		await process_frame
 	root.remove_child(home)
 	home.queue_free()
 
