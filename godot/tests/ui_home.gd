@@ -24,9 +24,24 @@ func _initialize() -> void:
 	await _wait_ready(300)
 	print("  开场 %d 帧后稳定；选项 %d 个；光球中心 %s" %
 		[Engine.get_process_frames() - f0, home._items.size(), str(home.ORB_CENTER)])
-	_expect(home._items.size() == 6, "一级应有 6 项（阵营/难度/设置/开始/回放/联机），实得 %d" % home._items.size())
+	_expect(home._items.size() == 5, "一级应有 5 项（开始/设置/难度/阵营/更多），实得 %d" % home._items.size())
 	_expect(_find("level", "seed") == null, "一级里不该再有「种子」（作者 2026-11-08：前面不要有种子）")
 	_report_ring("一级", 250.0)
+
+	# 「更多」二级：回放/联机/强化/登录/靶场/观战（作者 m01990 第 16 条：一级只放常用的，别的收起来）
+	var more = _find("level", "more")
+	_expect(more != null, "一级应有「更多」入口")
+	if more != null:
+		await _click(more)
+		await _wait_ready(400)
+		_expect(home._level == "more", "点「更多」后应在 more 层，实得 %s" % home._level)
+		_expect(home._items.size() == 6, "更多层应有 6 项，实得 %d" % home._items.size())
+		for w in ["replay", "online", "forge", "login", "range", "spectate"]:
+			_expect(_find("page", w) != null, "更多层里找不到「%s」" % w)
+		_report_ring("更多层", 244.0)
+		home._back()
+		await _wait_ready(400)
+		_expect(home._level == "root", "从更多层点空白应回一级，实得 %s" % home._level)
 
 	# 进「阵营」层
 	var it = _find("level", "faction")
@@ -191,8 +206,10 @@ func _initialize() -> void:
 	hb.queue_free()
 	await process_frame
 
-	# 三个二级页面入口：点后面板换页，首页只负责发 open_page
-	for pair in [["settings", "设 置"], ["online", "联 机"], ["replay", "回 放"]]:
+	# 二级页面入口：一级的「设置」+「更多」里的回放/联机/强化/登录/靶场/观战
+	for pair in [["settings", "设 置", "root"], ["online", "联 机", "more"], ["replay", "回 放", "more"],
+			["forge", "强 化", "more"], ["login", "登 录", "more"], ["range", "靶 场", "more"],
+			["spectate", "观 战", "more"]]:
 		var h = KPHome.new()
 		h.anim = 0.0
 		var got: Array = []
@@ -201,11 +218,21 @@ func _initialize() -> void:
 		h.size = h.DESIGN
 		h._fit()
 		await process_frame
+		if str(pair[2]) == "more":
+			await _wait_ready_of(h, 300)
+			var ml = null
+			for x in h._items:
+				if str(x.action) == "level" and str(x.payload) == "more":
+					ml = x
+			if ml != null:
+				h._busy = false
+				await _click(ml)
+				await _wait_ready_of(h, 400)
 		var ent = null
 		for x in h._items:
 			if str(x.action) == "page" and str(x.payload) == pair[0]:
 				ent = x
-		_expect(ent != null, "一级应有「%s」入口" % pair[1])
+		_expect(ent != null, "%s 里应有「%s」入口" % [pair[2], pair[1]])
 		if ent != null:
 			_expect(str(ent.title) == pair[1], "「%s」标题应为 %s，实得 %s" % [pair[1], pair[1], str(ent.title)])
 			await _click(ent)
@@ -213,7 +240,7 @@ func _initialize() -> void:
 				"点「%s」应发 1 次 open_page(%s)，实得 %s" % [pair[1], pair[0], str(got)])
 		h.queue_free()
 		await process_frame
-	print("  三个二级页面入口 OK")
+	print("  二级页面入口 OK（一级 1 个 + 更多 6 个）")
 
 	if problems.is_empty():
 		print("首页动画自检：problems=0")

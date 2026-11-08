@@ -201,6 +201,8 @@ func _radius(level: String) -> float:
 			return 236.0
 		"seed":
 			return 226.0
+		"more":
+			return 244.0
 	return 250.0
 
 
@@ -240,21 +242,35 @@ func _spec(level: String) -> Array:
 			{"action": "pick_seed", "payload": "3001", "title": "3001", "subtitle": "固定种子",
 				"tint": U.GOOD, "w": 168.0, "h": 70.0},
 		]
-	# 六个环位：上阵营 / 右上难度 / 右设置 / 下开始 / 左下回放 / 左上联机
-	# 作者 2026-11-08：「前面不要有种子」—— 种子挪进设置页，首页不再露出来。
+	# 一级只放五件最常用的事，别的收进「更多」——作者 m01990 第 16 条：
+	# 「菜单要和以前首页一样多的选择，不要把所有的都堆在前面」
+	if level == "more":
+		return [
+			{"action": "page", "payload": "replay", "title": "回 放", "subtitle": "重看旧局",
+				"tint": U.MANA, "angle": -90.0, "w": 168.0, "h": 72.0},
+			{"action": "page", "payload": "online", "title": "联 机", "subtitle": "局域网 · 热座",
+				"tint": U.GOOD, "angle": -30.0, "w": 168.0, "h": 72.0},
+			{"action": "page", "payload": "forge", "title": "强 化", "subtitle": "卡组工坊",
+				"tint": U.FACTION, "angle": 30.0, "w": 168.0, "h": 72.0},
+			{"action": "page", "payload": "login", "title": "登 录", "subtitle": "账号 · 云存档",
+				"tint": U.MANA, "angle": 90.0, "w": 168.0, "h": 72.0},
+			{"action": "page", "payload": "range", "title": "靶 场", "subtitle": "试牌 · 沙盒",
+				"tint": U.GOOD, "angle": 150.0, "w": 168.0, "h": 72.0},
+			{"action": "page", "payload": "spectate", "title": "观 战", "subtitle": "看别人打",
+				"tint": U.LINE, "angle": 210.0, "w": 168.0, "h": 72.0},
+		]
+	# 五个环位，绕光球均匀分布（72° 一格）：下开始 / 右设置 / 左上难度 / 上阵营 / 左更多
 	return [
-		{"action": "level", "payload": "faction", "title": "阵 营", "subtitle": DATA.faction_name(_faction_key),
-			"tint": U.FACTION, "angle": -90.0, "w": 168.0, "h": 72.0},
-		{"action": "level", "payload": "difficulty", "title": "难 度", "subtitle": _diff_name(),
-			"tint": U.MANA, "angle": -30.0, "w": 168.0, "h": 72.0},
-		{"action": "page", "payload": "settings", "title": "设 置", "subtitle": "特效 · 速度 · 牌库",
-			"tint": U.LINE, "angle": 30.0, "w": 168.0, "h": 72.0},
 		{"action": "start", "payload": "", "title": "开 始 对 局", "subtitle": "",
 			"tint": U.GOLD, "emphasized": true, "angle": 90.0, "w": 196.0, "h": 84.0},
-		{"action": "page", "payload": "replay", "title": "回 放", "subtitle": "重看旧局",
-			"tint": U.MANA, "angle": 150.0, "w": 168.0, "h": 72.0},
-		{"action": "page", "payload": "online", "title": "联 机", "subtitle": "局域网 · 热座",
-			"tint": U.GOOD, "angle": 210.0, "w": 168.0, "h": 72.0},
+		{"action": "page", "payload": "settings", "title": "设 置", "subtitle": "特效 · 速度 · 牌库",
+			"tint": U.LINE, "angle": 18.0, "w": 168.0, "h": 72.0},
+		{"action": "level", "payload": "difficulty", "title": "难 度", "subtitle": _diff_name(),
+			"tint": U.MANA, "angle": -54.0, "w": 168.0, "h": 72.0},
+		{"action": "level", "payload": "faction", "title": "阵 营", "subtitle": DATA.faction_name(_faction_key),
+			"tint": U.FACTION, "angle": -126.0, "w": 168.0, "h": 72.0},
+		{"action": "level", "payload": "more", "title": "更 多", "subtitle": "回放 · 联机 · 强化 · 登录",
+			"tint": U.LINE, "angle": 162.0, "w": 168.0, "h": 72.0},
 	]
 
 
@@ -541,6 +557,8 @@ func _update_crumb() -> void:
 			_crumb.text = "难度 · 五档 AI"
 		"seed":
 			_crumb.text = "种子 · 同一个种子开局一样"
+		"more":
+			_crumb.text = "更多 · 回放 / 联机 / 强化 / 登录 / 靶场 / 观战"
 		_:
 			_crumb.text = "选一项，它会钻进光球"
 	_back_btn.visible = _level != "root"

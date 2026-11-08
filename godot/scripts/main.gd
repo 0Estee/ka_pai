@@ -14,6 +14,7 @@ const KPReplayData := preload("res://scripts/ui/kp_replay.gd")
 const KPPageSettings := preload("res://scripts/ui/kp_settings_page.gd")
 const KPPageReplay := preload("res://scripts/ui/kp_replay_page.gd")
 const KPPageOnline := preload("res://scripts/ui/kp_online_page.gd")
+const KPPageTodo := preload("res://scripts/ui/kp_todo_page.gd")
 
 var _screen: Control = null
 var _fade: ColorRect = null
@@ -74,6 +75,8 @@ func show_page(page_name: String) -> void:
 			page = rp
 		"online":
 			page = KPPageOnline.new()
+		"forge", "login", "range", "spectate":
+			page = _todo_page(page_name)
 		_:
 			show_home()
 			return
@@ -82,6 +85,55 @@ func show_page(page_name: String) -> void:
 	add_child(page)
 	_screen = page
 	_veil(Color(0.045, 0.055, 0.08, 0.92), 0.42)
+
+
+## 还没做的四个入口：先把「要做什么」摆出来，功能排在后面的批次里
+func _todo_page(which: String) -> Control:
+	var tp := KPPageTodo.new()
+	match which:
+		"forge":
+			tp.head_text = "强 化"
+			tp.crumb_line = "卡组工坊 · 金币把牌练上去"
+			tp.lines = [
+				{"text": "把牌库里的一张牌升到 +1 / +2：费用不变，攻血加一档。", "h": 26},
+				{"text": "网页端已经有一版工坊（浏览器 localStorage 存进度），", "h": 24},
+				{"text": "手机端要把同一套强化规则搬成 GDScript，并存进手机本地档。", "h": 24},
+				{"text": "缺口：强化公式与价格表尚未移植；存档层还没有。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+			]
+			tp.when_text = "排期：账号与存档做完之后（见「登录」）"
+			tp.note_text = "作者 m01990 第 18 条"
+		"login":
+			tp.head_text = "登 录"
+			tp.crumb_line = "账号 · 云存档"
+			tp.lines = [
+				{"text": "手机号 + 验证码登录，把金币、卡组、强化进度存到云端。", "h": 26},
+				{"text": "旧版 app/js/cloud.js 里有现成的账号与云存档逻辑。", "h": 24},
+				{"text": "缺口：新的服务端要重写；本机还没有登录界面与令牌存储。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+			]
+			tp.when_text = "排期：批次 F"
+			tp.note_text = "作者 m01990 第 17 条"
+		"range":
+			tp.head_text = "靶 场"
+			tp.crumb_line = "随便摆牌试效果"
+			tp.lines = [
+				{"text": "自己摆双方场面，无限法力，随时检查一张牌到底怎么结算。", "h": 26},
+				{"text": "引擎已经有 sandbox 模式（play_card 的 sandbox 分支），缺的只是界面。", "h": 24},
+				{"text": "缺口：摆牌界面、单位拖放、数值手改。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+			]
+			tp.when_text = "排期：功能批次之后"
+		_:
+			tp.head_text = "观 战"
+			tp.crumb_line = "看别人打"
+			tp.lines = [
+				{"text": "接进正在进行的对局，只看不打。", "h": 26},
+				{"text": "引擎是确定性的：拿到「种子 + 动作序列」就能还原整局，", "h": 24},
+				{"text": "所以观战本质是跟着别人的动作流重放。", "h": 24},
+				{"text": "缺口：联机同步层还没实装。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+			]
+			tp.when_text = "排期：联机之后"
+	tp.title_text = tp.head_text
+	tp.close_requested.connect(show_home)
+	return tp
 
 
 func _on_start(cfg: Dictionary) -> void:

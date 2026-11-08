@@ -12,6 +12,7 @@ const KPSession := preload("res://scripts/ui/kp_session.gd")
 const PAGE_SET := preload("res://scripts/ui/kp_settings_page.gd")
 const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
 const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
+const PAGE_TODO := preload("res://scripts/ui/kp_todo_page.gd")
 const REPLAY := preload("res://scripts/ui/kp_replay.gd")
 
 var out_dir := "user://"
@@ -113,6 +114,16 @@ func _shot_home() -> void:
 			for i in 26:
 				await process_frame
 			await _shot("refactor-godot-home-emerge")
+
+	# 「更多」二级环（回放 / 联机 / 强化 / 登录 / 靶场 / 观战）
+	var more = _home_find(home, "level", "more")
+	if more != null:
+		_click(more)
+		for i in 500:
+			await process_frame
+			if home._level == "more" and home._ready_level and not home._busy:
+				break
+		await _shot("refactor-godot-home-more")
 
 	vp.remove_child(home)
 	home.queue_free()
@@ -367,6 +378,17 @@ func _shot_pages() -> void:
 	var p2 := REPLAY.save(fake2)
 
 	await _page_shot(PAGE_SET.new(), "refactor-godot-page-settings")
+	var tp := PAGE_TODO.new()
+	tp.head_text = "强 化"
+	tp.crumb_line = "卡组工坊 · 金币把牌练上去"
+	tp.lines = [
+		{"text": "把牌库里的一张牌升到 +1 / +2：费用不变，攻血加一档。", "h": 26},
+		{"text": "网页端已经有一版工坊，手机端要把同一套规则搬成 GDScript。", "h": 24},
+		{"text": "缺口：强化公式与价格表尚未移植；存档层还没有。", "h": 24, "col": Color(0.94, 0.42, 0.42)},
+	]
+	tp.when_text = "排期：账号与存档做完之后"
+	tp.note_text = "作者 m01990 第 18 条"
+	await _page_shot(tp, "refactor-godot-page-todo")
 	# 点一下「光球特效：省电」，让药丸有选中态
 	var online = PAGE_ONLINE.new()
 	await _page_shot(online, "refactor-godot-page-online")
