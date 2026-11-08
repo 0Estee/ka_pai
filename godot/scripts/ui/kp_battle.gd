@@ -61,6 +61,8 @@ var _detail_uid := -1              # 详情浮层的场上单位 uid
 var _result_shown := false
 ## 结算信息（金币 / 星尘 / 表现分）：外壳算好塞进来，结果面板显示
 var reward_info: Dictionary = {}
+## 联机对局：没有 AI、不结算金币、提问可能轮到对手答（第 18 条）
+var online := false
 
 # ── 动画状态 ────────────────────────────────────────────────────────────────
 # anim 是全局速度倍率：1.0 正常，0.0 代表整套动画关掉（自检脚本用，点一下就生效）
@@ -1214,9 +1216,30 @@ func _dim_full() -> ColorRect:
 	return dim
 
 
+func _prompt_text(req: Dictionary) -> String:
+	var p := str(req.get("prompt", ""))
+	if p == "":
+		p = _default_prompt(str(req.get("type", "")))
+	return p
+
+
 func _build_choice(req: Dictionary) -> void:
 	_dim_full()
 	var opts: Array = req.get("options", [])
+	# 联机：提问带着 side，只有那一侧能答，另一侧只看着（协议 §4.2）
+	var wait_peer := online and session != null and session.net != null \
+		and int(req.get("side", session.human_side)) != int(session.human_side)
+	if wait_peer:
+		var wh := 200.0
+		var wp := Panel.new()
+		wp.size = Vector2(640, wh)
+		wp.position = Vector2(40, _vh - wh - 30)
+		wp.add_theme_stylebox_override("panel", U.box(Color("161c27"), 18, U.LINE, 2))
+		_overlay.add_child(wp)
+		_lab(wp, "等 待 对 手 选 择", Rect2(20, 40, 600, 40), 24, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		_lab(wp, "对手正在为「%s」做决定" % _prompt_text(req), Rect2(20, 96, 600, 26), 14, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		_lab(wp, "这一步要等他答完，双方才会继续", Rect2(20, 128, 600, 24), 12, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	var shown := maxi(1, mini(opts.size(), 10))
 	var h := clampf(78.0 + float(shown) * 66.0 + 16.0, 210.0, 760.0)
 	var panel := Panel.new()
@@ -1409,7 +1432,7 @@ func show_reward(info: Dictionary) -> void:
 func _build_result(st: Dictionary) -> void:
 	_dim_full()
 	var won: bool = int(st.get("winner", -1)) == session.human_side
-	var has_reward := not reward_info.is_empty()
+	var has_reward := not reward_info.is_empty() and not online
 	var ph := 520.0 if has_reward else 460.0
 	var panel := Panel.new()
 	panel.size = Vector2(620, ph)
@@ -1446,7 +1469,10 @@ func _build_result(st: Dictionary) -> void:
 		if bool(reward_info.get("leveledUp", false)):
 			_lab(panel, "升 级 了 ！", Rect2(30, ry + 22.0, 560, 20), 13, U.GOOD, HORIZONTAL_ALIGNMENT_CENTER)
 
-	var again := _big_button("再来一局", Rect2(60, ph - 120.0, 240, 76), true, func(): restart_requested.emit())
+	var again_text := "再来一局"
+	if online:
+		again_text = "再 来 一 局" if session.net != null and session.net.is_host else "请 房 主 重 开"
+	var again := _big_button(again_text, Rect2(60, ph - 120.0, 240, 76), true, func(): restart_requested.emit())
 	panel.add_child(again)
 	var home := _big_button("返回首页", Rect2(320, ph - 120.0, 240, 76), true, func(): back_to_home.emit())
 	panel.add_child(home)
@@ -1519,6 +1545,17 @@ func _banner_fx(text: String) -> void:
 	tw.tween_property(l, "position:y", l.position.y - 26.0, _t(1.0)).set_delay(_t(0.35))
 	tw.tween_property(l, "modulate:a", 0.0, _t(0.45)).set_delay(_t(0.85))
 	tw.chain().tween_callback(func(): l.queue_free())
+
+
+## 联机异常提示（对手离开 / 两端跑飞）：外壳从 KPNet 的信号里转进来
+func net_notice(text: String, severe: bool = false) -> void:
+	_toast(text)
+	if severe and _overlay != null:
+		var l := U.label("联机已中止", 22, U.BAD, HORIZONTAL_ALIGNMENT_CENTER)
+		l.position = Vector2(0, 40)
+		l.size = Vector2(DESIGN.x, 30)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_overlay.add_child(l)
 
 
 func _toast(text: String) -> void:

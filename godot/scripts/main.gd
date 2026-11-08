@@ -21,11 +21,14 @@ const KPProfile := preload("res://scripts/ui/kp_profile.gd")
 const KPData := preload("res://scripts/ui/kp_data.gd")
 const KPLoginPage := preload("res://scripts/ui/kp_login_page.gd")
 const KPCloud := preload("res://scripts/ui/kp_cloud.gd")
+const KPNetScript := preload("res://scripts/ui/kp_net.gd")
 
 var _screen: Control = null
 var _fade: ColorRect = null
 var _last_cfg: Dictionary = {}
 var _cloud: KPCloud = null
+## 联机（第 18 条）：一局一个 KPNet，锁步驱动在 scripts/ui/kp_net.gd 里
+var _net = null
 
 
 func _ready() -> void:
@@ -206,6 +209,68 @@ func _settle_profile(sess) -> void:
 		_screen.show_reward(info)
 	if _cloud != null and _cloud.logged_in():
 		_cloud.auto_push(res.profile)   # 不 await：同步失败不影响对局结果
+
+
+# ── 联机 ────────────────────────────────────────────────────────────────────
+
+func _make_net():
+	_drop_net()
+	var n = KPNetScript.new()
+	n.name = "Net"
+	add_child(n)
+	_net = n
+	n.sig_restart.connect(func():
+		if is_instance_valid(n):
+			n.restart())
+	return n
+
+
+## 收掉旧连接：先喊一声 bye 再让它自己退场（立刻 free 会把告别请求掐断）
+func _drop_net() -> void:
+	if _net == null:
+		return
+	var old = _net
+	_net = null
+	if old.running:
+		old.close("home")
+	var tm := get_tree().create_timer(2.0)
+	tm.timeout.connect(func():
+		if is_instance_valid(old):
+			old.queue_free())
+
+
+## 对手（或自己）点了开局：把 KPNet 建好的 session 交给对局屏
+func _on_net_started() -> void:
+	if _net == null or _net.session == null:
+		return
+	_clear_screen()
+	var battle := KPBattle.new()
+	battle.session = _net.session
+	battle.online = true
+	battle.anim = KPSettings.anim_scale()
+	battle.back_to_home.connect(_leave_online)
+	battle.restart_requested.connect(_on_online_restart)
+	add_child(battle)
+	_screen = battle
+	if _fade != null:
+		move_child(_fade, get_child_count() - 1)
+	_net.sig_left.connect(func(): battle.net_notice("对手离开了房间"))
+	_net.sig_conflict.connect(func(text: String): battle.net_notice("与对手进度不一致：%s" % text, true))
+	_veil(Color(0.045, 0.055, 0.08, 0.9), 0.4)
+
+
+func _leave_online() -> void:
+	_drop_net()
+	show_home()
+
+
+func _on_online_restart() -> void:
+	if _net == null:
+		return
+	if _net.is_host:
+		_net.restart()        # 房主直接重开，对端收到 start 就跟着重建
+	else:
+		_net.ask_restart()    # 客人只能请求，等房主决定
 
 
 func _on_restart() -> void:

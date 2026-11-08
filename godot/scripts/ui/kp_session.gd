@@ -31,6 +31,9 @@ var _advancing := 0
 
 var game = null
 var ai = null
+## 联机（作者 m01990 第 18 条）：非空时这一局由网络锁步驱动 —— 没有 AI，
+## 双方都是真人，操作先本地落地再广播（docs/联机协议.md）。
+var net = null
 var human_side := 0
 var ai_side := 1
 var difficulty := "normal"
@@ -70,6 +73,37 @@ func start(cfg: Dictionary = {}) -> void:
 	factions.resize(2)
 	factions[human_side] = null if human_faction == "" else human_faction
 	factions[ai_side] = null if ai_faction == "" else ai_faction
+
+	if net != null:
+		# ── 联机：双方拿同一份开局参数各建一局，只交换操作（协议 §0）
+		human_side = int(net.my_side)
+		ai_side = 1 - human_side
+		game_seed = int(cfg.get("seed", 0))
+		human_faction = str(cfg.get("hostFaction" if int(net.my_side) == 0 else "guestFaction", ""))
+		ai_faction = str(cfg.get("guestFaction" if int(net.my_side) == 0 else "hostFaction", ""))
+		var net_factions: Array = cfg.get("factions", [])
+		game = KPGame.create({
+			"seed": game_seed,
+			"firstPlayer": int(cfg.get("firstPlayer", game_seed % 2)),
+			"deck": cfg.get("deck", []),
+			"cardLib": DATA.lib(),
+			"shuffleDeck": true,
+			"factions": net_factions,
+			"enhance": cfg.get("enhance", []),
+		})
+		game.choice_needed.connect(Callable(self, "_on_choice_needed"))
+		game.combat_lane_hook = Callable(self, "_on_combat_lane")
+		# 联机两边都是真人：所有提问都挂起等人；一个 AI 都不设（协议 §4.2）
+		game.state["autoResolveChoices"] = false
+		game.state["humanSide"] = human_side
+		game.state["aiSides"] = []
+		changed.emit()
+		_mark()
+		await game.start_game()
+		_harvest()
+		changed.emit()
+		_net_finish_check()
+		return
 
 	game = KPGame.create({
 		"seed": game_seed,
@@ -171,11 +205,16 @@ func play_card(iid: int, opts: Dictionary = {}) -> bool:
 	# 先记账再执行：这一手可能会在半路挂起提问，若等执行完再记，
 	# 录下来的顺序会变成「提问 … 出牌」，重放时就对不上了。
 	var slot := _rec_begin({"t": "play", "iid": iid, "opts": opts})
-	var ok: bool = await game.play_card(human_side, iid, opts)
+	var ok: bool
+	if net != null:
+		ok = await net.submit({"k": "p", "s": human_side, "i": iid, "o": opts})
+	else:
+		ok = await game.play_card(human_side, iid, opts)
 	_harvest()
 	changed.emit()
 	if ok:
-		await _drive_ai()
+		if net == null:
+			await _drive_ai()
 	else:
 		_rec_abort(slot)
 	busy = false
@@ -190,7 +229,14 @@ func play_card(iid: int, opts: Dictionary = {}) -> bool:
 func end_phase() -> void:
 	if busy or is_over() or game.has_pending():
 		return
+	if net != null and not is_my_turn():
+		return
 	busy = true
+	if net != null:
+		await net.submit({"k": "a"})
+		busy = false
+		_net_finish_check()
+		return
 	_mark()
 	var slot := _rec_begin({"t": "end"})
 	await _advance()
@@ -210,6 +256,10 @@ func answer_choice(answer: Dictionary) -> void:
 		return
 	_mark()
 	_rec({"t": "choice", "answer": answer})
+	if net != null:
+		# 答案也要走锁步：对手收到同一条 {k:'c'} 才能在同一个挂起点上继续
+		net.submit_nowait({"k": "c", "v": answer})
+		return
 	game.resolve_choice(answer)
 	_harvest()
 	changed.emit()
@@ -219,6 +269,9 @@ func surrender() -> void:
 	if game == null or is_over():
 		return
 	_rec({"t": "surrender"})
+	if net != null:
+		net.submit_nowait({"k": "s", "s": human_side})
+		return
 	game.surrender(human_side)
 	changed.emit()
 	finished.emit()
@@ -229,12 +282,99 @@ func brew(iids: Array) -> Dictionary:
 		return {"error": "正在结算"}
 	busy = true
 	_mark()
-	var r: Dictionary = await game.brew(human_side, iids)
-	_harvest()
-	await _drive_ai()
+	var r: Dictionary
+	if net != null:
+		await net.submit({"k": "b", "s": human_side, "i": iids})
+		r = {"ok": true}
+	else:
+		r = await game.brew(human_side, iids)
+		_harvest()
+		await _drive_ai()
 	busy = false
 	changed.emit()
 	return r
+
+
+# ── 联机：锁步执行（协议 §4 / §8） ─────────────────────────────────────────
+#
+# 本地操作与对手操作都走 net_apply()，两边各执行一次，状态自然一致。
+# 引擎是协程：出牌/推进可能半路挂在提问上，所以这里**不能直接 await 引擎调用**——
+# 一 await，后面对手答过来的 {k:'c'} 就进不来，整局死锁。
+# 做法是「点火 + 等落地」：先起一个协程，然后按帧等它跑完或停在提问上。
+
+var _inflight := 0
+var _play_ok := true
+var _finished_emitted := false
+
+
+## 执行一条操作（本地与对手的都走这里）。返回是否执行成功。
+func net_apply(a: Dictionary) -> bool:
+	if game == null:
+		return false
+	if is_over():
+		return false
+	_mark()
+	var k := str(a.get("k", ""))
+	match k:
+		"a":
+			_fire_advance()
+		"p":
+			_play_ok = true
+			_fire_play(int(a.get("s", human_side)), int(a.get("i", -1)), a.get("o", {}))
+		"c":
+			if game.has_pending():
+				game.resolve_choice(a.get("v", {}))
+			else:
+				push_warning("收到选择答案，但本地没有待处理的提问")
+		"s":
+			game.surrender(int(a.get("s", human_side)))
+		"b":
+			_fire_brew(int(a.get("s", human_side)), a.get("i", []))
+		_:
+			return false
+	await _settle_net()
+	_harvest()
+	changed.emit()
+	_net_finish_check()
+	if k == "p":
+		return _play_ok
+	return true
+
+
+func _fire_advance() -> void:
+	_inflight += 1
+	await _advance()
+	_inflight -= 1
+
+
+func _fire_play(side: int, iid: int, opts: Dictionary) -> void:
+	_inflight += 1
+	_play_ok = await game.play_card(side, iid, opts)
+	_inflight -= 1
+
+
+func _fire_brew(side: int, iids: Array) -> void:
+	_inflight += 1
+	await game.brew(side, iids)
+	_inflight -= 1
+
+
+## 等引擎跑完这一拍：要么全部落地（_inflight 归零），要么停在提问上等人答。
+func _settle_net() -> void:
+	var loop := Engine.get_main_loop()
+	if not (loop is SceneTree):
+		return
+	await loop.process_frame
+	var guard := 0
+	while _inflight > 0 and not game.has_pending() and guard < 4000:
+		guard += 1
+		await loop.process_frame
+
+
+func _net_finish_check() -> void:
+	if game != null and game.is_over() and not _finished_emitted:
+		_finished_emitted = true
+		finished.emit()
 
 
 # ── 回放 ────────────────────────────────────────────────────────────────────
