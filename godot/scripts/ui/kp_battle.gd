@@ -722,7 +722,7 @@ func _on_card_click(iid: int, from: Control = null) -> void:
 		return
 	var entry = _legal.get(iid, null)
 	if entry == null:
-		_toast("现在打不出这张牌")
+		_toast("这张锦囊没有可选目标" if _no_target(iid) else "现在打不出这张牌")
 		_open_detail_card(_card_id_of(iid))
 		return
 	if _selected_iid == iid:
@@ -735,6 +735,17 @@ func _on_card_click(iid: int, from: Control = null) -> void:
 		return
 	_selected_iid = iid
 	_refresh()
+
+
+## 指向性锦囊但场上没有合法目标（作者 2026-11-08：这种牌根本不能打）
+func _no_target(iid: int) -> bool:
+	var g = session.game
+	if g == null:
+		return false
+	var def = g.state.cardLib.get(_card_id_of(iid), null)
+	if def == null:
+		return false
+	return not g.spell_target_ok(int(session.human_side), def)
 
 
 func _on_cell_click(lane: String, half: String) -> void:

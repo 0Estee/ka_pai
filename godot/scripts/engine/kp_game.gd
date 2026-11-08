@@ -4496,6 +4496,104 @@ func spell_locked(side: int) -> bool:
 
 
 ## 某方当前可以打出的所有牌及合法位置
+## ── 指向性锦囊：没有合法目标就不能打 ─────────────────────────────────────
+## 作者 2026-11-08：「指向性锦囊没有目标的时候应该不能使用」。
+## 以前锦囊一律 places=[null]，于是「滚石」在对面没有 ⚔≤2 单位时照样能点，
+## 点完卡在一个没有选项的提问上 —— 现在是既不进 legal_plays，play_card 也拒绝。
+const TARGET_SELECTOR_KINDS := ["chosenEnemyUnit", "chosenOwnUnit", "chosenAnyUnit",
+	"chosenEnemyTarget", "chosenEnemyFront"]
+
+
+## 递归求出「打完这张牌要满足哪些选择器」，按抉择分支展开：
+## 返回 [ 方案… ]，每个方案是「必须全部有候选」的选择器数组。
+## 「抉择」的每个选项是并列方案 —— 只要有一条方案能满足，这张牌就能打。
+func target_requirements(node: Variant) -> Array:
+	if node is Array:
+		var acc: Array = [[]]
+		for v in node:
+			acc = _req_cross(acc, target_requirements(v))
+		return acc
+	if node is Dictionary:
+		var own: Array = []
+		var sel = node.get("target", null)
+		if sel is Dictionary and TARGET_SELECTOR_KINDS.has(str(sel.get("kind", ""))):
+			own.append(sel)
+		var body: Array = []
+		var opts = node.get("options", null)
+		if opts is Array and not opts.is_empty():
+			for o in opts:
+				body.append_array(target_requirements(o.get("actions", []) if o is Dictionary else []))
+		else:
+			body = [[]]
+			for key in node.keys():
+				if str(key) == "target":
+					continue
+				var v2 = node[key]
+				if v2 is Array or v2 is Dictionary:
+					body = _req_cross(body, target_requirements(v2))
+		var out: Array = []
+		for b in body:
+			out.append(own + b)
+		return out
+	return [[]]
+
+
+## 只问「场上有没有可选的」，不发起交互
+func selector_has_candidate(side: int, sel: Dictionary) -> bool:
+	var kind := str(sel.get("kind", ""))
+	if kind == "chosenEnemyTarget" and sel.get("allowKing", true) != false:
+		return true                      # 敌方国王永远可点
+	if kind == "chosenEnemyFront" and sel.get("lane", null) == null:
+		return true                      # 得先选线路才知道，交给下游
+	var fctx := filter_ctx(null)
+	var any_side: bool = kind == "chosenAnyUnit"
+	var want_side: int = side if kind == "chosenOwnUnit" else (1 - side)
+	for u in all_units():
+		if u.get("removed", false):
+			continue
+		if not any_side and int(u.side) != want_side:
+			continue
+		if kind == "chosenEnemyFront" and str(u.row) != "front":
+			continue
+		if sel.get("excludeUid", null) != null and int(u.uid) == int(sel.excludeUid):
+			continue
+		if not matches_target_filter(u, sel.get("filter", null), fctx):
+			continue
+		return true
+	return false
+
+
+func _req_cross(a: Array, b: Array) -> Array:
+	if a.is_empty() or b.is_empty():
+		return []
+	var out: Array = []
+	for x in a:
+		for y in b:
+			out.append((x as Array) + (y as Array))
+			if out.size() > 64:
+				return out
+	return out
+
+
+func spell_target_ok(side: int, def: Variant) -> bool:
+	if def == null or str(def.get("type", "")) != str(KPC.CARD_TYPE.SPELL):
+		return true
+	if is_trap_card(def):
+		return true
+	var plans := target_requirements(def.get("actions", []))
+	if plans.is_empty():
+		return true
+	for plan in plans:
+		var ok := true
+		for sel in plan:
+			if not selector_has_candidate(side, sel):
+				ok = false
+				break
+		if ok:
+			return true
+	return false
+
+
 func get_legal_plays(side: int) -> Array:
 	if is_over() or has_pending():
 		return []
@@ -4525,6 +4623,8 @@ func get_legal_plays(side: int) -> Array:
 		if def.get("type", "") == KPC.CARD_TYPE.UNIT:
 			places = legal_placements(side, def)
 		else:
+			if not spell_target_ok(side, def):
+				continue
 			places = [null]
 		if places.is_empty():
 			continue
@@ -4613,6 +4713,8 @@ func play_card(side: int, iid: int, opts: Dictionary = {}) -> bool:
 	var cost := 0.0 if sandbox else cost_of(hand_card)
 	if not sandbox and cost > float(p.mana):
 		return _fail("费用不足：需要 %s，剩余 %s" % [_num_s(cost), _num_s(p.mana)])
+	if not sandbox and not spell_target_ok(side, def):
+		return _fail("这张锦囊没有可选目标")
 
 	# 陷阱：埋伏进陷阱格（不算「打出卡牌」）
 	if is_trap_card(def):

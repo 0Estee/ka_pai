@@ -2683,9 +2683,13 @@ test('「恶堕の催眠」管不到花费>3 的敌人（maxCost 过滤器三层
   const s = game();
   const big = deploy(s, 1, 'W04', LANES[0], ROWS[0]);     // 6 费 5/6
   assert.equal(matchesTargetFilter(big, { maxCost: 3 }, filterCtx(s)), false, '引擎过滤器应当拒绝');
-  cast(s, 0, 'U478', { targetUid: big.uid });
+  // 2026-11-08 口径：一个合法目标都没有的指向性锦囊根本不能打（以前能打，但白放一张）
+  const hc = give(s, 0, 'U478');
+  assert.equal(G.getLegalPlays(s, 0).some((pl) => pl.cardId === 'U478'), false, '没有目标时不该出现在可出牌列表里');
+  assert.throws(() => G.playCard(s, 0, hc.iid, {}), /没有可选目标/, '直接调 API 也要拦住');
   assert.equal(big.side, 1, '花费超标的敌人不该被控制');
   assert.equal(at(s, LANES[0], 1, ROWS[0]).uid, big.uid, '它还该站在原来的格子上');
+  assert.ok(s.players[0].hand.some((c) => c.iid === hc.iid), '牌不该被消耗掉');
 });
 
 test('「绝对の服从」控制攻击力≤2的敌人，并把「最强の诱惑」放进手牌', () => {
@@ -3308,6 +3312,51 @@ test('默认排除词条对**所有**授予词条的卡生效（不只是大天�
   assert.equal(mate.keywords.length, kwBefore + 1, '挂上一个词条');
 });
 
+// ══════════════════════════════════════════════════════════
+// 指向性锦囊：没有合法目标就不能打（作者 2026-11-08）
+// ══════════════════════════════════════════════════════════
+group('§ 指向性锦囊：没有目标就不能打（作者 2026-11-08）');
+
+test('滚石 U02：对面没有 ⚔≤2 的单位时打不出去，有目标时照常', () => {
+  const s = game();
+  s.autoResolveChoices = false;
+  forcePhase(s, 0, 'spell');
+  const hc = give(s, 0, 'U02');
+  const legal = () => G.getLegalPlays(s, 0).some((pl) => pl.iid === hc.iid);
+  assert.equal(legal(), false, '空场时不该出现在可出牌列表里');
+  assert.throws(() => G.playCard(s, 0, hc.iid, {}), /没有可选目标/, '直接调 API 也要拦住');
+  deploy(s, 1, 'W04', LANES[0], ROWS[0]);                    // 5 攻，超出 maxAtk2
+  assert.equal(legal(), false, '只有大怪时仍然打不出去');
+  deploy(s, 1, 'U242', LANES[1], ROWS[0]);                   // 2 攻，符合
+  assert.equal(legal(), true, '有合法目标就该能打');
+  const small = at(s, LANES[1], 1, ROWS[0]);
+  const hpBefore = small.hp;
+  G.playCard(s, 0, hc.iid, {});
+  assert.ok(s.pending && s.pending.request.type === 'chooseUnit', '应当挂起选目标');
+  G.resolveChoice(s, { uid: small.uid });
+  const after = at(s, LANES[1], 1, ROWS[0]);
+  assert.equal(after ? after.hp : 0, Math.max(0, hpBefore - 3), '滚石打 3 点');
+});
+
+test('抉择里有一条不需要目标的方案时，这张锦囊仍然能打（U475 天火三玄变）', () => {
+  const s = game();
+  s.autoResolveChoices = false;
+  forcePhase(s, 0, 'spell');
+  const hc = give(s, 0, 'U475');
+  // 场上一个单位都没有：抉择①要选单位，②不需要目标 —— 整体应当可打
+  assert.equal(G.getLegalPlays(s, 0).some((pl) => pl.iid === hc.iid), true, '只要有一条方案能走，就能打');
+  G.playCard(s, 0, hc.iid, {});
+  const rq = s.pending && s.pending.request;
+  assert.ok(rq && rq.type === 'chooseOption', '应当挂起抉择');
+  const labels = (rq.options || []).map((o) => o.label);
+  const lockIdx = labels.findIndex((t) => t.indexOf('锦囊') >= 0);
+  assert.ok(lockIdx >= 0, '应当有「敌方下回合无法使用锦囊牌」这一项，实际：' + JSON.stringify(labels));
+  G.resolveChoice(s, { index: lockIdx });
+  let guard = 0;
+  while (s.pending && guard++ < 6) G.resolveChoice(s, { index: 0 });
+  assert.equal(s.pending, null, '选完不该再挂着');
+  assert.equal(s.players[0].hand.some((c) => c.iid === hc.iid), false, '牌应当打出去了');
+});
 console.log('\n' + BAR);
 if (failures.length === 0) {
   console.log(OK_ALL + ' 全部通过：' + passed + ' 个测试');

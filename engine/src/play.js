@@ -9,9 +9,9 @@
  */
 
 import { LANES, ROWS, LANE_NAME, PHASE_ALLOWED_CARD_TYPE, CARD_TYPE, roleName } from './constants.js';
-import { parseKeyword, hasKw, canPlaceInLane } from './keywords.js';
+import { parseKeyword, hasKw, canPlaceInLane, matchesTargetFilter } from './keywords.js';
 import * as M from './mechanics.js';
-import { hasRooted, hasKeyword, syncStatAuras } from './auras.js';
+import { hasRooted, hasKeyword, syncStatAuras, filterCtx } from './auras.js';
 import { execActions } from './effects.js';
 import { instantiateUnit, probeFromDef, enhanceFor } from './setup.js';
 import { isTrapCard, placeTrap, TRAP_MAX } from './board.js';
@@ -87,6 +87,90 @@ export function spellLocked(state, side) {
   const p = state.players && state.players[side];
   return !!(p && p.spellLockTurn === state.turn);
 }
+/**
+ * 指向性锦囊：场上得先有合法目标，否则不能打。
+ *
+ * 作者 2026-11-08：「指向性锦囊没有目标的时候应该不能使用」。
+ * 之前锦囊一律 places=[null]，于是「滚石」在对面没有 ⚔≤2 单位时照样能点，
+ * 点完卡在一个没有选项的提问上。这里只问「有没有」，不发起交互。
+ */
+export const TARGET_SELECTOR_KINDS = [
+  'chosenEnemyUnit', 'chosenOwnUnit', 'chosenAnyUnit', 'chosenEnemyTarget', 'chosenEnemyFront',
+];
+
+export function selectorHasCandidate(state, side, selector) {
+  const kind = selector.kind;
+  // 敌方国王永远可点；「前排某线」得先选了线路才知道，交给下游
+  if (kind === 'chosenEnemyTarget' && selector.allowKing !== false) return true;
+  if (kind === 'chosenEnemyFront' && selector.lane == null) return true;
+  const fctx = filterCtx(state, null);
+  const anySide = kind === 'chosenAnyUnit';
+  const wantSide = kind === 'chosenOwnUnit' ? side : 1 - side;
+  for (const u of M.allUnits(state)) {
+    if (u.removed) continue;
+    if (!anySide && u.side !== wantSide) continue;
+    if (kind === 'chosenEnemyFront' && u.row !== 'front') continue;
+    if (selector.excludeUid != null && u.uid === selector.excludeUid) continue;
+    if (!matchesTargetFilter(u, selector.filter, fctx)) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 递归求出「打完这张牌要满足哪些选择器」，按抉择分支展开：
+ * 返回 [ 方案… ]，每个方案是「必须全部有候选」的选择器数组。
+ * 「抉择」的每个选项是并列方案 —— 只要有一条方案能满足，这张牌就能打。
+ */
+export function targetRequirements(node) {
+  if (Array.isArray(node)) {
+    let acc = [[]];
+    for (const v of node) acc = reqCross(acc, targetRequirements(v));
+    return acc;
+  }
+  if (node && typeof node === 'object') {
+    const own = [];
+    const sel = node.target;
+    if (sel && typeof sel === 'object' && TARGET_SELECTOR_KINDS.includes(sel.kind)) own.push(sel);
+    let body;
+    if (Array.isArray(node.options) && node.options.length > 0) {
+      body = [];
+      for (const o of node.options) body.push(...targetRequirements(o && o.actions ? o.actions : []));
+    } else {
+      body = [[]];
+      for (const key of Object.keys(node)) {
+        if (key === 'target') continue;
+        const v = node[key];
+        if (v && typeof v === 'object') body = reqCross(body, targetRequirements(v));
+      }
+    }
+    const out = [];
+    for (const b of body) out.push(own.concat(b));
+    return out;
+  }
+  return [[]];
+}
+
+function reqCross(a, b) {
+  if (a.length === 0 || b.length === 0) return [];
+  const out = [];
+  for (const x of a) {
+    for (const y of b) {
+      out.push(x.concat(y));
+      if (out.length > 64) return out;
+    }
+  }
+  return out;
+}
+
+export function spellTargetOk(state, side, def) {
+  if (!def || def.type !== CARD_TYPE.SPELL) return true;
+  if (isTrapCard(def)) return true;
+  const plans = targetRequirements(def.actions || []);
+  if (plans.length === 0) return true;
+  return plans.some((plan) => plan.every((sel) => selectorHasCandidate(state, side, sel)));
+}
+
 export function getLegalPlays(state, side) {
   if (isOver(state) || state.pending) return [];
   if (getActor(state) !== side) return [];
@@ -109,6 +193,7 @@ export function getLegalPlays(state, side) {
     const cost = costOf(state, handCard);
     if (cost > p.mana) continue;
 
+    if (def.type !== CARD_TYPE.UNIT && !spellTargetOk(state, side, def)) continue;
     const places = def.type === CARD_TYPE.UNIT
       ? legalPlacements(state, side, def)
       : [null];
@@ -214,6 +299,8 @@ export function playCard(state, side, iid, opts = {}) {
   // 靶场不收费（作者要的是「点一下就看到效果」，不是「先攒够费用」）
   const cost = sandbox ? 0 : costOf(state, handCard);
   if (!sandbox && cost > p.mana) throw new Error(`费用不足：需要 ${cost}，剩余 ${p.mana}`);
+  // 指向性锦囊没有合法目标 → 与 getLegalPlays 同步拦下（作者 2026-11-08）
+  if (!sandbox && !spellTargetOk(state, side, def)) throw new Error('这张锦囊没有可选目标');
 
   //  陷阱（作者 2026-10 口径）：陷阱不是「打出卡牌」，而是**埋伏**进陷阱格里。
   //    所以这里要在 `cardsPlayed++` 与「在手牌中」被动之前拦下来：
