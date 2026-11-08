@@ -4,6 +4,8 @@
 ##   pulse(power)      —— 吸一口光（有东西钻进来了）
 ##   ripple(power)     —— 向外散一圈涟漪
 ##   expand(sec, cb)   —— 整团光胀开吞掉屏幕（进对局用）
+## 本体还叠了一层 shader（assets/orb.gdshader）：能量流 + 边缘环光。
+## fx_level: 0 = 关（纯渐变，最省电）、1 = 省电（单层噪声）、2 = 全质量。
 ## 位置、大小由调用方摆：orb.position = center - orb.size * 0.5
 class_name KPOrb
 extends Control
@@ -61,6 +63,7 @@ var tint: Color = U.GOLD
 var rad := 96.0
 var anim := 1.0        # 0 = 静止（自检/截图）
 var power := 1.0       # 亮度倍率
+var fx_level := 2      # 0 关 / 1 省电 / 2 全质量（shader 能量流）
 
 var _body: Control
 var _halo2: TextureRect
@@ -68,8 +71,12 @@ var _halo: TextureRect
 var _core: TextureRect
 var _flash: TextureRect
 var _ring: RingLayer
+var _fx: ColorRect
+var _fx_mat: ShaderMaterial
 var _t := 0.0
 var _spin := 0.0
+var _energy := 1.0
+var _glow := 1.0
 var _pulse_tw: Tween = null
 
 
@@ -94,12 +101,12 @@ func _build() -> void:
 		[0.62, Color(tint, 0.035)], [1.0, Color(tint, 0.0)]]), 5.6, true)
 	_halo = _tex(U.radial([[0.0, Color(tint, 0.70)], [0.34, Color(tint, 0.26)],
 		[0.66, Color(tint, 0.06)], [1.0, Color(tint, 0.0)]]), 2.9, true)
-	_core = _tex(U.radial([[0.0, Color(1, 1, 1, 0.98)], [0.22, Color(tint.lightened(0.55), 0.94)],
-		[0.46, Color(tint, 0.74)], [0.72, Color(tint.darkened(0.10), 0.20)],
-		[1.0, Color(tint, 0.0)]]), 1.06, false)
+	_core = _tex(U.radial(_core_stops()), 1.06, false)
 	_flash = _tex(U.radial([[0.0, Color(1, 1, 1, 0.95)], [0.45, Color(1, 1, 1, 0.30)],
 		[1.0, Color(1, 1, 1, 0.0)]]), 2.6, true)
 	_flash.modulate.a = 0.0
+
+	_build_fx()
 
 	_ring = RingLayer.new()
 	_ring.tint = tint
@@ -108,6 +115,66 @@ func _build() -> void:
 	_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ring.set_meta("decor", true)
 	add_child(_ring)
+
+
+## 核心渐变的色标。开 shader 时压薄（原来中心 α0.98 直接推到近白，
+## 会把上面那层加色流丝整个冲掉），关 shader 时恢复厚度，否则球会发灰。
+func _core_stops() -> Array:
+	if fx_level <= 0:
+		return [[0.0, Color(1, 1, 1, 0.98)], [0.22, Color(tint.lightened(0.55), 0.94)],
+			[0.46, Color(tint, 0.74)], [0.72, Color(tint.darkened(0.10), 0.20)],
+			[1.0, Color(tint, 0.0)]]
+	return [[0.0, Color(1, 1, 1, 0.60)], [0.20, Color(tint.lightened(0.55), 0.46)],
+		[0.44, Color(tint, 0.28)], [0.72, Color(tint.darkened(0.10), 0.08)],
+		[1.0, Color(tint, 0.0)]]
+
+
+## 能量流 shader 层：铺在核心之上、光环之下，跟着 _body 一起脉动/胀开
+func _build_fx() -> void:
+	_fx = null
+	if fx_level <= 0:
+		return
+	var sh: Shader = load("res://assets/orb.gdshader")
+	if sh == null:
+		return
+	_fx_mat = ShaderMaterial.new()
+	_fx_mat.shader = sh
+	_fx = ColorRect.new()
+	_fx.color = Color(1, 1, 1, 1)
+	_fx.size = size * 2.0
+	_fx.position = (size - _fx.size) * 0.5
+	_fx.pivot_offset = _fx.size * 0.5
+	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.material = _fx_mat
+	_fx.set_meta("decor", true)
+	_body.add_child(_fx)
+	_sync_fx()
+
+
+## 运行中切换特效档位（设置页用）
+func set_fx(level: int) -> void:
+	if level == fx_level:
+		return
+	fx_level = level
+	if _fx != null and is_instance_valid(_fx):
+		_fx.queue_free()
+		_fx = null
+		_fx_mat = null
+	if _core != null and is_instance_valid(_core):
+		_core.texture = U.radial(_core_stops())
+	if level > 0:
+		_build_fx()
+
+
+func _sync_fx() -> void:
+	if _fx_mat == null:
+		return
+	_fx_mat.set_shader_parameter("core_color", Color(1, 0.96, 0.86))
+	_fx_mat.set_shader_parameter("rim_color", tint)
+	_fx_mat.set_shader_parameter("time", _t)
+	_fx_mat.set_shader_parameter("energy", clampf(_energy, 0.0, 3.0) * power)
+	_fx_mat.set_shader_parameter("glow", _glow)
+	_fx_mat.set_shader_parameter("quality", 1.0 if fx_level >= 2 else 0.0)
 
 
 func _tex(tex: Texture2D, k: float, add: bool) -> TextureRect:
@@ -138,6 +205,9 @@ func _process(delta: float) -> void:
 		_halo2.scale = Vector2.ONE * (1.0 + 0.06 * b2)
 		_halo2.rotation += delta * 0.05
 		_core.modulate = Color(1, 1, 1, (0.94 + 0.06 * b) * power)
+	_energy = lerpf(_energy, 1.0, minf(1.0, delta * 3.2))
+	_glow = lerpf(_glow, 1.0, minf(1.0, delta * 2.4))
+	_sync_fx()
 	_ring.spin = _spin
 	_ring.clock = _t
 	_ring.power = power
@@ -155,6 +225,7 @@ func pulse(strength: float = 1.0) -> void:
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_pulse_tw.tween_property(_body, "scale", Vector2.ONE, _T(0.44)) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_energy = 1.0 + 1.25 * strength
 	var f := create_tween()
 	f.tween_property(_flash, "modulate:a", clampf(0.8 * strength, 0.0, 1.0), _T(0.06))
 	f.tween_property(_flash, "modulate:a", 0.0, _T(0.42)).set_trans(Tween.TRANS_CUBIC)
@@ -193,6 +264,7 @@ func expand(sec: float, cb: Callable) -> void:
 	tw.tween_property(_halo2, "modulate:a", 0.95, sec * 0.9)
 	tw.tween_property(_core, "modulate:a", 1.0, sec * 0.7)
 	tw.tween_property(_flash, "modulate:a", 0.9, sec * 0.85)
+	tw.tween_property(self, "_glow", 1.9, sec).set_trans(Tween.TRANS_CUBIC)
 	tw.chain().tween_callback(cb)
 
 

@@ -55,6 +55,7 @@ web/e2e/.chrome-profile/
 #  重构：Godot 端（导入缓存与 user:// 数据）
 godot/.godot/
 godot/Godot/
+godot/build/
 
 #  Agent 本地脚手架（卡表规格草稿 / 编辑器配置 / 临时脚本）
 .card-spec/
