@@ -103,7 +103,17 @@ function preflight() {
 }
 
 // ── 3. 导出 + 校验 + 交付 ─────────────────────────────────────
+// AGPL 合规：分发安装包必须附带许可证全文与第三方组件说明，导出前拷进工程（include_filter 会打进去）
+function stageLicense() {
+	for (const [from, to] of [[`${ROOT}/LICENSE`, "LICENSE.txt"], [`${ROOT}/NOTICE`, "NOTICE.txt"]]) {
+		if (!existsSync(from)) throw new Error(`缺少 ${from}（AGPL 合规要求随包分发许可证）`);
+		copyFileSync(from, `${ROOT}/godot/${to}`);
+	}
+	console.log("[license] ✓ LICENSE.txt / NOTICE.txt 已放进 godot/（随 APK 分发）");
+}
+
 async function exportApk(release) {
+	stageLicense();
 	mkdirSync(ROOT + "/godot/build/android", { recursive: true });
 	const env = {
 		...INNER_ENV,

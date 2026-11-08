@@ -62,3 +62,7 @@ godot/build/
 .card-spec/
 .claude/
 tools/tmp/
+
+# 构建时由 tools/build-apk-godot.mjs 从根目录拷进 Godot 工程（随 APK 分发）
+godot/LICENSE.txt
+godot/NOTICE.txt

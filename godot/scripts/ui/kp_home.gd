@@ -172,7 +172,7 @@ func _build() -> void:
 	_hint.clip_text = false
 	_frame.add_child(_hint)
 
-	var ver := U.label("v%s · 手机端重构预览" % str(ProjectSettings.get_setting("application/config/version", "0.80.0")),
+	var ver := U.label("v%s · 手机端重构预览 · AGPL-3.0" % str(ProjectSettings.get_setting("application/config/version", "0.80.0")),
 		13, Color(U.DIM, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
 	ver.position = Vector2(0, 1196)
 	ver.size = Vector2(720, 26)

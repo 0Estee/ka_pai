@@ -4,6 +4,8 @@
 ; （engine/ 与 data/）。战斗外壳是 scripts/engine/kp_game.gd 自己实现的；
 ; third_party/card_combat（AGPL-3.0，6068 行）只作参考保留，**不参与构建** ——
 ; 裁决理由见 docs/重构决策-0001-卡牌战斗引擎.md。
+;
+; 许可：GNU Affero GPL v3.0（AGPL-3.0-only），见仓库根目录 LICENSE 与 NOTICE。
 
 config_version=5
 

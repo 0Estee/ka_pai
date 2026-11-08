@@ -147,6 +147,10 @@ export default function App() {
 
       <footer className="home-foot">
         规则引擎：engine/（原样复用） · 表现层：React 19 + PixiJS 8 · 战斗由本仓库引擎结算，不依赖外部战斗框架
+        <br />
+        许可：<a href="https://github.com/0Estee/ka_pai/blob/main/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0</a>
+        {" · "}
+        <a href="https://github.com/0Estee/ka_pai" target="_blank" rel="noreferrer">源码</a>
       </footer>
     </div>
   )

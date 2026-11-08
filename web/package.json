@@ -4,6 +4,7 @@
   "version": "0.80.0",
   "type": "module",
   "description": "王座交锋 · 网页端（React + PixiJS）",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
