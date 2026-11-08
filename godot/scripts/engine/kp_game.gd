@@ -4594,6 +4594,64 @@ func spell_target_ok(side: int, def: Variant) -> bool:
 	return false
 
 
+## 某个选择器现在能选谁（界面拖拽时点亮用；只查询，不发起交互）
+func selector_candidates(side: int, sel: Dictionary) -> Dictionary:
+	var out := {"uids": [], "king": false}
+	var kind := str(sel.get("kind", ""))
+	if not TARGET_SELECTOR_KINDS.has(kind):
+		return out
+	out["king"] = kind == "chosenEnemyTarget" and sel.get("allowKing", true) != false
+	var any_side: bool = kind == "chosenAnyUnit"
+	var want_side: int = side if kind == "chosenOwnUnit" else (1 - side)
+	var need_front: bool = kind == "chosenEnemyFront"
+	var fctx := filter_ctx(null)
+	for u in all_units():
+		if u.get("removed", false):
+			continue
+		if not any_side and int(u.side) != want_side:
+			continue
+		if need_front:
+			if sel.get("lane", null) != null and str(u.lane) != str(sel.lane):
+				continue
+			if str(u.row) != "front":
+				continue
+		if sel.get("excludeUid", null) != null and int(u.uid) == int(sel.excludeUid):
+			continue
+		if not matches_target_filter(u, sel.get("filter", null), fctx):
+			continue
+		if bool(sel.get("controlRoom", false)) and find_control_spot(u, side) == null:
+			continue
+		out["uids"].append(int(u.uid))
+	return out
+
+
+## 界面拖拽用：这张牌能指向哪些单位 / 能不能指向敌方国王。
+## 按「抉择」方案逐条试，取第一条走得通的方案（与 spell_target_ok 同一套展开）。
+func card_target_uids(side: int, def: Variant) -> Dictionary:
+	var out := {"uids": [], "king": false}
+	if def == null:
+		return out
+	var plans := target_requirements(def.get("actions", []))
+	for plan in plans:
+		var uids: Array = []
+		var king := false
+		var ok := true
+		for sel in plan:
+			var cand := selector_candidates(side, sel)
+			if (cand["uids"] as Array).is_empty() and not bool(cand["king"]):
+				ok = false
+				break
+			for uid in cand["uids"]:
+				if not uids.has(uid):
+					uids.append(uid)
+			king = king or bool(cand["king"])
+		if ok and (not uids.is_empty() or king):
+			out["uids"] = uids
+			out["king"] = king
+			return out
+	return out
+
+
 func get_legal_plays(side: int) -> Array:
 	if is_over() or has_pending():
 		return []

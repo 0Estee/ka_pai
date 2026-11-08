@@ -135,6 +135,16 @@ func cost_of_hand_card(iid: int) -> float:
 			return game.cost_of(c)
 	return 0.0
 
+## 拖拽出牌用：这张牌能指向哪些单位、能不能指向敌方国王（空 = 不是指向性锦囊）
+func drag_targets(card_id: String) -> Dictionary:
+	if game == null:
+		return {"uids": [], "king": false}
+	var def = game.state.cardLib.get(card_id, null)
+	if def == null:
+		return {"uids": [], "king": false}
+	return game.card_target_uids(int(human_side), def)
+
+
 ## 某一方这一回合是否被锁住不能出牌（用于界面提示）
 func phase_allow_type() -> String:
 	return str(KPC.PHASE_ALLOWED_CARD_TYPE.get(str(game.state.phase), ""))

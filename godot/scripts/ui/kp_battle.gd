@@ -15,6 +15,7 @@ const KPC := preload("res://scripts/engine/kp_constants.gd")
 const U := preload("res://scripts/ui/kp_ui.gd")
 const DATA := preload("res://scripts/ui/kp_data.gd")
 
+const FOLD_AT := 6                 # 正排最多显示几张手牌（其余折叠）
 const DESIGN := Vector2(720, 1280)
 
 const TOP_RECT := Rect2(0, 0, 720, 118)
@@ -64,6 +65,24 @@ var _cell_sig: Dictionary = {}     # "lane:half" -> 内容签名；签名没变�
 var _overlay_key := ""             # 浮层内容指纹；没变就不重播弹出动画
 var _last_selected := -1
 var _hand_added: Array = []        # 本次 _build_hand 新加入的手牌 iid（用来做进场动画）
+
+# ── 拖拽出牌（作者 2026-11-08 第 5 条）──────────────────────────────────────
+# 长按手牌 0.26s 或按住拖出 18px 进入拖拽；松手落在哪里就打到哪里。
+# 指向性锦囊拖到敌方单位 / 敌方国王上 —— 目标就是拖到的那个。
+var _press_iid := -1
+var _press_node: Control = null
+var _press_at := 0                # Time.get_ticks_msec()
+var _press_pos := Vector2.ZERO    # 设计稿坐标
+var _pointer := Vector2.ZERO      # 设计稿坐标下的当前指针
+var _drag_iid := -1
+var _drag_ghost: Control = null
+var _drag_src: Control = null
+var _drag_grab := Vector2.ZERO
+var _drag_uids: Array = []        # 这张牌能指向的单位 uid
+var _drag_king := false
+var _drag_marks: Array = []
+var _hand_expanded := false       # 手牌 >6 张时是否已展开（作者 2026-11-08 第 9 条）
+var _fold_chip: Control = null
 
 
 # ══════════════════════════════════════════════════════════
@@ -516,18 +535,27 @@ func _make_cell(lane: String, half: String, row: String, side: int, u, is_legal:
 
 func _build_hand(me: Dictionary) -> void:
 	var hand: Array = me.hand
-	# 一手牌尽量铺满宽度不出现横向滚动；牌太多（>8）才交给 ScrollContainer
-	var n := maxf(1.0, float(hand.size()))
+	# 作者第 9 条：正排最多 6 张，多出来的折成右侧「+N」堆，点一下展开。
+	if hand.size() <= FOLD_AT:
+		_hand_expanded = false
+	var folded: bool = hand.size() > FOLD_AT and not _hand_expanded
+	var shown: Array = hand
+	if folded:
+		shown = hand.slice(0, FOLD_AT)
+	# 一手牌尽量铺满宽度不出现横向滚动；展开后（或牌很少）交给 ScrollContainer
+	var n := maxf(1.0, float(shown.size()))
 	var cw := clampf((HAND_RECT.size.x - 36.0 - 8.0 * (n - 1.0)) / n, 96.0, 152.0)
 
 	# 按 iid 复用旧节点：只是「可不可出 / 有没有选中」变了就重画那一张，
 	# 其余牌原样留着 —— 抽牌、出牌时其它牌不会整体闪一下。
 	var have: Dictionary = {}
 	for c in _hand_row.get_children():
+		if not c.has_meta("iid"):
+			continue
 		have[int(c.get_meta("iid", -1))] = c
 	var ordered: Array = []
 	_hand_added = []
-	for hc in hand:
+	for hc in shown:
 		var iid := int(hc.iid)
 		var card_id := str(hc.cardId)
 		var entry = _legal.get(iid, null)
@@ -562,6 +590,33 @@ func _build_hand(me: Dictionary) -> void:
 
 	for i in ordered.size():
 		_hand_row.move_child(ordered[i], i)
+
+	_refresh_fold_chip(hand.size(), folded, float(ordered.size()), cw)
+
+
+## 折叠堆：「+N 点开看」/「收起」，永远排在最后。作者第 9 条。
+func _refresh_fold_chip(total: int, folded: bool, shown_n: float, cw: float) -> void:
+	if _fold_chip != null and is_instance_valid(_fold_chip):
+		if _fold_chip.get_parent() == _hand_row:
+			_hand_row.remove_child(_fold_chip)
+		_fold_chip.queue_free()
+	_fold_chip = null
+	if total <= FOLD_AT:
+		return
+	var ch := roundf(cw * 1.4)
+	var chip := Panel.new()
+	chip.custom_minimum_size = Vector2(64, ch)
+	var border: Color = U.GOLD if folded else U.LINE
+	chip.add_theme_stylebox_override("panel", U.box(Color("1b2230"), 12, border, 1))
+	var head_text := "+%d" % (total - int(shown_n)) if folded else "收起"
+	_lab(chip, head_text, Rect2(0, ch * 0.5 - 26.0, 64, 40), 24, U.GOLD if folded else U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_lab(chip, "点开看" if folded else "折回去", Rect2(0, ch * 0.5 + 10.0, 64, 20), 11, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	_fold_chip = chip
+	_hand_row.add_child(chip)
+	U.on_click(chip, func():
+		_hand_expanded = folded
+		_clear_drag()
+		_refresh())
 
 
 func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) -> Control:
@@ -624,7 +679,7 @@ func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) 
 	_wrap(card, str(body[0]), Rect2(10, text_top, inner, text_max), int(body[1]), Color("c3cde0"))
 	if kw_text != "":
 		_wrap(card, kw_text, Rect2(10, ch - 8.0 - kw_h, inner, kw_h), 10, U.GOLD)
-	U.on_click(card, func(): _on_card_click(iid, card))
+	_wire_hand_input(card, iid)
 	return card
 
 
@@ -711,6 +766,202 @@ func _hint_text(st: Dictionary) -> String:
 # ══════════════════════════════════════════════════════════
 # 输入
 # ══════════════════════════════════════════════════════════
+
+# ── 拖拽出牌 ────────────────────────────────────────────────────────────────
+
+## 手牌自己接管按下/拖动/松开：短按 = 原来的点击，长按或拖出 = 出牌拖拽
+func _wire_hand_input(card: Control, iid: int) -> void:
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.gui_input.connect(_on_hand_gui_input.bind(iid, card))
+
+
+func _on_hand_gui_input(ev: InputEvent, iid: int, node: Control) -> void:
+	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+		if ev.pressed:
+			node.accept_event()
+			if _busy_anim or session.is_over():
+				return
+			_press_iid = iid
+			_press_node = node
+			_press_at = Time.get_ticks_msec()
+			_press_pos = _to_frame(node, ev.position)
+			_pointer = _press_pos
+			U.press_fx(node, true)
+		else:
+			node.accept_event()
+			var was_press := _press_iid == iid
+			if _drag_iid >= 0 and _drag_iid == iid:
+				_end_drag(_to_frame(node, ev.position))
+			elif was_press:
+				var held := Time.get_ticks_msec() - _press_at
+				_press_iid = -1
+				_press_node = null
+				U.press_fx(node, false)
+				if held < 260:
+					_on_card_click(iid, node)
+		return
+	if ev is InputEventMouseMotion and _press_iid == iid:
+		_pointer = _to_frame(node, ev.position)
+		if _drag_iid < 0 and (Time.get_ticks_msec() - _press_at >= 260 or _pointer.distance_to(_press_pos) > 18.0):
+			_begin_drag()
+
+
+func _process(_dt: float) -> void:
+	# 长按计时（按住不动也算）：到点就把牌提起来
+	if _press_iid >= 0 and _drag_iid < 0 and Time.get_ticks_msec() - _press_at >= 260:
+		_begin_drag()
+	if _drag_iid >= 0 and _drag_ghost != null and is_instance_valid(_drag_ghost):
+		_drag_ghost.position = _pointer - _drag_grab
+
+
+func _to_frame(node: Control, local: Vector2) -> Vector2:
+	var inv := _frame.get_global_transform().affine_inverse()
+	return inv * (node.get_global_transform() * local)
+
+
+func _begin_drag() -> void:
+	var iid := _press_iid
+	if iid < 0:
+		return
+	if not is_instance_valid(_press_node) or _busy_anim or session.is_over() or not session.is_my_turn():
+		_press_iid = -1
+		_press_node = null
+		return
+	var entry = _legal.get(iid, null)
+	if entry == null:
+		_press_iid = -1
+		_press_node = null
+		return
+	_drag_iid = iid
+	_drag_src = _press_node
+	_press_iid = -1
+	var card_id := _card_id_of(iid)
+	var t: Dictionary = session.drag_targets(card_id)
+	_drag_uids = t.get("uids", [])
+	_drag_king = bool(t.get("king", false))
+
+	var src := _node_rect_in_fx(_press_node)
+	var ghost: Control = _press_node.duplicate()
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.z_index = 30
+	ghost.size = src.size
+	ghost.pivot_offset = src.size * 0.5
+	ghost.scale = Vector2(1.08, 1.08)
+	ghost.position = src.position
+	ghost.modulate = Color(1, 1, 1, 1)
+	_fx_layer.add_child(ghost)
+	_drag_ghost = ghost
+	_drag_grab = _pointer - src.position
+	_press_node.modulate.a = 0.25
+	_highlight_targets()
+
+
+## 拖动时把「能落到的地方」点亮：单位牌 = 合法空格，指向性锦囊 = 可选目标（含敌方国王）
+func _highlight_targets() -> void:
+	var entry = _legal.get(_drag_iid, null)
+	if entry == null:
+		return
+	for pl in entry.get("places", []):
+		if pl == null:
+			continue
+		var li: int = KPC.LANES.find(str(pl.lane))
+		var hi := 2 if str(pl.row) == "front" else 3
+		var node = _cell_nodes.get("%s:%s" % [pl.lane, HALVES[hi]], null)
+		if node != null and is_instance_valid(node):
+			_add_mark(node, Rect2(Vector2.ZERO, node.size))
+	for i in KPC.LANES.size():
+		for h in [0, 1]:
+			var key := "%s:%s" % [KPC.LANES[i], HALVES[h]]
+			var node = _cell_nodes.get(key, null)
+			if node == null or not is_instance_valid(node):
+				continue
+			var u = session.game.state.board[KPC.LANES[i]].units[int(session.ai_side)]["front" if h == 1 else "back"]
+			if u != null and _drag_uids.has(int(u.uid)):
+				_add_mark(node, Rect2(Vector2.ZERO, node.size))
+	if _drag_king:
+		_add_mark(_top, Rect2(486, 4, 218, 104))
+
+
+func _add_mark(parent: Control, rect: Rect2) -> void:
+	var hi := Panel.new()
+	hi.position = rect.position
+	hi.size = rect.size
+	hi.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hi.add_theme_stylebox_override("panel", U.box(Color(0, 0, 0, 0), 10, U.GOLD, 3))
+	hi.modulate.a = 0.0
+	parent.add_child(hi)
+	var tw := hi.create_tween()
+	tw.tween_property(hi, "modulate:a", 0.9 if rect.size != Vector2.ZERO else 0.9, _t(0.1))
+	_drag_marks.append(hi)
+
+
+func _clear_drag() -> void:
+	for m in _drag_marks:
+		if is_instance_valid(m):
+			m.queue_free()
+	_drag_marks.clear()
+	if _drag_ghost != null and is_instance_valid(_drag_ghost):
+		_drag_ghost.queue_free()
+	_drag_ghost = null
+	if _drag_src != null and is_instance_valid(_drag_src):
+		_drag_src.modulate.a = 1.0
+	_drag_src = null
+	_drag_iid = -1
+	_drag_uids = []
+	_drag_king = false
+
+
+## 松手：看落点决定这一手怎么打。返回之前一定要 _clear_drag()
+func _end_drag(p: Vector2) -> void:
+	var iid := _drag_iid
+	if iid < 0:
+		return
+	var entry = _legal.get(iid, null)
+	var hit := _drop_hit(p)
+	var opts := {}
+	var ok := false
+	if entry != null:
+		var hit_uid := int(hit.get("uid", -1))
+		if hit.get("kind") == "cell" and hit_uid >= 0 and _drag_uids.has(hit_uid):
+			opts = {"targetUid": hit_uid}
+			ok = true
+		elif hit.get("kind") == "king" and _drag_king:
+			opts = {"targetKing": true, "targetKingSide": int(session.ai_side)}
+			ok = true
+		elif hit.get("kind") == "cell" and int(hit.get("side", -1)) == int(session.human_side):
+			for pl in entry.get("places", []):
+				if pl != null and str(pl.lane) == str(hit.get("lane", "")) and str(pl.row) == str(hit.get("row", "")):
+					opts = {"lane": str(pl.lane), "row": str(pl.row)}
+					ok = true
+		if not ok and _drag_uids.is_empty() and not _drag_king:
+			var places: Array = entry.get("places", [])
+			if places.size() == 1 and places[0] == null:
+				opts = {}
+				ok = true
+	_clear_drag()
+	if not ok:
+		_toast("这里放不了这张牌")
+		return
+	_selected_iid = -1
+	_play_with_anim(iid, opts, null)
+
+
+## 落点：设计稿坐标 → 格子 / 敌方国王 / 空地
+func _drop_hit(p: Vector2) -> Dictionary:
+	var bp := p - _board.position
+	for i in KPC.LANES.size():
+		for h in 4:
+			if _cell_rect(i, h).has_point(bp):
+				var half: String = HALVES[h]
+				var side: int = int(session.human_side) if half.begins_with("my") else int(session.ai_side)
+				var row := "front" if half.ends_with("front") else "back"
+				var u = session.game.state.board[KPC.LANES[i]].units[side][row]
+				return {"kind": "cell", "lane": KPC.LANES[i], "row": row, "side": side,
+					"uid": int(u.uid) if u != null else -1}
+	if Rect2(486, 4, 218, 104).has_point(p):
+		return {"kind": "king"}
+	return {"kind": "none"}
+
 
 func _on_card_click(iid: int, from: Control = null) -> void:
 	if _busy_anim or _replay():
