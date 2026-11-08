@@ -1,0 +1,37 @@
+王座交锋（Throne Clash / ka_pai）
+Copyright (C) 2026 0Estee <336826483+0Estee@users.noreply.github.com>
+
+本程序是自由软件：你可以依据自由软件基金会发布的 GNU Affero 通用公共许可证
+第 3 版（AGPL-3.0-only）的条款重新分发和/或修改它。许可证全文见同目录的 LICENSE。
+
+本程序分发时希望它有用，但**没有任何担保**，甚至没有适销性或特定用途适用性的
+默示担保 —— 详见 LICENSE。
+
+获取源码：https://github.com/0Estee/ka_pai
+（对应版本以仓库里的版本号 tag / 分支为准；dist/ 下的安装包与同版本源码同一提交）
+
+网络交互（AGPL 第 13 条）
+------------------------
+如果你修改了本程序并让它通过网络与用户交互，你必须向这些用户提供获取对应源码
+的机会。本仓库已经把联机服务端源码一并放在 cloudflare/ 里，接受同一许可。
+
+第三方组件
+----------
+third_party/ 下的代码各自适用自己的许可证，本项目的 AGPL 不覆盖它们：
+
+  * gut            GUT 4（Godot 单元测试框架）—— MIT，© 2018 Tom "Butch" Wesley。
+                   仓库内仅作参考保留，不参与构建。
+  * card_combat    Card Combat Engine v1.1.1 —— AGPLv3 或商业双授权，
+                   © Javier Islas。仅作参考保留，**不参与构建、不打进 APK**
+                   （裁决见 docs/重构决策-0001-卡牌战斗引擎.md）。
+
+运行时依赖（通过 npm 安装，不在本仓库内分发）：
+  * 网页端 react / react-dom（MIT）、pixi.js（MIT）、vite（MIT）等
+  * 联机服务端 Cloudflare Workers 运行时（wrangler，MIT/Apache-2.0）
+
+字体：本项目**不打包**任何字体文件，界面使用系统字体（Windows 微软雅黑 /
+Android 默认字体），因此不涉及字体授权分发。
+
+商业授权
+--------
+如需以 AGPL 之外的条款（例如闭源发行）使用本项目，需另行取得作者书面授权。
