@@ -24,7 +24,7 @@ func _initialize() -> void:
 	await _wait_ready(300)
 	print("  开场 %d 帧后稳定；选项 %d 个；光球中心 %s" %
 		[Engine.get_process_frames() - f0, home._items.size(), str(home.ORB_CENTER)])
-	_expect(home._items.size() == 4, "一级应有 4 项，实得 %d" % home._items.size())
+	_expect(home._items.size() == 7, "一级应有 7 项（阵营/难度/设置/联机/开始/回放/种子），实得 %d" % home._items.size())
 	_report_ring("一级", 250.0)
 
 	# 进「阵营」层
@@ -104,6 +104,30 @@ func _initialize() -> void:
 		_expect(str(cfg.get("aiFaction", "")) != "sword", "对手阵营不该和玩家一样")
 		_expect(int(cfg.get("deckSize", 0)) == 80, "牌库应 80 张")
 		_expect(int(cfg.get("humanSide", -1)) == 0, "人类应坐 0 号位")
+
+	# 三个二级页面入口：点后面板换页，首页只负责发 open_page
+	for pair in [["settings", "设 置"], ["online", "联 机"], ["replay", "回 放"]]:
+		var h = KPHome.new()
+		h.anim = 0.0
+		var got: Array = []
+		h.open_page.connect(func(page_name: String): got.append(page_name))
+		root.add_child(h)
+		h.size = h.DESIGN
+		h._fit()
+		await process_frame
+		var ent = null
+		for x in h._items:
+			if str(x.action) == "page" and str(x.payload) == pair[0]:
+				ent = x
+		_expect(ent != null, "一级应有「%s」入口" % pair[1])
+		if ent != null:
+			_expect(str(ent.title) == pair[1], "「%s」标题应为 %s，实得 %s" % [pair[1], pair[1], str(ent.title)])
+			await _click(ent)
+			_expect(got.size() == 1 and str(got[0]) == pair[0],
+				"点「%s」应发 1 次 open_page(%s)，实得 %s" % [pair[1], pair[0], str(got)])
+		h.queue_free()
+		await process_frame
+	print("  三个二级页面入口 OK")
 
 	if problems.is_empty():
 		print("首页动画自检：problems=0")

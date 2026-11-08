@@ -4,6 +4,11 @@ extends SceneTree
 const KPHome := preload("res://scripts/ui/kp_home.gd")
 const KPBattle := preload("res://scripts/ui/kp_battle.gd")
 const KPSession := preload("res://scripts/ui/kp_session.gd")
+const PAGE_SET := preload("res://scripts/ui/kp_settings_page.gd")
+const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
+const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
+const REPLAY := preload("res://scripts/ui/kp_replay.gd")
+const SETTINGS := preload("res://scripts/ui/kp_settings.gd")
 
 var problems: Array = []
 var checks := 0
@@ -13,6 +18,7 @@ func _initialize() -> void:
 	await process_frame
 	await _check_home()
 	await _check_battle()
+	await _check_pages()
 	print("QA checks=%d problems=%d" % [checks, problems.size()])
 	for p in problems:
 		print("  ✗ " + str(p))
@@ -115,3 +121,52 @@ func _check_battle() -> void:
 	sess.answer_choice({"index": 0})
 	for i in 5:
 		await process_frame
+
+
+## 设置 / 回放 / 联机三页：越界、截断、区块高度
+func _check_pages() -> void:
+	var rec := {"version": 1, "savedAt": 1762490000, "seed": 2077, "difficulty": "hard",
+		"humanFaction": "sword", "aiFaction": "frost", "deckSize": 80, "humanSide": 0,
+		"actions": [],
+		"result": {"winner": 0, "winReason": "后手国王被击破", "turns": 8,
+			"cardsPlayed": 14, "kingHp": [20, -2]}}
+	var saved := REPLAY.save(rec)
+
+	var pages := [["设置", PAGE_SET.new()], ["联机", PAGE_ONLINE.new()], ["回放", PAGE_REPLAY.new()]]
+	for pair in pages:
+		var page = pair[1]
+		root.add_child(page)
+		page.size = page.DESIGN
+		page._fit()
+		for i in 90:
+			await process_frame
+		_walk(page._frame, page.DESIGN, "页面:" + str(pair[0]))
+		# 内容不许越过 BODY_BOTTOM，也不许压到左上返回钮
+		for c in page.body.get_children():
+			checks += 1
+			if c is Control:
+				var r := Rect2(c.position + page.body.position, c.size)
+				if r.end.y > page.BODY_BOTTOM + 1.0:
+					problems.append("页面:%s: %s 超出内容区下沿 %.0f > %.0f" % [pair[0], c.name, r.end.y, page.BODY_BOTTOM])
+		print("PAGE %s body_children=%d" % [str(pair[0]), page.body.get_child_count()])
+		root.remove_child(page)
+		page.queue_free()
+		await process_frame
+
+	# 设置页药丸总数与选中态
+	var sp = PAGE_SET.new()
+	root.add_child(sp)
+	sp.size = sp.DESIGN
+	sp._fit()
+	for i in 40:
+		await process_frame
+	var total: int = sp._pills_fx.size() + sp._pills_anim.size() + sp._pills_pace.size() + sp._pills_diff.size() + sp._pills_deck.size()
+	print("PAGE 设置 pills=%d fx=%d anim=%d pace=%d diff=%d deck=%d" % [total,
+		sp._pills_fx.size(), sp._pills_anim.size(), sp._pills_pace.size(), sp._pills_diff.size(), sp._pills_deck.size()])
+	if total != 17:
+		problems.append("设置页药丸应 17 颗，实得 %d" % total)
+	root.remove_child(sp)
+	sp.queue_free()
+	await process_frame
+
+	REPLAY.remove(saved)

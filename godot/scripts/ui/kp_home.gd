@@ -8,11 +8,14 @@ class_name KPHome
 extends Control
 
 signal start_requested(cfg: Dictionary)
+## 要去二级页面（设置 / 回放 / 联机）
+signal open_page(page: String)
 
 const U := preload("res://scripts/ui/kp_ui.gd")
 const DATA := preload("res://scripts/ui/kp_data.gd")
 const ORB := preload("res://scripts/ui/kp_orb.gd")
 const ITEM := preload("res://scripts/ui/kp_orb_item.gd")
+const SET := preload("res://scripts/ui/kp_settings.gd")
 
 const DESIGN := Vector2(720, 1280)
 const ORB_CENTER := Vector2(360, 604)
@@ -44,6 +47,9 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	var vp := get_viewport_rect().size
 	size = vp
+	var dk := SET.difficulty()
+	if dk != "":
+		_difficulty_key = dk
 	_build()
 	resized.connect(_fit)
 	get_viewport().size_changed.connect(_fit)
@@ -131,6 +137,7 @@ func _build() -> void:
 	_orb.tint = U.GOLD
 	_orb.rad = ORB_RAD
 	_orb.anim = anim
+	_orb.fx_level = SET.fx_level()
 	_frame.add_child(_orb)
 	_orb.position = ORB_CENTER - Vector2(ORB_RAD, ORB_RAD)
 
@@ -233,15 +240,22 @@ func _spec(level: String) -> Array:
 			{"action": "pick_seed", "payload": "3001", "title": "3001", "subtitle": "固定种子",
 				"tint": U.GOOD, "w": 168.0, "h": 70.0},
 		]
+	# 七个环位：上阵营 / 右上难度 / 右设置 / 右下联机 / 下开始 / 左下回放 / 左种子
 	return [
 		{"action": "level", "payload": "faction", "title": "阵 营", "subtitle": DATA.faction_name(_faction_key),
-			"tint": U.FACTION, "angle": -90.0, "w": 176.0, "h": 76.0},
+			"tint": U.FACTION, "angle": -90.0, "w": 168.0, "h": 72.0},
 		{"action": "level", "payload": "difficulty", "title": "难 度", "subtitle": _diff_name(),
-			"tint": U.MANA, "angle": 0.0, "w": 176.0, "h": 76.0},
+			"tint": U.MANA, "angle": -45.0, "w": 168.0, "h": 72.0},
+		{"action": "page", "payload": "settings", "title": "设 置", "subtitle": "特效 · 速度 · 牌库",
+			"tint": U.LINE, "angle": 0.0, "w": 168.0, "h": 72.0},
+		{"action": "page", "payload": "online", "title": "联 机", "subtitle": "局域网 · 热座",
+			"tint": U.GOOD, "angle": 45.0, "w": 168.0, "h": 72.0},
 		{"action": "start", "payload": "", "title": "开 始 对 局", "subtitle": "",
-			"tint": U.GOLD, "emphasized": true, "angle": 90.0, "w": 232.0, "h": 92.0},
+			"tint": U.GOLD, "emphasized": true, "angle": 90.0, "w": 196.0, "h": 84.0},
+		{"action": "page", "payload": "replay", "title": "回 放", "subtitle": "重看旧局",
+			"tint": U.MANA, "angle": 135.0, "w": 168.0, "h": 72.0},
 		{"action": "level", "payload": "seed", "title": "种 子", "subtitle": _seed_label(),
-			"tint": U.GOOD, "angle": 180.0, "w": 176.0, "h": 76.0},
+			"tint": U.GOLD, "angle": 180.0, "w": 168.0, "h": 72.0},
 	]
 
 
@@ -345,10 +359,13 @@ func _on_item_picked(item) -> void:
 			_pick_and_return(item)
 		"pick_difficulty":
 			_difficulty_key = str(item.payload)
+			SET.set_v(SET.DIFFICULTY, _difficulty_key)
 			_pick_and_return(item)
 		"pick_seed":
 			_seed_v = int(item.payload)
 			_pick_and_return(item)
+		"page":
+			_go_page(str(item.payload), item)
 		"start":
 			_launch(item)
 
@@ -359,6 +376,16 @@ func _go_level(level: String, item) -> void:
 		_enter_level(level)
 		return
 	_absorb(item, func(): _delay(0.02, func(): _enter_level(level)))
+
+
+## 去二级页面：选项钻进光球，页面自己从光球里长出来
+func _go_page(page: String, item) -> void:
+	_busy = true
+	if not _anim_on():
+		open_page.emit(page)
+		return
+	_absorb(item, func(): open_page.emit(page))
+	_collapse_items()
 
 
 func _pick_and_return(item) -> void:
@@ -456,8 +483,9 @@ func _build_cfg() -> void:
 		"difficulty": _difficulty_key,
 		"humanFaction": _faction_key,
 		"aiFaction": ai_key,
-		"deckSize": 80,
+		"deckSize": SET.deck_size(),
 		"humanSide": 0,
+		"pace": SET.ai_pace(),
 	}
 
 

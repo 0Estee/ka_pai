@@ -34,6 +34,14 @@ var human_faction := ""
 var ai_faction := ""
 var busy := false
 
+## 回放：记录「人类这侧的动作序列」（引擎确定性 ⇒ 几 KB 就能复现整局）
+var recording := true
+var record: Array = []
+var replay_mode := false
+var deck_size := 80
+var _replay_actions: Array = []
+var _replay_i := 0
+
 var _log_mark := 0
 var _pos_mark: Dictionary = {}
 var _fx_seq := 1
@@ -48,7 +56,8 @@ func start(cfg: Dictionary = {}) -> void:
 	ai_side = 1 - human_side
 	human_faction = str(cfg.get("humanFaction", ""))
 	ai_faction = str(cfg.get("aiFaction", ""))
-	var deck_size := int(cfg.get("deckSize", 80))
+	deck_size = int(cfg.get("deckSize", 80))
+	pace = float(cfg.get("pace", pace))
 
 	var factions: Array = []
 	factions.resize(2)
@@ -138,11 +147,16 @@ func play_card(iid: int, opts: Dictionary = {}) -> bool:
 		return false
 	busy = true
 	_mark()
+	# 先记账再执行：这一手可能会在半路挂起提问，若等执行完再记，
+	# 录下来的顺序会变成「提问 … 出牌」，重放时就对不上了。
+	var slot := _rec_begin({"t": "play", "iid": iid, "opts": opts})
 	var ok: bool = await game.play_card(human_side, iid, opts)
 	_harvest()
 	changed.emit()
 	if ok:
 		await _drive_ai()
+	else:
+		_rec_abort(slot)
 	busy = false
 	if not ok:
 		notice.emit(str(game.last_error))
@@ -157,6 +171,7 @@ func end_phase() -> void:
 		return
 	busy = true
 	_mark()
+	var slot := _rec_begin({"t": "end"})
 	await game.advance()
 	_harvest()
 	changed.emit()
@@ -173,6 +188,7 @@ func answer_choice(answer: Dictionary) -> void:
 	if game == null or not game.has_pending():
 		return
 	_mark()
+	_rec({"t": "choice", "answer": answer})
 	game.resolve_choice(answer)
 	_harvest()
 	changed.emit()
@@ -181,6 +197,7 @@ func answer_choice(answer: Dictionary) -> void:
 func surrender() -> void:
 	if game == null or is_over():
 		return
+	_rec({"t": "surrender"})
 	game.surrender(human_side)
 	changed.emit()
 	finished.emit()
@@ -197,6 +214,143 @@ func brew(iids: Array) -> Dictionary:
 	busy = false
 	changed.emit()
 	return r
+
+
+# ── 回放 ────────────────────────────────────────────────────────────────────
+
+## 用一份回放重开一局并自动演下去（界面调它，不 await）
+func start_replay(rec: Dictionary) -> void:
+	replay_mode = true
+	recording = false
+	_replay_actions = rec.get("actions", [])
+	_replay_i = 0
+	await start({
+		"seed": int(rec.get("seed", 0)),
+		"difficulty": str(rec.get("difficulty", "normal")),
+		"humanFaction": str(rec.get("humanFaction", "")),
+		"aiFaction": str(rec.get("aiFaction", "")),
+		"deckSize": int(rec.get("deckSize", 80)),
+		"humanSide": int(rec.get("humanSide", 0)),
+		"pace": float(rec.get("pace", 0.2)),
+	})
+	await _replay_drive()
+
+
+## 把这一局打包成可存档的回放
+func make_record() -> Dictionary:
+	var res := {}
+	if game != null:
+		var st: Dictionary = game.state
+		res = {
+			"winner": st.get("winner", null),
+			"winReason": str(st.get("winReason", "")),
+			"turns": int(st.get("turn", 0)),
+			"cardsPlayed": int(st.get("stats", {}).get("cardsPlayed", 0)),
+			"kingHp": [float(st.players[0].kingHp), float(st.players[1].kingHp)],
+		}
+	return {
+		"seed": game_seed,
+		"difficulty": difficulty,
+		"humanFaction": human_faction,
+		"aiFaction": ai_faction,
+		"deckSize": deck_size,
+		"humanSide": human_side,
+		"actions": record.duplicate(true),
+		"result": res,
+	}
+
+
+func _rec(d: Dictionary) -> void:
+	if replay_mode or not recording:
+		return
+	record.append(d)
+
+
+## 先占位记账，返回下标；执行失败用 _rec_abort(slot) 撤回
+func _rec_begin(d: Dictionary) -> int:
+	if replay_mode or not recording:
+		return -1
+	record.append(d)
+	return record.size() - 1
+
+
+func _rec_abort(slot: int) -> void:
+	if slot >= 0 and slot < record.size():
+		record.remove_at(slot)
+
+
+func _peek_action() -> Dictionary:
+	if _replay_i >= _replay_actions.size():
+		return {}
+	var a = _replay_actions[_replay_i]
+	return a if a is Dictionary else {}
+
+
+func _pop_action() -> Dictionary:
+	var a := _peek_action()
+	if not a.is_empty():
+		_replay_i += 1
+	return a
+
+
+## 回放的驱动器：按录下来的动作喂回去，AI 自己照原路走。
+##
+## 出牌跟界面一样是「点火即走」——不能 await，因为一手牌可能半路挂起提问，
+## 而答案在后面的动作里；await 会把整条驱动器一起挂死（这正是第一版的 bug）。
+func _replay_drive() -> void:
+	var guard := 0
+	while not is_over() and guard < 6000:
+		guard += 1
+		if game.has_pending():
+			var peek := _peek_action()
+			if str(peek.get("t", "")) == "choice":
+				_pop_action()
+				game.resolve_choice(peek.get("answer", {}))
+				_harvest()
+				changed.emit()
+			else:
+				# 录下来的动作里没有这一问（AI 自己该答的）——兜底。
+				_auto_answer()
+				changed.emit()
+			await _settle()
+			continue
+		if is_my_turn():
+			var next := _peek_action()
+			var t := str(next.get("t", ""))
+			if t == "play":
+				_pop_action()
+				_mark()
+				game.play_card(human_side, int(next.get("iid", -1)), next.get("opts", {}))
+				await _settle()
+				continue
+			elif t == "end":
+				_pop_action()
+				_mark()
+				game.advance()
+				await _settle()
+				continue
+			elif t == "surrender":
+				_pop_action()
+				game.surrender(human_side)
+				changed.emit()
+				break
+			else:
+				break
+		else:
+			await _drive_ai()
+			await _settle()
+			continue
+	changed.emit()
+	if is_over():
+		finished.emit()
+
+
+## 让引擎里那些被点着的协程跑几帧
+func _settle() -> void:
+	await _pause()
+	var loop := Engine.get_main_loop()
+	if loop is SceneTree:
+		await loop.process_frame
 
 
 # ── 内部：推进到人类可行动为止（对应 controller.ts 的 driveAi） ──────────────

@@ -319,7 +319,10 @@ func _build_banner(st: Dictionary) -> void:
 	_banner.add_theme_stylebox_override("panel", sb)
 	var text := ""
 	var col := U.DIM
-	if session.is_over():
+	if _replay() and not session.is_over():
+		text = "回放中 · 第 %d 回合 · %s" % [int(st.turn), _phase_name(str(st.phase))]
+		col = U.GOLD
+	elif session.is_over():
 		text = "对局结束 —— %s" % _who_won_text(st)
 		col = U.GOLD
 	elif session.pending() != null:
@@ -567,6 +570,13 @@ func _build_preview(me: Dictionary) -> void:
 
 func _build_action(st: Dictionary) -> void:
 	_clear(_action)
+	if _replay():
+		_action.add_child(_big_button("退出回放", Rect2(12, 12, 236, 72), true, func(): back_to_home.emit()))
+		_action.add_child(_big_button("自动播放中", Rect2(260, 12, 200, 72), false, func(): pass))
+		_action.add_child(_big_button("返回首页", Rect2(472, 12, 170, 72), true, func(): back_to_home.emit()))
+		var rtip := "这一局按录下来的动作重演" if not session.is_over() else "回放结束"
+		_lab(_action, rtip, Rect2(12, 84, 640, 22), 12, U.DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+		return
 	var can_end: bool = session.is_my_turn()
 	_action.add_child(_big_button("结束阶段", Rect2(12, 12, 236, 72), can_end, func(): _end_phase()))
 	_action.add_child(_big_button("认输", Rect2(260, 12, 150, 72), not session.is_over(), func(): session.surrender()))
@@ -613,7 +623,7 @@ func _hint_text(st: Dictionary) -> String:
 # ══════════════════════════════════════════════════════════
 
 func _on_card_click(iid: int, from: Control = null) -> void:
-	if _busy_anim:
+	if _busy_anim or _replay():
 		return
 	if session.is_over():
 		return
@@ -639,6 +649,11 @@ func _on_card_click(iid: int, from: Control = null) -> void:
 
 func _on_cell_click(lane: String, half: String) -> void:
 	if _busy_anim:
+		return
+	if _replay():
+		var uu = session.game.state.board[lane].units[int(session.human_side) if half.begins_with("my") else int(session.ai_side)]["front" if half.ends_with("front") else "back"]
+		if uu != null:
+			_open_detail_unit(int(uu.uid))
 		return
 	var row := "front" if half.ends_with("front") else "back"
 	var side: int = session.human_side if half.begins_with("my") else session.ai_side
@@ -683,7 +698,7 @@ func _build_overlay(st: Dictionary) -> void:
 		key = "result"
 	var fresh := key != _overlay_key
 	_overlay_key = key
-	if pending != null:
+	if pending != null and not _replay():
 		_build_choice(pending)
 	elif _detail_card != "" or _detail_uid >= 0:
 		_build_detail()
@@ -1021,6 +1036,10 @@ func _toast(text: String) -> void:
 # 2. 规则永远先跑，动画只跟着状态走（唯一的例外是出牌飞行，因为要让牌先飞到
 #    格子再落地，玩家看到的是「牌变成单位」，而不是「手牌没了 + 单位冒出来」）；
 # 3. 格子与手牌节点按内容签名复用，动画跑一半不会被刷新清掉。
+
+func _replay() -> bool:
+	return session != null and session.replay_mode
+
 
 func _anim_on() -> bool:
 	return anim > 0.001
@@ -1391,7 +1410,7 @@ func _pop_in(panel: Control) -> void:
 
 
 func _end_phase() -> void:
-	if _busy_anim:
+	if _busy_anim or _replay():
 		return
 	session.end_phase()
 

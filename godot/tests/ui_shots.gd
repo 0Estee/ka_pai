@@ -9,9 +9,14 @@ extends SceneTree
 const KPHome := preload("res://scripts/ui/kp_home.gd")
 const KPBattle := preload("res://scripts/ui/kp_battle.gd")
 const KPSession := preload("res://scripts/ui/kp_session.gd")
+const PAGE_SET := preload("res://scripts/ui/kp_settings_page.gd")
+const PAGE_REPLAY := preload("res://scripts/ui/kp_replay_page.gd")
+const PAGE_ONLINE := preload("res://scripts/ui/kp_online_page.gd")
+const REPLAY := preload("res://scripts/ui/kp_replay.gd")
 
 var out_dir := "user://"
 var only_home := false
+var only_pages := false
 var vp: SubViewport
 var battle = null
 var session = null
@@ -24,6 +29,8 @@ func _initialize() -> void:
 			out_dir = args[i + 1]
 		if args[i] == "--only-home":
 			only_home = true
+		if args[i] == "--only-pages":
+			only_pages = true
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	_run()
 
@@ -37,6 +44,11 @@ func _run() -> void:
 	root.add_child(vp)
 	await process_frame
 
+	if only_pages:
+		await _shot_pages()
+		print("[shots] 完成（只截三页），输出目录 %s" % out_dir)
+		quit(0)
+		return
 	await _shot_home()
 	if only_home:
 		print("[shots] 完成（只截首页），输出目录 %s" % out_dir)
@@ -55,6 +67,7 @@ func _run() -> void:
 	await _close_detail()
 	await _drive_to_end()
 	await _shot("refactor-godot-result")
+	await _shot_pages()
 	print("[shots] 完成，输出目录 %s" % out_dir)
 	quit(0)
 
@@ -272,3 +285,49 @@ func _fly_shot() -> void:
 	for i in 40:
 		await process_frame
 	battle.anim = 0.0
+
+
+## 设置 / 回放 / 联机三页（跟首页同一套光球语言）
+func _shot_pages() -> void:
+	# 回放页要有一条记录才看得出长什么样，先塞一份假的，拍完删掉
+	var fake := {
+		"version": 1,
+		"savedAt": 1762490000,
+		"seed": 2077,
+		"difficulty": "hard",
+		"humanFaction": "sword",
+		"aiFaction": "frost",
+		"deckSize": 80,
+		"humanSide": 0,
+		"actions": [],
+		"result": {"winner": 0, "winReason": "后手国王被击破", "turns": 8,
+			"cardsPlayed": 14, "kingHp": [20, -2]},
+	}
+	var fake2: Dictionary = fake.duplicate(true)
+	fake2["seed"] = 1005
+	fake2["difficulty"] = "normal"
+	fake2["humanFaction"] = "alchemy"
+	fake2["aiFaction"] = "inferno"
+	fake2["result"] = {"winner": 1, "winReason": "先手国王被击破", "turns": 12,
+		"cardsPlayed": 21, "kingHp": [-4, 11]}
+	var p1 := REPLAY.save(fake)
+	var p2 := REPLAY.save(fake2)
+
+	await _page_shot(PAGE_SET.new(), "refactor-godot-page-settings")
+	# 点一下「光球特效：省电」，让药丸有选中态
+	var online = PAGE_ONLINE.new()
+	await _page_shot(online, "refactor-godot-page-online")
+	var replay = PAGE_REPLAY.new()
+	await _page_shot(replay, "refactor-godot-page-replay")
+
+	REPLAY.remove(p1)
+	REPLAY.remove(p2)
+
+
+func _page_shot(page, name: String) -> void:
+	vp.add_child(page)
+	for i in 90:
+		await process_frame
+	await _shot(name)
+	vp.remove_child(page)
+	page.queue_free()
