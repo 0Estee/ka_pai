@@ -110,7 +110,8 @@ func _check_settings() -> void:
 
 	# 恢复默认
 	page._on_reset()
-	_expect(SET.fx_level() == 2, "恢复默认后特效应 2，实得 %d" % SET.fx_level())
+	# 作者 m01990 第 13 条：光球默认纯色，特效档默认关（0）
+	_expect(SET.fx_level() == 0, "恢复默认后特效应 0（默认纯色），实得 %d" % SET.fx_level())
 	_expect(SET.difficulty() == "normal", "恢复默认后难度应 normal，实得 %s" % SET.difficulty())
 	_expect(SET.anim_speed() == 1, "恢复默认后动画应 1")
 	_expect(SET.deck_size() == 80, "恢复默认后牌库应 80")
@@ -219,8 +220,10 @@ func _check_replay() -> void:
 	page.queue_free()
 	await process_frame
 
-	# 重放：同种子同动作 ⇒ 同结果
+	# 重放：同种子同动作 ⇒ 同结果（节奏归零，验的是结果不是演出时长）
 	var sess2 = KPSession.new()
+	sess2.combat_line_pause = 0.0
+	rec["pace"] = 0.0
 	sess2.start_replay(rec)
 	var frames := 0
 	while not sess2.is_over() and frames < 6000:
@@ -235,14 +238,28 @@ func _check_replay() -> void:
 	_expect(int(st2.get("turn", 0)) == int(live.get("turn", 0)), "重放回合应一致（%d / %d）" % [int(st2.get("turn", 0)), int(live.get("turn", 0))])
 	_expect(int(st2.get("cardsPlayed", 0)) == int(live.get("cardsPlayed", 0)), "重放出牌数应一致")
 
-	# 对局屏在回放态：横幅写「回放中」，出牌按钮换成「退出回放」，点手牌不出牌
+	# 对局屏在回放态：横幅写「回放中」，出牌按钮换成「退出回放」，点手牌不出牌。
+	# 这里用一局「活着但标了 replay_mode」的棋来量（真回放会自己往前跑，
+	# 拿它量「点牌没推进」会跟回放本身的长势混在一起）。
 	var sess3 = KPSession.new()
+	sess3.combat_line_pause = 0.0
+	sess3.pace = 0.0
 	var battle = KPBattle.new()
 	battle.session = sess3
 	battle.anim = 0.0
 	root.add_child(battle)
 	await process_frame
-	sess3.start_replay(rec)
+	sess3.replay_mode = true
+	sess3.record = rec.get("actions", []).duplicate(true)
+	sess3.start({
+		"seed": int(rec.get("seed", 0)),
+		"difficulty": str(rec.get("difficulty", "normal")),
+		"humanFaction": str(rec.get("humanFaction", "")),
+		"aiFaction": str(rec.get("aiFaction", "")),
+		"deckSize": int(rec.get("deckSize", 80)),
+		"humanSide": int(rec.get("humanSide", 0)),
+		"pace": 0.0,
+	})
 	for i in 6:
 		await process_frame
 	_expect(battle._replay(), "KPBattle 应认出这是回放")
@@ -259,11 +276,24 @@ func _check_replay() -> void:
 		battle._on_card_click(hand_iid)
 		await process_frame
 	_expect(int(sess3.game.state.log.size()) == n_before, "回放态点手牌不该推进引擎")
-	while not sess3.is_over() and frames < 6000:
-		frames += 1
-		await process_frame
-	_expect(sess3.is_over(), "带界面的重放也应走到终局")
 	battle.queue_free()
+	await process_frame
+
+	# 带界面的真回放也要走到终局
+	var sess4 = KPSession.new()
+	sess4.combat_line_pause = 0.0
+	var battle4 = KPBattle.new()
+	battle4.session = sess4
+	battle4.anim = 0.0
+	root.add_child(battle4)
+	await process_frame
+	var frames4 := 0
+	sess4.start_replay(rec)
+	while not sess4.is_over() and frames4 < 9000:
+		frames4 += 1
+		await process_frame
+	_expect(sess4.is_over(), "带界面的重放也应走到终局（跑了 %d 帧，阶段 %s）" % [frames4, str(sess4.game.state.get("phase", "?"))])
+	battle = battle4
 	await process_frame
 	print("  回放 OK：直播 %d 手 · 重放 %d 手 · 摘要「%s」" % [played, rec.get("actions", []).size(), head])
 

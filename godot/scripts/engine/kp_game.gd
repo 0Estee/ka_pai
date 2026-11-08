@@ -46,6 +46,9 @@ var last_error: String = ""
 
 var _choice_answer: Variant = null
 
+## 可选钩子：每结算完一条线调用一次（界面用来逐线演出）。留空则一口气打完。
+var combat_lane_hook: Callable = Callable()
+
 
 static func make_player(side: int, faction: Variant = null) -> Dictionary:
 	return {
@@ -4010,6 +4013,9 @@ func run_combat() -> void:
 			return
 		await resolve_lane(lane)
 		check_game_over()
+		# 逐线演出：把这一线已经结算完的事实交给界面，等它演完再打下一线
+		if combat_lane_hook.is_valid():
+			await combat_lane_hook.call(lane)
 	log_event({"type": "combat-end"})
 	sync_stat_auras()
 

@@ -1529,46 +1529,150 @@ func _drain_pending_fx() -> void:
 		return
 	var evs: Array = _pending_fx.duplicate()
 	_pending_fx.clear()
-	var dim_done := false
+	_run_fx_queue(evs)
+
+
+## 一条线一条线地演：每个事件之间留一点间隔，攻击者先冲一下，再出数字。
+## 作者 2026-11-08 第 3 条：开战要逐线进行，不能一下子打完。
+func _run_fx_queue(evs: Array) -> void:
 	for ev in evs:
-		var kind := str(ev.get("kind", ""))
-		match kind:
-			"banner":
-				if not dim_done:
-					_banner_fx(str(ev.get("text", "")))
-					dim_done = true
-			"king-damage", "king-heal":
-				var side: int = int(ev.get("side", session.human_side))
-				var x := 120.0 if side == session.human_side else 600.0
-				var is_dmg: bool = kind == "king-damage"
-				_screen_flash(U.BAD if is_dmg else U.GOOD, 0.14)
-				_punch(_top, 0.96 if is_dmg else 1.02, 0.22)
-				_float_fx(str(ev.get("text", "")), Vector2(x, 96), U.BAD if is_dmg else U.GOOD, 30)
-			"cast":
-				if int(ev.get("side", -1)) == session.human_side:
-					_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22)
-				else:
-					_foe_cast_fx(ev)
-			_:
-				var lane := str(ev.get("lane", ""))
-				if lane == "":
-					continue
-				var half := _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))
-				var pos := _cell_center(lane, half)
-				match kind:
-					"deploy":
-						if int(ev.get("side", -1)) == session.human_side:
-							pass   # 人类打出的牌是自己飞过去的，落地波纹在 _flight_land 里放过了
-						else:
-							_foe_deploy_fx(ev)
-					"destroy":
-						_float_fx("消灭", pos, U.BAD, 24)
-					"damage":
-						_hit_fx(lane, half, U.BAD)
-						_float_fx(str(ev.get("text", "-0")), pos, U.BAD, 28)
-					"heal":
-						_hit_fx(lane, half, U.GOOD)
-						_float_fx(str(ev.get("text", "+0")), pos, U.GOOD, 26)
+		_play_fx(ev)
+		var gap := _fx_gap(str(ev.get("kind", "")))
+		if gap > 0.0 and _anim_on():
+			await Engine.get_main_loop().create_timer(gap).timeout
+
+
+func _fx_gap(kind: String) -> float:
+	match kind:
+		"lane": return 0.0
+		"deploy": return 0.12
+		"cast": return 0.12
+		"damage": return 0.16
+		"heal": return 0.12
+		"destroy": return 0.2
+		"king-damage", "king-heal": return 0.26
+		"banner": return 0.3
+	return 0.1
+
+
+func _play_fx(ev: Dictionary) -> void:
+	var kind := str(ev.get("kind", ""))
+	match kind:
+		"banner":
+			_banner_fx(str(ev.get("text", "")))
+		"lane":
+			_lane_fx(str(ev.get("lane", "")), str(ev.get("text", "")))
+		"king-damage", "king-heal":
+			var side: int = int(ev.get("side", session.human_side))
+			var x := 120.0 if side == session.human_side else 600.0
+			var is_dmg: bool = kind == "king-damage"
+			_screen_flash(U.BAD if is_dmg else U.GOOD, 0.14)
+			_punch(_top, 0.96 if is_dmg else 1.02, 0.22)
+			var src = ev.get("from", null)
+			if src != null:
+				_lunge_fx(str(src.lane), _half_key(int(src.side), str(src.row)), "king")
+			_float_fx(str(ev.get("text", "")), Vector2(x, 96), U.BAD if is_dmg else U.GOOD, 30)
+		"cast":
+			if int(ev.get("side", -1)) == session.human_side:
+				_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22)
+			else:
+				_foe_cast_fx(ev)
+		_:
+			var lane := str(ev.get("lane", ""))
+			if lane == "":
+				return
+			var half := _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))
+			var pos := _cell_center(lane, half)
+			match kind:
+				"deploy":
+					if int(ev.get("side", -1)) == session.human_side:
+						pass   # 人类打出的牌是自己飞过去的，落地波纹在 _flight_land 里放过了
+					else:
+						_foe_deploy_fx(ev)
+				"destroy":
+					_float_fx("消灭", pos, U.BAD, 24)
+				"damage":
+					var src = ev.get("from", null)
+					if src != null:
+						_lunge_fx(str(src.lane), _half_key(int(src.side), str(src.row)), "%s:%s" % [lane, half])
+					_hit_fx(lane, half, U.BAD)
+					_float_fx(str(ev.get("text", "-0")), pos, U.BAD, 28)
+				"heal":
+					_hit_fx(lane, half, U.GOOD)
+					_float_fx(str(ev.get("text", "+0")), pos, U.GOOD, 26)
+
+
+## 这一线开打：整条线亮一下，左侧标出线路名
+func _lane_fx(lane: String, lane_name: String) -> void:
+	var r := _lane_rect(lane)
+	if r.size == Vector2.ZERO:
+		return
+	var band := Panel.new()
+	band.position = r.position
+	band.size = r.size
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_theme_stylebox_override("panel", U.box(Color(U.GOLD, 0.10), 10, U.GOLD, 2))
+	band.modulate.a = 0.0
+	_fx_layer.add_child(band)
+	var tag := U.label(lane_name, 18, U.GOLD, HORIZONTAL_ALIGNMENT_LEFT)
+	tag.size = Vector2(120, 26)
+	tag.position = Vector2(r.position.x + 8, r.position.y + 4)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.modulate.a = 0.0
+	_fx_layer.add_child(tag)
+	if not _anim_on():
+		band.queue_free()
+		tag.queue_free()
+		return
+	var tw := band.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(band, "modulate:a", 1.0, _t(0.12))
+	tw.tween_property(tag, "modulate:a", 1.0, _t(0.12))
+	tw.chain().tween_property(band, "modulate:a", 0.0, _t(0.5)).set_delay(_t(0.42))
+	tw.parallel().tween_property(tag, "modulate:a", 0.0, _t(0.4)).set_delay(_t(0.5))
+	tw.chain().tween_callback(func():
+		band.queue_free()
+		tag.queue_free())
+
+
+## 攻击者朝目标冲一下再弹回
+func _lunge_fx(lane: String, from_half: String, to_key: String) -> void:
+	if not _anim_on():
+		return
+	var node = _cell_nodes.get("%s:%s" % [lane, from_half], null)
+	if node == null or not is_instance_valid(node):
+		return
+	var to_pos: Vector2 = _cell_center(lane, from_half)
+	if to_key == "king":
+		# 己方单位打的是右边的敌国国王，反之亦然
+		to_pos = Vector2(595, 56) if from_half.begins_with("my") else Vector2(120, 56)
+	else:
+		var seg := to_key.split(":")
+		if seg.size() == 2:
+			to_pos = _cell_center(str(seg[0]), str(seg[1]))
+	var dir := (to_pos - _cell_center(lane, from_half)).normalized()
+	if dir == Vector2.ZERO:
+		return
+	var home: Vector2 = node.position
+	node.z_index = 6
+	var tw: Tween = node.create_tween()
+	tw.tween_property(node, "position", home + dir * 16.0, _t(0.09)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(node, "position", home, _t(0.14)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		if is_instance_valid(node):
+			node.position = home
+			node.z_index = 0)
+
+
+## 这一条线在棋盘上的整体矩形（4 排格子合起来）
+func _lane_rect(lane: String) -> Rect2:
+	var li := KPC.LANES.find(lane)
+	if li < 0:
+		return Rect2()
+	var top := _cell_rect(li, 0)
+	var bottom := _cell_rect(li, 3)
+	return Rect2(_board.position + top.position,
+		Vector2(top.size.x, bottom.position.y + bottom.size.y - top.position.y))
 
 
 # ── 出牌：手牌 → 战场的飞行 ────────────────────────────────────────────────

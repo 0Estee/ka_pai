@@ -23,6 +23,11 @@ const DATA := preload("res://scripts/ui/kp_data.gd")
 
 ## 回合每推进一步给界面留一点喘息时间（秒），否则一屏会瞬间刷完
 var pace := 0.09
+## 开战时每一条线演多久（秒）。作者 2026-11-08 第 3 条：一条线一条线地打。
+var combat_line_pause := 0.62
+## 正在跑的那次 advance 有几条。逐线演出会让一次 advance 跨好几秒，
+## 这期间绝不能再叫一次，否则同一局会被两条协程同时推。
+var _advancing := 0
 
 var game = null
 var ai = null
@@ -74,6 +79,8 @@ func start(cfg: Dictionary = {}) -> void:
 	})
 
 	game.choice_needed.connect(Callable(self, "_on_choice_needed"))
+	# 逐线演出：引擎每结算完一条线就回调这里，界面演完才继续下一条
+	game.combat_lane_hook = Callable(self, "_on_combat_lane")
 
 	# 人类那一侧的问题「挂起等人点」，AI 那一侧的问题由引擎自己算
 	game.state["autoResolveChoices"] = false
@@ -182,7 +189,7 @@ func end_phase() -> void:
 	busy = true
 	_mark()
 	var slot := _rec_begin({"t": "end"})
-	await game.advance()
+	await _advance()
 	_harvest()
 	changed.emit()
 	await _drive_ai()
@@ -265,6 +272,7 @@ func make_record() -> Dictionary:
 		"aiFaction": ai_faction,
 		"deckSize": deck_size,
 		"humanSide": human_side,
+		"pace": pace,
 		"actions": record.duplicate(true),
 		"result": res,
 	}
@@ -336,7 +344,7 @@ func _replay_drive() -> void:
 			elif t == "end":
 				_pop_action()
 				_mark()
-				game.advance()
+				_advance()
 				await _settle()
 				continue
 			elif t == "surrender":
@@ -359,7 +367,14 @@ func _replay_drive() -> void:
 func _settle() -> void:
 	await _pause()
 	var loop := Engine.get_main_loop()
-	if loop is SceneTree:
+	if not (loop is SceneTree):
+		return
+	await loop.process_frame
+	# 这次推进可能还在逐线演出（几秒），等它落地再继续；
+	# 但若它停在提问上，就交回主循环去答，不能在这儿干等。
+	var guard := 0
+	while _advancing > 0 and not game.has_pending() and guard < 1200:
+		guard += 1
 		await loop.process_frame
 
 
@@ -411,6 +426,19 @@ func _drive_ai() -> void:
 	game.state["autoResolveChoices"] = false
 
 
+## 引擎打完一条线：先把这条线的战况发出去，等演出放完再让它打下一线
+func _on_combat_lane(lane: String) -> void:
+	var lane_name := str(KPC.LANE_NAME.get(lane, lane))
+	fx.emit([_fx("lane", lane, null, null, lane_name, 0, "neutral")])
+	_harvest()
+	changed.emit()
+	if pace <= 0.0:
+		return
+	var loop := Engine.get_main_loop()
+	if loop is SceneTree and loop.get_root() != null:
+		await loop.create_timer(combat_line_pause).timeout
+
+
 ## 没人接管的问题按第一个选项兜底（引擎自己带 choose 回调时优先用它的口径）
 func _auto_answer() -> void:
 	var req = game.pending_request
@@ -424,6 +452,13 @@ func _auto_answer() -> void:
 		if picked != null:
 			answer = picked
 	game.resolve_choice(answer)
+
+
+## 推进一阶段并等它跑完（含逐线演出）
+func _advance() -> void:
+	_advancing += 1
+	await game.advance()
+	_advancing -= 1
 
 
 func _pause() -> void:
@@ -483,7 +518,9 @@ func fx_from_log(entries: Array, before: Dictionary) -> Array:
 			"damage":
 				if pos != null:
 					var amt := float(e.get("amount", 0))
-					out.append(_fx("damage", pos.lane, pos.row, pos.side, "-" + _num_s(amt), amt, "bad"))
+					var dmg_ev := _fx("damage", pos.lane, pos.row, pos.side, "-" + _num_s(amt), amt, "bad")
+					dmg_ev["from"] = _src_pos(e, before)
+					out.append(dmg_ev)
 			"poison-tick", "burn-tick", "disease-tick":
 				if pos != null:
 					var label := "毒" if t == "poison-tick" else ("灼" if t == "burn-tick" else "病")
@@ -494,7 +531,9 @@ func fx_from_log(entries: Array, before: Dictionary) -> Array:
 					if d > 0.0:
 						out.append(_fx("heal", pos.lane, pos.row, pos.side, "+" + _num_s(d), d, "good"))
 			"king-damage":
-				out.append(_fx("king-damage", null, null, e.get("side", null), "-" + _num_s(float(e.get("amount", 0))), float(e.get("amount", 0)), "bad"))
+				var kd := _fx("king-damage", null, null, e.get("side", null), "-" + _num_s(float(e.get("amount", 0))), float(e.get("amount", 0)), "bad")
+				kd["from"] = _src_pos(e, before)
+				out.append(kd)
 			"king-heal":
 				var kh := float(e.get("amount", 0))
 				if kh > 0.0:
@@ -506,6 +545,14 @@ func fx_from_log(entries: Array, before: Dictionary) -> Array:
 			"combat-start":
 				out.append(_fx("banner", null, null, null, "开战", 0, "neutral"))
 	return out
+
+
+## 这条伤害是谁打的（源头坐标，界面用来让攻击者冲一下）
+func _src_pos(e: Dictionary, before: Dictionary) -> Variant:
+	var src = e.get("source", null)
+	if src == null:
+		return null
+	return before.get(int(src), null)
 
 
 func _fx(kind: String, lane, row, side, text: String, amount: float, tone: String) -> Dictionary:

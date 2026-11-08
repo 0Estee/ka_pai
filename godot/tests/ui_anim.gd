@@ -9,6 +9,7 @@ const KPSession := preload("res://scripts/ui/kp_session.gd")
 var battle
 var sess
 var problems := 0
+var fx_log: Array = []
 
 
 func _initialize() -> void:
@@ -20,6 +21,7 @@ func _initialize() -> void:
 	Engine.time_scale = 0.25
 	await _test_fly_and_land()
 	await _test_ai_turn_anim()
+	await _test_combat_lines()
 	Engine.time_scale = 1.0
 	print("[anim] 完成，问题 %d 个" % problems)
 	quit(0 if problems == 0 else 1)
@@ -38,7 +40,14 @@ func _build() -> void:
 	root.add_child(battle)
 	battle.size = battle.DESIGN
 	battle._fit()
+	sess.fx.connect(_record_fx)
 	sess.start({"seed": 2001, "difficulty": "normal", "humanFaction": "demon", "aiFaction": "frost", "humanSide": 0})
+
+
+func _record_fx(evs: Array) -> void:
+	for e in evs:
+		fx_log.append({"t": Time.get_ticks_msec(), "kind": str(e.get("kind", "")),
+			"lane": str(e.get("lane", "")) if e.get("lane", null) != null else ""})
 
 
 func _wait_my_turn() -> void:
@@ -199,3 +208,84 @@ func _test_ai_turn_anim() -> void:
 	if not battle._pending_fx.is_empty():
 		_fail("演出事件没被消化（积压 %d 条）" % battle._pending_fx.size())
 	print("  残留特效节点=%d 积压事件=%d 对手飞牌帧数=%d" % [_n_fx_children(), battle._pending_fx.size(), foe_seen])
+
+
+## 开战逐线：一条线演完才轮到下一条（作者 2026-11-08 第 3 条）
+func _rebuild(seed_v: int, pace_v: float, pause_v: float) -> void:
+	if battle != null and is_instance_valid(battle):
+		battle.queue_free()
+		await process_frame
+	sess = KPSession.new()
+	sess.pace = pace_v
+	sess.combat_line_pause = pause_v
+	battle = KPBattle.new()
+	battle.session = sess
+	root.add_child(battle)
+	battle.size = battle.DESIGN
+	battle._fit()
+	sess.fx.connect(_record_fx)
+	sess.start({"seed": seed_v, "difficulty": "normal", "humanFaction": "demon", "aiFaction": "frost", "humanSide": 0})
+	await process_frame
+
+
+func _test_combat_lines() -> void:
+	print("== 开战逐线")
+	# 上一段可能已经把那一局打完，这里换一局新的
+	await _rebuild(2003, 0.05, 0.15)   # time_scale=0.25 → 0.15s 实际约 0.6s，采样够宽
+	fx_log.clear()
+	for step in 4000:
+		await process_frame
+		if sess.pending():
+			var o: Array = sess.pending().get("options", [])
+			sess.answer_choice(o[0] if o.size() > 0 else {})
+			continue
+		if sess.is_over():
+			break
+		if _lane_marks().size() >= 4:
+			break
+		if sess.is_my_turn() and not sess.busy:
+			sess.end_phase()
+	for i in 30:
+		await process_frame
+	var marks := _lane_marks()
+	if marks.size() < 4:
+		_fail("整局只采到 %d 条线的开战标记（应当是 4 条；is_over=%s turn=%d）" % [marks.size(), str(sess.is_over()), int(sess.game.state.turn)])
+		return
+	var want := ["mountain", "plainL", "plainR", "water"]
+	var got: Array = []
+	var gaps: Array = []
+	for i in marks.size():
+		got.append(marks[i].lane)
+		if i > 0:
+			gaps.append(int(marks[i].t) - int(marks[i - 1].t))
+	var ok_order := str(got) == str(want)
+	# time_scale=0.25 → 0.15s 的间隔实际约 0.6s；放宽到 0.1s 只证明「不是同一帧刷完」
+	var ok_gap := true
+	for g in gaps:
+		if int(g) < 100:
+			ok_gap = false
+	# 每条线的伤害事件必须落在它自己的 lane 标记之后、下一条线之前
+	var ok_scope := true
+	for i in marks.size():
+		var lo: int = int(marks[i].t)
+		var hi: int = int(marks[i + 1].t) if i + 1 < marks.size() else 1 << 30
+		for e in fx_log:
+			if str(e.kind) != "damage" or str(e.lane) != str(marks[i].lane):
+				continue
+			if int(e.t) < lo or int(e.t) > hi:
+				ok_scope = false
+	print("  线序=%s 间隔=%s 同线内事件=%s" % [str(got), str(gaps), "OK" if ok_scope else "错位"])
+	if not ok_order:
+		_fail("线路顺序不对：%s" % str(got))
+	if not ok_gap:
+		_fail("四条线是同一帧刷完的（间隔 %s ms）" % str(gaps))
+	if not ok_scope:
+		_fail("有线路的伤害事件跑到了别的线的时间段里")
+
+
+func _lane_marks() -> Array:
+	var out: Array = []
+	for e in fx_log:
+		if str(e.kind) == "lane":
+			out.append(e)
+	return out
