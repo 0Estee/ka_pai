@@ -15,8 +15,12 @@ func _initialize() -> void:
 	await process_frame
 	_build()
 	await _wait_my_turn()
+	# 无头机帧率会抖（一次飞行可能只采到 19 帧、也可能 56 帧），
+	# 用 0.25 倍时钟把同一段动画摊到 4 倍帧数上，采样才稳定。
+	Engine.time_scale = 0.25
 	await _test_fly_and_land()
 	await _test_ai_turn_anim()
+	Engine.time_scale = 1.0
 	print("[anim] 完成，问题 %d 个" % problems)
 	quit(0 if problems == 0 else 1)
 
@@ -122,14 +126,18 @@ func _test_fly_and_land() -> void:
 	var moved := 0.0
 	var max_y_arc := 0.0
 	var frames := 0
-	while battle._busy_anim and frames < 600:
+	var saw := 0
+	while battle._busy_anim and frames < 3000:
 		await process_frame
 		frames += 1
 		var fc = _flying_card()
-		if fc != null:
+		if fc != null and is_instance_valid(fc):
+			saw += 1
 			var p: Vector2 = (fc as Control).position
 			moved = maxf(moved, (p - p0).length())
 			max_y_arc = maxf(max_y_arc, p0.y - p.y)
+	if saw < 3:
+		_fail("飞行中的卡牌只被采到 %d 帧，动画可能被跳过了" % saw)
 
 	print("  飞行帧数=%d 位移=%.0fpx 抛物线最高=%.0fpx" % [frames, moved, max_y_arc])
 	if moved < 100.0:
@@ -141,7 +149,7 @@ func _test_fly_and_land() -> void:
 	var cell_key := "%s:my_%s" % [str(pl.lane), str(pl.row)]
 	var min_scale := 9.0
 	var max_scale := 0.0
-	for i in 240:
+	for i in 900:
 		await process_frame
 		var c = battle._cell_nodes.get(cell_key, null)
 		if c != null and is_instance_valid(c):
@@ -160,7 +168,7 @@ func _test_fly_and_land() -> void:
 
 	var cell2 = battle._cell_nodes.get(cell_key, null)
 	# 等动画彻底收尾，格子应当回到原尺寸
-	for i in 120:
+	for i in 900:
 		await process_frame
 		if cell2 != null and is_instance_valid(cell2) and absf((cell2 as Control).scale.x - 1.0) < 0.01:
 			break
@@ -172,7 +180,7 @@ func _test_fly_and_land() -> void:
 func _test_ai_turn_anim() -> void:
 	print("== 对手回合演出")
 	var foe_seen := 0
-	for step in 400:
+	for step in 1600:
 		await process_frame
 		for ch in battle._fx_layer.get_children():
 			if ch.has_meta("foe"):
@@ -186,7 +194,7 @@ func _test_ai_turn_anim() -> void:
 			break
 		if sess.is_my_turn() and not sess.busy:
 			sess.end_phase()
-	for i in 30:
+	for i in 120:
 		await process_frame
 	if not battle._pending_fx.is_empty():
 		_fail("演出事件没被消化（积压 %d 条）" % battle._pending_fx.size())
