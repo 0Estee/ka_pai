@@ -68,6 +68,7 @@ func _check_battle() -> void:
 	sess.pace = 0.0
 	var battle = KPBattle.new()
 	battle.session = sess
+	battle.anim = 0.0   # 截图/自检要静态画面：动画全关
 	root.add_child(battle)
 	battle.size = battle.DESIGN
 	battle._fit()

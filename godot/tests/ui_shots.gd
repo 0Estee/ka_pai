@@ -37,6 +37,7 @@ func _run() -> void:
 	await _shot_home()
 	await _open_battle()
 	await _shot("refactor-godot-battle")
+	await _fly_shot()
 	await _select_first_card()
 	await _shot("refactor-godot-battle-select")
 	await _fake_choice()
@@ -76,6 +77,7 @@ func _open_battle() -> void:
 	session.pace = 0.02
 	battle = KPBattle.new()
 	battle.session = session
+	battle.anim = 0.0   # 截图/自检要静态画面：动画全关
 	battle.back_to_home.connect(func(): pass)
 	battle.restart_requested.connect(func(): pass)
 	vp.add_child(battle)
@@ -188,3 +190,35 @@ func _drive_to_end() -> void:
 		plays += 1
 	for i in 6:
 		await process_frame
+
+
+## 出牌飞到一半的那一帧（本轮回合动画的主角）
+func _fly_shot() -> void:
+	var entry := _first_legal()
+	if entry.is_empty():
+		return
+	var places: Array = entry.get("places", [])
+	if places.is_empty() or places[0] == null:
+		return
+	var node = _hand_node_for(int(entry.iid))
+	if node == null:
+		return
+	battle.anim = 1.0
+	await _click(node)
+	await process_frame
+	var lane := str(places[0].lane)
+	var row := str(places[0].row)
+	var half := "my_front" if row == "front" else "my_back"
+	var cell = battle._cell_nodes.get("%s:%s" % [lane, half], null)
+	if cell != null and is_instance_valid(cell):
+		await _click(cell)
+	for i in 10:
+		await process_frame
+	await _shot("refactor-godot-battle-flight")
+	for i in 300:
+		await process_frame
+		if not battle._busy_anim:
+			break
+	for i in 40:
+		await process_frame
+	battle.anim = 0.0

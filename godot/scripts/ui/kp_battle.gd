@@ -51,6 +51,19 @@ var _detail_card := ""             # 详情浮层的卡牌 id
 var _detail_uid := -1              # 详情浮层的场上单位 uid
 var _result_shown := false
 
+# ── 动画状态 ────────────────────────────────────────────────────────────────
+# anim 是全局速度倍率：1.0 正常，0.0 代表整套动画关掉（自检脚本用，点一下就生效）
+var anim := 1.0
+var _busy_anim := false            # 卡牌还在飞：这段窗口里不接受新的输入
+var _pending_fx: Array = []        # _on_fx 先攒着，等 _refresh 把节点建好再放
+var _prev_units: Dictionary = {}   # 上一帧场上单位快照 uid -> {lane,row,side,name,atk,hp}
+var _prev_hand: Array = []         # 上一帧手牌 iid 顺序
+var _first_paint := true
+var _cell_sig: Dictionary = {}     # "lane:half" -> 内容签名；签名没变就复用节点，动画不被打断
+var _overlay_key := ""             # 浮层内容指纹；没变就不重播弹出动画
+var _last_selected := -1
+var _hand_added: Array = []        # 本次 _build_hand 新加入的手牌 iid（用来做进场动画）
+
 
 # ══════════════════════════════════════════════════════════
 # 构建
@@ -99,6 +112,14 @@ func _build() -> void:
 	_board.position = BOARD_RECT.position
 	_board.size = BOARD_RECT.size
 	_frame.add_child(_board)
+
+	# 线路表头是静态的，只建一次：这样每帧只重建格子，格子上的动画不会被顺手清掉
+	var inner_w := 4.0 * CELL_W + 3.0 * CELL_GAP
+	var hx0 := (BOARD_RECT.size.x - inner_w) * 0.5
+	for i in KPC.LANES.size():
+		var lane_name: String = KPC.LANES[i]
+		_lab(_board, str(KPC.LANE_NAME.get(lane_name, lane_name)),
+			Rect2(hx0 + i * (CELL_W + CELL_GAP), 2, CELL_W, 24), 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
 
 	_hint = U.label("", 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	_hint.position = HINT_RECT.position
@@ -186,6 +207,8 @@ func _refresh() -> void:
 	_build_action(st)
 	_build_overlay(st)
 	_hint.text = _hint_text(st)
+
+	_after_refresh(st)
 
 
 func _lab(parent: Node, text: String, rect: Rect2, fs: int, col: Color,
@@ -328,24 +351,16 @@ func _cell_rect(lane_i: int, half_i: int) -> Rect2:
 
 
 func _build_board(st: Dictionary) -> void:
-	_clear(_board)
-	_cell_nodes = {}
 	var me_side: int = session.human_side
-
-	# 线路表头
-	var inner_w := 4.0 * CELL_W + 3.0 * CELL_GAP
-	var x0 := (BOARD_RECT.size.x - inner_w) * 0.5
-	for i in KPC.LANES.size():
-		var lane: String = KPC.LANES[i]
-		_lab(_board, str(KPC.LANE_NAME.get(lane, lane)), Rect2(x0 + i * (CELL_W + CELL_GAP), 2, CELL_W, 24),
-			15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
-
 	var my_places: Dictionary = {}
 	if _selected_iid >= 0 and _legal.has(_selected_iid):
 		for pl in _legal[_selected_iid].get("places", []):
 			if pl != null:
 				my_places["%s:%s" % [pl.lane, pl.row]] = true
 
+	# 只重建「内容变了」的格子：同一个单位留在同一个格子里时，节点原样保留，
+	# 它身上正在跑的补间（进场、受击、抖动）就不会被清空重来。
+	var seen: Dictionary = {}
 	for i in KPC.LANES.size():
 		var lane: String = KPC.LANES[i]
 		for h in 4:
@@ -354,11 +369,40 @@ func _build_board(st: Dictionary) -> void:
 			var row := "front" if half.ends_with("front") else "back"
 			var u = st.board[lane].units[side][row]
 			var is_legal := my_places.has("%s:%s" % [lane, row])
-			var node := _make_cell(lane, half, row, side, u, is_legal)
-			node.position = _cell_rect(i, h).position
-			node.size = _cell_rect(i, h).size
-			_board.add_child(node)
-			_cell_nodes["%s:%s" % [lane, half]] = node
+			var key := "%s:%s" % [lane, half]
+			seen[key] = true
+			var sig := _cell_signature(u, is_legal)
+			var rect := _cell_rect(i, h)
+			var node = _cell_nodes.get(key, null)
+			if node == null or not is_instance_valid(node) or str(_cell_sig.get(key, "")) != sig:
+				if node != null and is_instance_valid(node):
+					_board.remove_child(node)
+					node.queue_free()
+				node = _make_cell(lane, half, row, side, u, is_legal)
+				_board.add_child(node)
+				_cell_nodes[key] = node
+				_cell_sig[key] = sig
+			node.position = rect.position
+			node.size = rect.size
+			node.pivot_offset = rect.size * 0.5
+
+	for key in _cell_nodes.keys():
+		if not seen.has(key):
+			var dead = _cell_nodes[key]
+			if is_instance_valid(dead):
+				_board.remove_child(dead)
+				dead.queue_free()
+			_cell_nodes.erase(key)
+			_cell_sig.erase(key)
+
+
+## 格子内容指纹：单位、攻血、词条、是否高亮成绿色可放格 —— 任一项变了才重建
+func _cell_signature(u, is_legal: bool) -> String:
+	if u == null:
+		return "empty|%s" % ("1" if is_legal else "0")
+	var desc: Dictionary = session.game.describe_unit(u)
+	return "%d|%.2f|%.2f|%.2f|%s|%s|%s" % [int(u.uid), float(desc.atk), float(desc.hp),
+		float(desc.maxHp), str(desc.keywords), str(desc.marks), "1" if is_legal else "0"]
 
 
 func _make_cell(lane: String, half: String, row: String, side: int, u, is_legal: bool) -> Control:
@@ -400,15 +444,53 @@ func _make_cell(lane: String, half: String, row: String, side: int, u, is_legal:
 # ── 手牌 ────────────────────────────────────────────────────────────────────
 
 func _build_hand(me: Dictionary) -> void:
-	_clear(_hand_row)
 	var hand: Array = me.hand
 	# 一手牌尽量铺满宽度不出现横向滚动；牌太多（>8）才交给 ScrollContainer
 	var n := maxf(1.0, float(hand.size()))
 	var cw := clampf((HAND_RECT.size.x - 36.0 - 8.0 * (n - 1.0)) / n, 96.0, 152.0)
+
+	# 按 iid 复用旧节点：只是「可不可出 / 有没有选中」变了就重画那一张，
+	# 其余牌原样留着 —— 抽牌、出牌时其它牌不会整体闪一下。
+	var have: Dictionary = {}
+	for c in _hand_row.get_children():
+		have[int(c.get_meta("iid", -1))] = c
+	var ordered: Array = []
+	_hand_added = []
 	for hc in hand:
 		var iid := int(hc.iid)
+		var card_id := str(hc.cardId)
 		var entry = _legal.get(iid, null)
-		_hand_row.add_child(_make_hand_card(iid, str(hc.cardId), entry, cw))
+		var cost := float(entry.cost) if entry != null else float(DATA.card(card_id).get("cost", 0))
+		var sig := "%s|%s|%s|%s" % [card_id, "1" if entry != null else "0", U.num(cost),
+			"1" if iid == _selected_iid else "0"]
+		var node = have.get(iid, null)
+		if node != null and is_instance_valid(node) and str(node.get_meta("sig", "")) == sig:
+			have.erase(iid)
+			node.modulate = Color(1, 1, 1, 1) if entry != null else Color(1, 1, 1, 0.62)
+			ordered.append(node)
+			continue
+		if node != null and is_instance_valid(node):
+			if node.get_parent() == _hand_row:
+				_hand_row.remove_child(node)
+			node.queue_free()
+			have.erase(iid)
+		node = _make_hand_card(iid, card_id, entry, cw)
+		node.set_meta("iid", iid)
+		node.set_meta("sig", sig)
+		if not _prev_hand.has(iid):
+			_hand_added.append(iid)
+		_hand_row.add_child(node)
+		ordered.append(node)
+
+	for iid in have.keys():
+		var stale = have[iid]
+		if is_instance_valid(stale):
+			if stale.get_parent() == _hand_row:
+				_hand_row.remove_child(stale)
+			stale.queue_free()
+
+	for i in ordered.size():
+		_hand_row.move_child(ordered[i], i)
 
 
 func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) -> Control:
@@ -449,7 +531,7 @@ func _make_hand_card(iid: int, card_id: String, legal_entry, cw: float = 152.0) 
 		for k in kws:
 			names.append(DATA.keyword_name(k))
 		_wrap(card, " · ".join(names), Rect2(10, ch - 32.0, inner, 26), 10, U.GOLD)
-	U.on_click(card, func(): _on_card_click(iid))
+	U.on_click(card, func(): _on_card_click(iid, card))
 	return card
 
 
@@ -486,7 +568,7 @@ func _build_preview(me: Dictionary) -> void:
 func _build_action(st: Dictionary) -> void:
 	_clear(_action)
 	var can_end: bool = session.is_my_turn()
-	_action.add_child(_big_button("结束阶段", Rect2(12, 12, 236, 72), can_end, func(): session.end_phase()))
+	_action.add_child(_big_button("结束阶段", Rect2(12, 12, 236, 72), can_end, func(): _end_phase()))
 	_action.add_child(_big_button("认输", Rect2(260, 12, 150, 72), not session.is_over(), func(): session.surrender()))
 	_action.add_child(_big_button("返回首页", Rect2(422, 12, 170, 72), true, func(): back_to_home.emit()))
 	var tip := "本轮已出牌 %d 张" % int(st.stats.get("cardsPlayed", 0))
@@ -530,7 +612,9 @@ func _hint_text(st: Dictionary) -> String:
 # 输入
 # ══════════════════════════════════════════════════════════
 
-func _on_card_click(iid: int) -> void:
+func _on_card_click(iid: int, from: Control = null) -> void:
+	if _busy_anim:
+		return
 	if session.is_over():
 		return
 	if not session.is_my_turn():
@@ -547,13 +631,15 @@ func _on_card_click(iid: int) -> void:
 	var places: Array = entry.get("places", [])
 	if places.size() == 1 and places[0] == null:
 		_selected_iid = -1
-		session.play_card(iid, {})
+		_play_with_anim(iid, {}, from)
 		return
 	_selected_iid = iid
 	_refresh()
 
 
 func _on_cell_click(lane: String, half: String) -> void:
+	if _busy_anim:
+		return
 	var row := "front" if half.ends_with("front") else "back"
 	var side: int = session.human_side if half.begins_with("my") else session.ai_side
 	var u = session.game.state.board[lane].units[side][row]
@@ -563,7 +649,7 @@ func _on_cell_click(lane: String, half: String) -> void:
 			if pl != null and str(pl.lane) == lane and str(pl.row) == row:
 				var iid := _selected_iid
 				_selected_iid = -1
-				session.play_card(iid, {"lane": lane, "row": row})
+				_play_with_anim(iid, {"lane": lane, "row": row}, _hand_node_of(iid))
 				return
 	if u != null:
 		_open_detail_unit(int(u.uid))
@@ -586,12 +672,28 @@ func _build_overlay(st: Dictionary) -> void:
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_clear(_overlay)
 	var pending = session.pending()
+	var key := ""
+	if pending != null:
+		key = "choice|%s|%s" % [str(pending.get("type", "")), str(pending.get("prompt", ""))]
+	elif _detail_card != "":
+		key = "detail-card|" + _detail_card
+	elif _detail_uid >= 0:
+		key = "detail-unit|%d" % _detail_uid
+	elif session.is_over():
+		key = "result"
+	var fresh := key != _overlay_key
+	_overlay_key = key
 	if pending != null:
 		_build_choice(pending)
 	elif _detail_card != "" or _detail_uid >= 0:
 		_build_detail()
 	elif session.is_over():
 		_build_result(st)
+	# 只有内容换了才播弹出：状态刷新导致的重复重建不该让面板抖一下
+	if fresh and key != "":
+		for c in _overlay.get_children():
+			if c is Panel:
+				_pop_in(c)
 
 
 func _dim_full() -> ColorRect:
@@ -600,7 +702,12 @@ func _dim_full() -> ColorRect:
 	dim.position = Vector2.ZERO
 	dim.size = DESIGN
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	if _anim_on():
+		dim.modulate.a = 0.0
 	_overlay.add_child(dim)
+	if _anim_on():
+		var tw := dim.create_tween()
+		tw.tween_property(dim, "modulate:a", 1.0, _t(0.16))
 	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	return dim
 
@@ -824,33 +931,11 @@ func _on_finished() -> void:
 # 演出
 # ══════════════════════════════════════════════════════════
 
+## 演出事件先攒着：KPSession 是「fx 先发、changed 后发」，而 changed 会重建节点，
+## 所以真正落到界面上的动作要等 _refresh 末尾再做（见 _drain_pending_fx）。
 func _on_fx(events: Array) -> void:
 	for ev in events:
-		var kind := str(ev.get("kind", ""))
-		match kind:
-			"banner":
-				_banner_fx(str(ev.get("text", "")))
-			"king-damage", "king-heal":
-				var side: int = int(ev.get("side", session.human_side))
-				var x := 120.0 if side == session.human_side else 600.0
-				_float_fx(str(ev.get("text", "")), Vector2(x, 96), U.BAD if kind == "king-damage" else U.GOOD, 30)
-			"cast":
-				_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22)
-			_:
-				var lane := str(ev.get("lane", ""))
-				if lane == "":
-					continue
-				var half := _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))
-				var pos := _cell_center(lane, half)
-				match kind:
-					"deploy":
-						_float_fx("上阵", pos, U.GOOD, 22)
-					"destroy":
-						_float_fx("消灭", pos, U.BAD, 24)
-					"damage":
-						_float_fx(str(ev.get("text", "-0")), pos, U.BAD, 28)
-					"heal":
-						_float_fx(str(ev.get("text", "+0")), pos, U.GOOD, 26)
+		_pending_fx.append(ev)
 
 
 func _half_key(side: int, row: String) -> String:
@@ -885,15 +970,24 @@ func _float_fx(text: String, pos: Vector2, color: Color, fs: int) -> void:
 func _banner_fx(text: String) -> void:
 	if text == "":
 		return
-	var l := U.label(text, 42, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	l.size = Vector2(DESIGN.x, 60)
+	var l := U.label(text, 40, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	l.size = Vector2(DESIGN.x, 58)
 	l.position = Vector2(0, DESIGN.y * 0.42)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.pivot_offset = l.size * 0.5
 	_fx_layer.add_child(l)
+	if not _anim_on():
+		l.queue_free()
+		return
+	# 起手：从 1.18 倍压回原大并淡入；收尾：停 0.4 秒，再上飘淡出
+	l.scale = Vector2(1.18, 1.18)
+	l.modulate.a = 0.0
 	var tw := l.create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(l, "position:y", l.position.y - 30.0, 0.9)
-	tw.tween_property(l, "modulate:a", 0.0, 0.9).set_delay(0.4)
+	tw.tween_property(l, "scale", Vector2.ONE, _t(0.24)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "modulate:a", 1.0, _t(0.18))
+	tw.tween_property(l, "position:y", l.position.y - 26.0, _t(1.0)).set_delay(_t(0.35))
+	tw.tween_property(l, "modulate:a", 0.0, _t(0.45)).set_delay(_t(0.85))
 	tw.chain().tween_callback(func(): l.queue_free())
 
 
@@ -916,3 +1010,455 @@ func _toast(text: String) -> void:
 	var tw := holder.create_tween()
 	tw.tween_property(holder, "modulate:a", 0.0, 1.0).set_delay(1.2)
 	tw.tween_callback(func(): holder.queue_free())
+
+
+# ══════════════════════════════════════════════════════════
+# 动画：起手、飞行、落地、受击、阵亡
+# ══════════════════════════════════════════════════════════
+#
+# 设计原则：
+# 1. 每个动作都要有「起手 → 过程 → 落地」三段，不能凭空出现、凭空消失；
+# 2. 规则永远先跑，动画只跟着状态走（唯一的例外是出牌飞行，因为要让牌先飞到
+#    格子再落地，玩家看到的是「牌变成单位」，而不是「手牌没了 + 单位冒出来」）；
+# 3. 格子与手牌节点按内容签名复用，动画跑一半不会被刷新清掉。
+
+func _anim_on() -> bool:
+	return anim > 0.001
+
+
+## 动画时长缩放：anim 是速度倍率（0 关掉，1 正常，2 加快速）
+func _t(sec: float) -> float:
+	return maxf(0.001, sec * anim)
+
+
+# ── 刷新后：进场 / 阵亡 / 抽牌 / 积压的演出事件 ──────────────────────────────
+
+func _after_refresh(st: Dictionary) -> void:
+	var now := _unit_snapshot(st)
+	if _first_paint:
+		_prev_units = now
+		_prev_hand = _hand_iids()
+		_first_paint = false
+		_pending_fx.clear()
+		_last_selected = _selected_iid
+		return
+
+	_animate_diff(now)
+	_prev_units = now
+	_prev_hand = _hand_iids()
+	_drain_pending_fx()
+
+	if _selected_iid != _last_selected and _selected_iid >= 0:
+		var picked = _hand_node_of(_selected_iid)
+		if picked != null:
+			_punch(picked, 1.06, 0.16)
+	_last_selected = _selected_iid
+
+
+func _hand_iids() -> Array:
+	var out: Array = []
+	for hc in session.my_hand():
+		out.append(int(hc.iid))
+	return out
+
+
+func _unit_snapshot(st: Dictionary) -> Dictionary:
+	var out := {}
+	for lane in KPC.LANES:
+		for side in 2:
+			for row in KPC.ROWS:
+				var u = st.board[lane].units[side][row]
+				if u == null:
+					continue
+				var desc: Dictionary = session.game.describe_unit(u)
+				out[int(u.uid)] = {
+					"lane": lane, "row": row, "side": side,
+					"name": str(desc.name), "atk": float(desc.atk), "hp": float(desc.hp),
+				}
+	return out
+
+
+func _animate_diff(now: Dictionary) -> void:
+	if not _anim_on():
+		return
+	# 对手即将「飞」过来的那些格子先别急着淡入，交给飞行落地时再亮
+	var flying: Dictionary = {}
+	for ev in _pending_fx:
+		if str(ev.get("kind", "")) == "deploy" and int(ev.get("side", -1)) != session.human_side:
+			flying["%s:%s" % [str(ev.get("lane", "")), _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))]] = true
+	# 新上场的、或换了格子的单位：缩放淡入
+	for uid in now.keys():
+		var info: Dictionary = now[uid]
+		var prev = _prev_units.get(uid, null)
+		var moved := prev == null
+		if prev != null:
+			moved = str(prev.lane) != str(info.lane) or str(prev.row) != str(info.row) or int(prev.side) != int(info.side)
+		if moved:
+			var key := "%s:%s" % [info.lane, _half_key(int(info.side), str(info.row))]
+			if not flying.has(key):
+				_enter_cell(key)
+	# 这一帧消失的单位：留一具残影在原地碎掉
+	for uid in _prev_units.keys():
+		if not now.has(uid):
+			_death_ghost(_prev_units[uid])
+	# 新抽到的牌：从 0.72 倍弹出来
+	for iid in _hand_added:
+		var nd = _hand_node_of(int(iid))
+		if nd != null:
+			nd.pivot_offset = nd.size * 0.5
+			nd.scale = Vector2(0.72, 0.72)
+			var tw: Tween = nd.create_tween()
+			tw.tween_property(nd, "scale", Vector2.ONE, _t(0.26)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_hand_added = []
+
+
+func _enter_cell(key: String) -> void:
+	var node = _cell_nodes.get(key, null)
+	if node == null or not is_instance_valid(node):
+		return
+	node.pivot_offset = node.size * 0.5
+	node.scale = Vector2(0.62, 0.62)
+	node.modulate.a = 0.0
+	var tw: Tween = node.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "scale", Vector2.ONE, _t(0.3)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(node, "modulate:a", 1.0, _t(0.16))
+
+
+func _death_ghost(prev: Dictionary) -> void:
+	if not _anim_on():
+		return
+	var half := _half_key(int(prev.get("side", 0)), str(prev.get("row", "front")))
+	var rect := _cell_rect_abs(str(prev.get("lane", "")), half)
+	var ghost := Panel.new()
+	ghost.position = rect.position
+	ghost.size = rect.size
+	ghost.pivot_offset = rect.size * 0.5
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.add_theme_stylebox_override("panel", U.box(Color(0.26, 0.11, 0.13, 0.92), 10, U.BAD, 2))
+	_lab(ghost, str(prev.get("name", "")), Rect2(8, 6, rect.size.x - 16, 22), 14, Color(1, 0.78, 0.78))
+	_lab(ghost, "⚔ %s  ♥ %s" % [U.num(prev.get("atk", 0)), U.num(prev.get("hp", 0))],
+		Rect2(8, 30, rect.size.x - 16, 26), 18, Color(1, 0.82, 0.82))
+	_fx_layer.add_child(ghost)
+	var tw := ghost.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ghost, "scale", Vector2(1.16, 1.16), _t(0.4)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ghost, "rotation", 0.1, _t(0.4))
+	tw.tween_property(ghost, "modulate:a", 0.0, _t(0.34)).set_delay(_t(0.08))
+	tw.chain().tween_callback(func(): ghost.queue_free())
+
+
+# ── 积压事件的落地（此时新节点已经建好） ────────────────────────────────────
+
+func _drain_pending_fx() -> void:
+	if _pending_fx.is_empty():
+		return
+	var evs: Array = _pending_fx.duplicate()
+	_pending_fx.clear()
+	var dim_done := false
+	for ev in evs:
+		var kind := str(ev.get("kind", ""))
+		match kind:
+			"banner":
+				if not dim_done:
+					_banner_fx(str(ev.get("text", "")))
+					dim_done = true
+			"king-damage", "king-heal":
+				var side: int = int(ev.get("side", session.human_side))
+				var x := 120.0 if side == session.human_side else 600.0
+				var is_dmg: bool = kind == "king-damage"
+				_screen_flash(U.BAD if is_dmg else U.GOOD, 0.14)
+				_punch(_top, 0.96 if is_dmg else 1.02, 0.22)
+				_float_fx(str(ev.get("text", "")), Vector2(x, 96), U.BAD if is_dmg else U.GOOD, 30)
+			"cast":
+				if int(ev.get("side", -1)) == session.human_side:
+					_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22)
+				else:
+					_foe_cast_fx(ev)
+			_:
+				var lane := str(ev.get("lane", ""))
+				if lane == "":
+					continue
+				var half := _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))
+				var pos := _cell_center(lane, half)
+				match kind:
+					"deploy":
+						if int(ev.get("side", -1)) == session.human_side:
+							pass   # 人类打出的牌是自己飞过去的，落地波纹在 _flight_land 里放过了
+						else:
+							_foe_deploy_fx(ev)
+					"destroy":
+						_float_fx("消灭", pos, U.BAD, 24)
+					"damage":
+						_hit_fx(lane, half, U.BAD)
+						_float_fx(str(ev.get("text", "-0")), pos, U.BAD, 28)
+					"heal":
+						_hit_fx(lane, half, U.GOOD)
+						_float_fx(str(ev.get("text", "+0")), pos, U.GOOD, 26)
+
+
+# ── 出牌：手牌 → 战场的飞行 ────────────────────────────────────────────────
+
+func _hand_node_of(iid: int):
+	for c in _hand_row.get_children():
+		if int(c.get_meta("iid", -1)) == iid:
+			return c
+	return null
+
+
+## 落点：单位牌是目标格，锦囊牌是战场中央
+func _target_rect(opts: Dictionary) -> Rect2:
+	var lane := str(opts.get("lane", ""))
+	if lane != "":
+		var li := KPC.LANES.find(lane)
+		var hi := 2 if str(opts.get("row", "front")) == "front" else 3
+		if li >= 0:
+			var r := _cell_rect(li, hi)
+			r.position += _board.position
+			return r
+	return Rect2(Vector2(276, 360), Vector2(CELL_W, CELL_H))
+
+
+## 出牌入口：先让一张牌从手牌飞到落点，落地那一刻才真的把牌打进引擎。
+## 这样玩家看到的是「牌飞过去 → 牌变成单位」，而不是「手牌消失 → 单位凭空出现」。
+func _play_with_anim(iid: int, opts: Dictionary, from: Control = null) -> void:
+	var node := from
+	if node == null:
+		node = _hand_node_of(iid)
+	var card_id := _card_id_of(iid)
+	if _busy_anim:
+		return
+	if not _anim_on() or node == null or card_id == "":
+		session.play_card(iid, opts)
+		return
+	_busy_anim = true
+	# 手牌原地淡出，接力给飞行中的那张
+	var out := node.create_tween()
+	out.tween_property(node, "modulate:a", 0.0, _t(0.1))
+	_fly_card(iid, card_id, node, _target_rect(opts), func():
+		_busy_anim = false
+		# 落地时再核一次：飞行这半秒里局面可能已经变了
+		if not _legal.has(iid):
+			_toast("这张牌现在打不出了")
+			_refresh()
+			return
+		session.play_card(iid, opts))
+
+
+func _fly_card(iid: int, card_id: String, from: Control, target: Rect2, on_land: Callable) -> void:
+	var src := _node_rect_in_fx(from)
+	var card: Control = _make_hand_card(iid, card_id, _legal.get(iid, null), clampf(src.size.x, 96.0, 152.0))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.custom_minimum_size = Vector2.ZERO
+	card.size = src.size
+	card.position = src.position
+	card.pivot_offset = src.size * 0.5
+	card.set_meta("iid", iid)
+	card.z_index = 10
+	_fx_layer.add_child(card)
+
+	var lift := src.position - Vector2(0, 18)
+	var land := target.position + (target.size - src.size) * 0.5
+	var tw := card.create_tween()
+	# 起手：抬起来、放大一点
+	tw.tween_property(card, "position", lift, _t(0.1)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(card, "scale", Vector2(1.08, 1.08), _t(0.1))
+	# 飞行：抛物线，一路带一点旋转，越飞越正
+	tw.tween_method(_flight_step.bind(card, lift, land), 0.0, 1.0, _t(0.3)) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# 落地：压扁 + 消散 + 地面波纹，然后才把牌交给引擎
+	tw.tween_callback(_flight_land.bind(card, target, on_land))
+
+
+func _flight_step(t: float, card: Control, a: Vector2, b: Vector2) -> void:
+	if not is_instance_valid(card):
+		return
+	var p := a.lerp(b, t)
+	p.y -= sin(t * PI) * 74.0
+	card.position = p
+	card.scale = Vector2.ONE * lerpf(1.08, 1.0, t)
+	card.rotation = -sin(t * PI) * 0.1
+
+
+func _flight_land(card: Control, target: Rect2, on_land: Callable) -> void:
+	if is_instance_valid(card):
+		var tw := card.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(card, "scale", Vector2(1.14, 0.84), _t(0.09))
+		tw.tween_property(card, "modulate:a", 0.0, _t(0.16)).set_delay(_t(0.04))
+		tw.chain().tween_callback(func(): card.queue_free())
+	_land_burst(target)
+	on_land.call()
+
+
+# ── 小零件 ────────────────────────────────────────────────────────────────
+
+## 节点在 _fx_layer 坐标系里的矩形（fx 层和设计稿同尺寸，所以拿它当舞台坐标）
+func _node_rect_in_fx(node: Control) -> Rect2:
+	var inv := _fx_layer.get_global_transform().affine_inverse()
+	var r := node.get_global_rect()
+	var p0: Vector2 = inv * r.position
+	var p1: Vector2 = inv * r.end
+	return Rect2(p0, p1 - p0)
+
+
+func _cell_rect_abs(lane: String, half: String) -> Rect2:
+	var li := KPC.LANES.find(lane)
+	var hi := HALVES.find(half)
+	if li < 0 or hi < 0:
+		return Rect2(_board.position, Vector2(CELL_W, CELL_H))
+	var r := _cell_rect(li, hi)
+	r.position += _board.position
+	return r
+
+
+## 落地波纹：一圈绿光由小变大散去
+func _land_burst(rect: Rect2) -> void:
+	if not _anim_on():
+		return
+	var ring := Panel.new()
+	ring.position = rect.position
+	ring.size = rect.size
+	ring.pivot_offset = rect.size * 0.5
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.add_theme_stylebox_override("panel", U.box(Color(0, 0, 0, 0), 14, U.GOOD, 3))
+	_fx_layer.add_child(ring)
+	var tw := ring.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ring, "scale", Vector2(1.22, 1.22), _t(0.34)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ring, "modulate:a", 0.0, _t(0.34))
+	tw.chain().tween_callback(func(): ring.queue_free())
+
+
+## 受击：格子上闪一圈色 + 抖一下
+func _hit_fx(lane: String, half: String, col: Color) -> void:
+	if not _anim_on():
+		return
+	var rect := _cell_rect_abs(lane, half)
+	var flash := Panel.new()
+	flash.position = rect.position
+	flash.size = rect.size
+	flash.pivot_offset = rect.size * 0.5
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.add_theme_stylebox_override("panel", U.box(Color(col.r, col.g, col.b, 0.16), 10, col, 3))
+	_fx_layer.add_child(flash)
+	var tw := flash.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(flash, "scale", Vector2(1.06, 1.06), _t(0.28)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(flash, "modulate:a", 0.0, _t(0.28))
+	tw.chain().tween_callback(func(): flash.queue_free())
+	var node = _cell_nodes.get("%s:%s" % [lane, half], null)
+	if node != null and is_instance_valid(node):
+		_punch(node, 1.09, 0.18)
+
+
+func _screen_flash(col: Color, alpha: float) -> void:
+	if not _anim_on():
+		return
+	var cr := ColorRect.new()
+	cr.color = Color(col.r, col.g, col.b, alpha)
+	cr.position = Vector2.ZERO
+	cr.size = DESIGN
+	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx_layer.add_child(cr)
+	var tw := cr.create_tween()
+	tw.tween_property(cr, "modulate:a", 0.0, _t(0.42))
+	tw.tween_callback(func(): cr.queue_free())
+
+
+## 弹一下：先在 dur*0.4 里放大到 sz，再回弹到 1.0
+func _punch(node, sz: float, dur: float) -> void:
+	if not _anim_on() or node == null or not is_instance_valid(node) or not (node is Control):
+		return
+	var c: Control = node
+	c.pivot_offset = c.size * 0.5
+	var tw := c.create_tween()
+	tw.tween_property(c, "scale", Vector2(sz, sz), _t(dur * 0.4))
+	tw.tween_property(c, "scale", Vector2.ONE, _t(dur * 0.6)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## 浮层面板弹出：0.94 倍 + 透明 → 正常大小
+func _pop_in(panel: Control) -> void:
+	if not _anim_on():
+		return
+	panel.pivot_offset = panel.size * 0.5
+	panel.scale = Vector2(0.94, 0.94)
+	panel.modulate.a = 0.0
+	var tw := panel.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(panel, "scale", Vector2.ONE, _t(0.2)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(panel, "modulate:a", 1.0, _t(0.16))
+
+
+func _end_phase() -> void:
+	if _busy_anim:
+		return
+	session.end_phase()
+
+
+# ── 对手出牌：从对面 HUD 飞一张牌过来 ──────────────────────────────────────
+
+func _foe_deploy_fx(ev: Dictionary) -> void:
+	if not _anim_on():
+		return
+	var lane := str(ev.get("lane", ""))
+	var half := _half_key(int(ev.get("side", 0)), str(ev.get("row", "front")))
+	var key := "%s:%s" % [lane, half]
+	var rect := _cell_rect_abs(lane, half)
+	# 单位其实已经在场上了：先藏起来，等牌飞到了再亮出来
+	var node = _cell_nodes.get(key, null)
+	if node != null and is_instance_valid(node):
+		(node as Control).modulate.a = 0.0
+	_foe_fly(str(ev.get("text", "单位")), U.BAD, Rect2(Vector2(600, 22), Vector2(104, 118)), rect, func():
+		var n = _cell_nodes.get(key, null)
+		if n != null and is_instance_valid(n):
+			_enter_cell(key)
+		_land_burst(rect))
+
+
+func _foe_cast_fx(ev: Dictionary) -> void:
+	if not _anim_on():
+		return
+	var lane := str(ev.get("lane", ""))
+	var rect := Rect2(Vector2(276, 360), Vector2(CELL_W, CELL_H))
+	if lane != "":
+		var li := KPC.LANES.find(lane)
+		if li >= 0:
+			rect = _cell_rect_abs(lane, "my_front")
+	_foe_fly("锦囊", U.FACTION, Rect2(Vector2(600, 22), Vector2(104, 118)), rect, func():
+		_land_burst(rect)
+		_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22))
+
+
+## 对手方的「牌」：只画一张带名字的牌背，飞得比玩家自己出牌快一点
+func _foe_fly(label: String, tone: Color, src: Rect2, target: Rect2, on_land: Callable) -> void:
+	var card := Panel.new()
+	card.position = src.position
+	card.size = src.size
+	card.pivot_offset = src.size * 0.5
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_theme_stylebox_override("panel", U.box(Color("2a1520"), 10, tone, 2))
+	_lab(card, label, Rect2(6, 10, src.size.x - 12, 26), 14, Color(1, 0.85, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
+	_lab(card, "对手出牌", Rect2(6, src.size.y - 34, src.size.x - 12, 22), 11, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	card.z_index = 9
+	card.set_meta("foe", true)
+	_fx_layer.add_child(card)
+
+	var start := src.position
+	var land := target.position + (target.size - src.size) * 0.5
+	var tw := card.create_tween()
+	tw.tween_property(card, "scale", Vector2(0.92, 0.92), _t(0.06))
+	tw.parallel().tween_property(card, "position", start + Vector2(0, 14), _t(0.06))
+	tw.tween_method(_flight_step.bind(card, start + Vector2(0, 14), land), 0.0, 1.0, _t(0.2)) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(_foe_fly_land.bind(card, on_land))
+
+
+func _foe_fly_land(card: Control, on_land: Callable) -> void:
+	if is_instance_valid(card):
+		var tw := card.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(card, "scale", Vector2(1.1, 0.86), _t(0.08))
+		tw.tween_property(card, "modulate:a", 0.0, _t(0.14)).set_delay(_t(0.03))
+		tw.chain().tween_callback(func(): card.queue_free())
+	on_land.call()
