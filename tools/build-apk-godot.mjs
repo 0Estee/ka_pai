@@ -6,29 +6,38 @@
 //   node tools/build-apk-godot.mjs --fetch-templates  先从官方 tpz 里抠出安卓模板（只下 221MB）
 //   node tools/build-apk-godot.mjs --no-dist       不往 dist/ 复制交付物
 //
-// 依赖（这台机器上的位置写死在下面的常量里，换机器改这几个常量即可）：
-//   Godot 4.7.2 自包含安装：exe + editor_data（内含 export_templates 与 debug.keystore）
-//   JDK 17、Android SDK（build-tools / platforms / platform-tools）
+// 依赖全部在工程目录内（.toolchain/，不进 git）：
+//   .toolchain/godot          Godot 4.7.2 自包含安装：exe + editor_data（内含 export_templates 与 debug.keystore）
+//   .toolchain/jdk17          JDK 17（apksigner / d8 要用）
+//   .toolchain/sdk            Android SDK（build-tools / platforms / platform-tools）
+// 临时文件写 .tmp/（也在工程目录内），不往 C 盘留东西。
 // 详细说明见 docs/构建APK-Godot端.md
 
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, copyFileSync } from "node:fs";
 import { inflateRawSync } from "node:zlib";
 
-const GODOT = "E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe";
-const EDITOR_DATA = "E:/kapai-tools/godot/editor_data";
-const TPL_VERSION = "4.7.2.stable";
-const JDK = "E:/kapai-tools/jdk17/jdk-17.0.21+9";
-const SDK = "E:/ka_pai/.toolchain/sdk";
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\//, "").replace(/\/$/, "");
+// 工具链与临时文件全部放在工程目录里（.toolchain/ 与 .tmp/，都在 .gitignore 里），
+// 这样 C 盘不留任何工作文件：换机器只需把这两个目录一起搬走。
+const TOOLS = ROOT + "/.toolchain";
+const GODOT = TOOLS + "/godot/Godot_v4.7.2-stable_win64_console.exe";
+const EDITOR_DATA = TOOLS + "/godot/editor_data";
+const TPL_VERSION = "4.7.2.stable";
+const JDK = TOOLS + "/jdk17/jdk-17.0.21+9";
+const SDK = TOOLS + "/sdk";
+const TMP = ROOT + "/.tmp";
 const OUT_APK = "build/android/ka-pai.apk";
+
+// 所有子进程都指向工程内的 .tmp，别让 Godot / java 往 C:\Users\…\Temp 里写
+const INNER_ENV = { ...process.env, TEMP: TMP, TMP: TMP, TMPDIR: TMP, JAVA_TOOL_OPTIONS: `-Djava.io.tmpdir=${TMP}` };
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
 
 const run = (cmd, a, opts = {}) =>
 	new Promise((res, rej) =>
-		execFile(cmd, a, { maxBuffer: 1 << 24, ...opts }, (err, so, se) =>
+		execFile(cmd, a, { maxBuffer: 1 << 24, env: INNER_ENV, ...opts }, (err, so, se) =>
 			err && !opts.allowFail ? rej(Object.assign(err, { stdout: so, stderr: se })) : res((so || "") + (se || ""))));
 
 // ── 1. 导出模板：从官方 tpz 里按 Range 只抓安卓那几个文件 ──────────────
@@ -78,6 +87,7 @@ async function fetchTemplates() {
 
 // ── 2. 环境自检 ───────────────────────────────────────────────
 function preflight() {
+	mkdirSync(TMP, { recursive: true });
 	const need = [
 		[GODOT, "Godot 可执行文件"],
 		[JDK + "/bin/java.exe", "JDK（apksigner/d8 要用）"],
@@ -86,6 +96,7 @@ function preflight() {
 		[SDK + "/platform-tools/adb.exe", "platform-tools（Godot 会检查 adb）"],
 		[EDITOR_DATA + `/export_templates/${TPL_VERSION}/android_debug.apk`, "安卓导出模板（跑 --fetch-templates）"],
 	];
+	console.log("  ✓ 临时目录（C 盘不留文件）  " + TMP);
 	const bad = need.filter(([p]) => !existsSync(p));
 	for (const [p, what] of need) console.log((existsSync(p) ? "  ✓ " : "  ✗ ") + what + "  " + p);
 	if (bad.length) throw new Error("缺东西，先补齐上面标 ✗ 的：" + bad.map((b) => b[1]).join("、"));
@@ -95,7 +106,7 @@ function preflight() {
 async function exportApk(release) {
 	mkdirSync(ROOT + "/godot/build/android", { recursive: true });
 	const env = {
-		...process.env,
+		...INNER_ENV,
 		JAVA_HOME: JDK,
 		ANDROID_HOME: SDK,
 		PATH: JDK + "/bin;" + SDK + "/platform-tools;" + (process.env.PATH || ""),
@@ -114,7 +125,7 @@ async function exportApk(release) {
 async function verify(apk) {
 	const badging = await run(SDK + "/build-tools/34.0.0/aapt.exe", ["dump", "badging", apk]);
 	for (const l of badging.split("\n")) if (/^(package:|sdkVersion|targetSdkVersion|native-code)/.test(l)) console.log("[verify]", l);
-	const sig = await run(JAVA_BIN(), ["-jar", SDK + "/build-tools/34.0.0/lib/apksigner.jar", "verify", "-v", "--print-certs", apk], { allowFail: true });
+	const sig = await run(JAVA_BIN(), [`-Djava.io.tmpdir=${TMP}`, "-jar", SDK + "/build-tools/34.0.0/lib/apksigner.jar", "verify", "-v", "--print-certs", apk], { allowFail: true, env: INNER_ENV });
 	console.log("[verify]", /Verifies/.test(sig) ? "签名 ✓" : "签名 ✗ " + sig.slice(0, 200));
 }
 

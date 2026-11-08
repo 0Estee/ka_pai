@@ -12,20 +12,22 @@ node tools/build-apk-godot.mjs --release  # 出正式包（用 debug 签名，�
 
 ## 1. 需要什么
 
+> **全部在工程目录里**（`E:/ka_pai/.toolchain/`，`.gitignore` 忽略）：C 盘不留任何工作文件，临时目录也指到 `E:/ka_pai/.tmp/`。整包搬走只要带走 `.toolchain/`。
+
 | 东西 | 这台机器上的位置 | 说明 |
 | --- | --- | --- |
-| Godot 4.7.2 | `E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe` | **自包含模式**（exe 旁有 `_sc_`）：编辑器设置与导出模板都在 `E:/kapai-tools/godot/editor_data/` |
-| 导出模板 4.7.2 | `E:/kapai-tools/godot/editor_data/export_templates/4.7.2.stable/` | 只要 `android_debug.apk`、`android_release.apk`、`version.txt` 三个文件（全量 tpz 是 1.28 GB，安卓只要 221 MB，见 §3） |
-| JDK 17 | `E:/kapai-tools/jdk17/jdk-17.0.21+9` | apksigner / d8 是 .bat，必须有 java |
+| Godot 4.7.2 | `E:/ka_pai/.toolchain/godot/Godot_v4.7.2-stable_win64_console.exe` | **自包含模式**（exe 旁有 `_sc_`）：编辑器设置与导出模板都在 `E:/ka_pai/.toolchain/godot/editor_data/` |
+| 导出模板 4.7.2 | `E:/ka_pai/.toolchain/godot/editor_data/export_templates/4.7.2.stable/` | 只要 `android_debug.apk`、`android_release.apk`、`version.txt` 三个文件（全量 tpz 是 1.28 GB，安卓只要 221 MB，见 §3） |
+| JDK 17 | `E:/ka_pai/.toolchain/jdk17/jdk-17.0.21+9` | apksigner / d8 是 .bat，必须有 java |
 | Android SDK | `E:/ka_pai/.toolchain/sdk` | 要 `build-tools/34.0.0`、`platforms/android-34`、**`platform-tools`（adb）** |
-| 调试签名 | `E:/kapai-tools/godot/editor_data/keystores/debug.keystore` | 别名 `androiddebugkey`，两个口令都是 `android` |
+| 调试签名 | `E:/ka_pai/.toolchain/godot/editor_data/keystores/debug.keystore` | 别名 `androiddebugkey`，两个口令都是 `android` |
 
 路径写在 Godot 的编辑器设置里（自包含模式）：
 
 ```
 export/android/android_sdk_path = "E:/ka_pai/.toolchain/sdk"
-export/android/java_sdk_path    = "E:/kapai-tools/jdk17/jdk-17.0.21+9"
-export/android/debug_keystore   = "E:/kapai-tools/godot/editor_data/keystores/debug.keystore"
+export/android/java_sdk_path    = "E:/ka_pai/.toolchain/jdk17/jdk-17.0.21+9"
+export/android/debug_keystore   = "E:/ka_pai/.toolchain/godot/editor_data/keystores/debug.keystore"
 ```
 
 ## 2. 工程侧的三个开关
@@ -51,7 +53,7 @@ export/android/debug_keystore   = "E:/kapai-tools/godot/editor_data/keystores/de
 
 ```bash
 E:/ka_pai/.toolchain/sdk/build-tools/34.0.0/aapt.exe dump badging godot/build/android/ka-pai.apk
-E:/kapai-tools/jdk17/jdk-17.0.21+9/bin/java.exe -jar \
+E:/ka_pai/.toolchain/jdk17/jdk-17.0.21+9/bin/java.exe -jar \
   E:/ka_pai/.toolchain/sdk/build-tools/34.0.0/lib/apksigner.jar verify -v godot/build/android/ka-pai.apk
 ```
 

@@ -615,12 +615,16 @@ Java 能编进 APK。**跨设备能不能连上，只能你实测。**
 # 规则引擎（旧版，229 条）
 node engine/test/smoke.mjs
 
-# Godot 侧：规则冒烟 / 选项挂起 / 与 JS 规则对拍 / AI 回归
-E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/smoke.gd
-E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/choices.gd
-E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/parity.gd
-E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/ai.gd
-E:/kapai-tools/godot/Godot_v4.7.2-stable_win64_console.exe --headless --path godot --script res://tests/ai-parity.gd
+# Godot 侧：统一用 tools/godot.mjs 启动（路径与临时目录都在工程内，不往 C 盘写东西）
+node tools/godot.mjs --headless --path godot --script res://tests/smoke.gd      # 规则冒烟
+node tools/godot.mjs --headless --path godot --script res://tests/choices.gd    # 选项挂起
+node tools/godot.mjs --headless --path godot --script res://tests/parity.gd     # 与 JS 规则对拍
+node tools/godot.mjs --headless --path godot --script res://tests/ai.gd         # AI 回归
+node tools/godot.mjs --headless --path godot --script res://tests/ai-parity.gd  # AI 决策对拍
+node tools/godot.mjs --headless --path godot --script res://tests/ui_pages.gd   # 设置/回放/联机三页
+node tools/godot.mjs --headless --path godot --script res://tests/ui_qa.gd      # 界面越界/截断
+# 截图（必须开窗口，--headless 截不到图）
+node tools/godot.mjs --path godot --resolution 720x1280 --script res://tests/ui_shots.gd -- --out E:/ka_pai/shots
 
 # 网页端：类型检查 + 构建 + 无头浏览器冒烟
 cd web && node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build
@@ -630,5 +634,5 @@ node web/e2e/smoke.mjs
 ### 现状（2026-11-07）
 
 - **规则层等价已证实**：12 个种子 / 901 步、6 局 AI 决策 / 478 步，两边状态摘要逐字节相同。对拍过程中查出并修掉旧版 `app/js/ai.js` 的一个真 bug（`BASE` 缺 `defense` → 打分 NaN → AI 从来不自己挑锦囊目标）。
-- **Godot 端**：引擎 + AI + 无界面测试齐了；**UI 还没做**（`scenes/main.tscn` 只是空壳），也还没有 Android 导出预设与签名流程。
+- **Godot 端**：引擎 + AI + 界面都齐了 —— 光球环形首页、对局屏（出牌飞行/进场/阵亡/对手出牌演出）、设置/回放/联机三页；Android 导出预设与调试签名已打通，`dist/ka-pai-<版本>-godot.apk` 可直接安装（见 `docs/构建APK-Godot端.md`）。回放只录「种子 + 人类侧动作」，几 KB 一份。
 - **网页端**：首页 / 对局 / 强化工坊三屏可玩，含卡牌详情弹窗、战斗演出（飘字/光环/横幅）、强化·精通与存档（`localStorage` 键 `kp.web.profile.v1`）。旧版的回放、联机、观战、靶场、账号云存档都还没有。
