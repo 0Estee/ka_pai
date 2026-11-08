@@ -120,9 +120,9 @@ func _check_battle() -> void:
 				if (boxes[a][1] as Rect2).intersects(boxes[b][1]):
 					problems.append("对局屏: 手牌「%s」里 %s 与 %s 重叠 %s / %s" % [card.name, boxes[a][0], boxes[b][0], boxes[a][1], boxes[b][1]])
 	print("BATTLE hand_cards=%d hand_row_size=%s hand_rect=%s" % [
-		battle._hand_row.get_child_count(), battle._hand_row.size, battle.HAND_RECT.size])
-	if battle._hand_row.get_child_count() <= 8 and battle._hand_row.size.x > battle.HAND_RECT.size.x + 1.0:
-		problems.append("对局屏: 手牌横向溢出 %.0f > %.0f" % [battle._hand_row.size.x, battle.HAND_RECT.size.x])
+		battle._hand_row.get_child_count(), battle._hand_row.size, battle._r_hand.size])
+	if battle._hand_row.get_child_count() <= 8 and battle._hand_row.size.x > battle._r_hand.size.x + 1.0:
+		problems.append("对局屏: 手牌横向溢出 %.0f > %.0f" % [battle._hand_row.size.x, battle._r_hand.size.x])
 	# 提问面板
 	sess.game.take_choice({"type": "chooseOption", "side": sess.human_side,
 		"prompt": "「铁匠」的进场效果：选择一项",

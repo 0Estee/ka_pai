@@ -57,6 +57,7 @@ func _run() -> void:
 	await _open_battle()
 	await _shot("refactor-godot-battle")
 	await _fly_shot()
+	await _mid_shot()
 	await _select_first_card()
 	await _shot("refactor-godot-battle-select")
 	await _fake_choice()
@@ -286,6 +287,58 @@ func _fly_shot() -> void:
 		await process_frame
 	battle.anim = 0.0
 
+
+
+## 中局：双方都有单位时拍一张，用来核对战场格、陷阱槽与血条是不是真的画出来
+func _mid_shot() -> void:
+	session.pace = 0.0
+	battle.anim = 0.0
+	var plays := 0
+	for step in 3000:
+		await process_frame
+		if session.is_over() or plays >= 4 or int(session.game.state.turn) >= 5:
+			break
+		if session.pending() != null:
+			var opts: Array = session.pending().get("options", [])
+			session.answer_choice(opts[0] if opts.size() > 0 else {})
+			continue
+		if session.busy or not session.is_my_turn():
+			continue
+		var legal: Array = session.legal_plays()
+		if legal.is_empty():
+			session.end_phase()
+			continue
+		var pick: Dictionary = _pick_unit_play(legal)
+		if pick.is_empty():
+			session.end_phase()
+			continue
+		var o: Dictionary = {}
+		var places: Array = pick.get("places", [])
+		if places.size() > 0 and places[0] != null:
+			o = {"lane": places[0].lane, "row": places[0].row}
+		session.play_card(int(pick.iid), o)
+		plays += 1
+	for i in 240:
+		await process_frame
+		if session.pending() != null:
+			var po: Array = session.pending().get("options", [])
+			session.answer_choice(po[0] if po.size() > 0 else {})
+			continue
+		if not session.busy:
+			break
+	for i in 6:
+		await process_frame
+	print("mid shot: plays=%d turn=%d pending=%s" % [plays, int(session.game.state.turn), str(session.pending() != null)])
+	await _shot("refactor-godot-battle-mid")
+	session.pace = 0.02
+
+
+func _pick_unit_play(legal: Array) -> Dictionary:
+	for pick in legal:
+		var places: Array = pick.get("places", [])
+		if places.size() > 0 and places[0] != null:
+			return pick
+	return {}
 
 ## 设置 / 回放 / 联机三页（跟首页同一套光球语言）
 func _shot_pages() -> void:

@@ -18,18 +18,24 @@ const DATA := preload("res://scripts/ui/kp_data.gd")
 const FOLD_AT := 6                 # 正排最多显示几张手牌（其余折叠）
 const DESIGN := Vector2(720, 1280)
 
-const TOP_RECT := Rect2(0, 0, 720, 118)
-const BANNER_RECT := Rect2(0, 122, 720, 44)
-const BOARD_RECT := Rect2(8, 174, 704, 478)
-const HINT_RECT := Rect2(8, 658, 704, 30)
-const HAND_RECT := Rect2(0, 694, 720, 300)
-const PREVIEW_RECT := Rect2(8, 1000, 704, 150)
-const ACTION_RECT := Rect2(0, 1158, 720, 96)
-
+const MIN_H := 1180.0              # 设计稿至少要多高（再矮就把界面整体缩小）
 const CELL_W := 168.0
-const CELL_H := 106.0
 const CELL_GAP := 6.0
 const BOARD_HEADER := 28.0
+
+# 各区域的实际矩形：按窗口比例在 _layout() 里算，屏幕越高战场与手牌越大。
+# （作者 m01990 第 8 条：大小要适配所有屏幕 —— 不再固定 720×1280 留黑边）
+var _r_top := Rect2(0, 0, 720, 118)
+var _r_banner := Rect2(0, 122, 720, 44)
+var _r_board := Rect2(8, 174, 704, 478)
+var _r_hint := Rect2(8, 658, 704, 30)
+var _r_hand := Rect2(0, 694, 720, 300)
+var _r_preview := Rect2(8, 1000, 704, 150)
+var _r_action := Rect2(0, 1158, 720, 96)
+var _vh := 1280.0                  # 当前设计稿高（宽度恒为 720）
+var _cell_h := 106.0               # 战场每排高度
+var _rows_y0 := 28.0               # 第一排的 y（四排整体在战场里垂直居中）
+var _trap_band := 22.0             # 中间陷阱带的高度
 const HALVES := ["foe_back", "foe_front", "my_front", "my_back"]
 
 var session = null
@@ -40,6 +46,7 @@ var _top_refs: Dictionary = {}   # HUD 里会被反复改写的节点
 var _banner: Control
 var _board: Control
 var _hint: Label
+var _hand_scroll: ScrollContainer
 var _hand_row: HBoxContainer
 var _preview: Control
 var _action: Control
@@ -115,65 +122,65 @@ func _build() -> void:
 	add_child(bg)
 
 	_frame = Control.new()
-	_frame.size = DESIGN
+	_frame.size = Vector2(DESIGN.x, _vh)
 	add_child(_frame)
 
 	_top = Panel.new()
-	_top.position = TOP_RECT.position
-	_top.size = TOP_RECT.size
+	_top.position = _r_top.position
+	_top.size = _r_top.size
 	_frame.add_child(_top)
 
 	_banner = Panel.new()
-	_banner.position = BANNER_RECT.position
-	_banner.size = BANNER_RECT.size
+	_banner.position = _r_banner.position
+	_banner.size = _r_banner.size
 	_frame.add_child(_banner)
 
 	_board = Control.new()
-	_board.position = BOARD_RECT.position
-	_board.size = BOARD_RECT.size
+	_board.position = _r_board.position
+	_board.size = _r_board.size
 	_frame.add_child(_board)
 
 	# 线路表头是静态的，只建一次：这样每帧只重建格子，格子上的动画不会被顺手清掉
 	var inner_w := 4.0 * CELL_W + 3.0 * CELL_GAP
-	var hx0 := (BOARD_RECT.size.x - inner_w) * 0.5
+	var hx0 := (_r_board.size.x - inner_w) * 0.5
 	for i in KPC.LANES.size():
 		var lane_name: String = KPC.LANES[i]
 		_lab(_board, str(KPC.LANE_NAME.get(lane_name, lane_name)),
 			Rect2(hx0 + i * (CELL_W + CELL_GAP), 2, CELL_W, 24), 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
 
 	_hint = U.label("", 15, U.DIM, HORIZONTAL_ALIGNMENT_CENTER)
-	_hint.position = HINT_RECT.position
-	_hint.size = HINT_RECT.size
+	_hint.position = _r_hint.position
+	_hint.size = _r_hint.size
 	_frame.add_child(_hint)
 
-	var scroll := ScrollContainer.new()
-	scroll.position = HAND_RECT.position
-	scroll.size = HAND_RECT.size
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_frame.add_child(scroll)
+	_hand_scroll = ScrollContainer.new()
+	_hand_scroll.position = _r_hand.position
+	_hand_scroll.size = _r_hand.size
+	_hand_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_frame.add_child(_hand_scroll)
 	_hand_row = HBoxContainer.new()
 	_hand_row.add_theme_constant_override("separation", 10)
 	_hand_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	scroll.add_child(_hand_row)
+	_hand_scroll.add_child(_hand_row)
 
 	_preview = Control.new()
-	_preview.position = PREVIEW_RECT.position
-	_preview.size = PREVIEW_RECT.size
+	_preview.position = _r_preview.position
+	_preview.size = _r_preview.size
 	_frame.add_child(_preview)
 
 	_action = Control.new()
-	_action.position = ACTION_RECT.position
-	_action.size = ACTION_RECT.size
+	_action.position = _r_action.position
+	_action.size = _r_action.size
 	_frame.add_child(_action)
 
 	_fx_layer = Control.new()
-	_fx_layer.size = DESIGN
+	_fx_layer.size = Vector2(DESIGN.x, _vh)
 	_fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_fx_layer)
 
 	_overlay = Control.new()
-	_overlay.size = DESIGN
+	_overlay.size = Vector2(DESIGN.x, _vh)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_overlay)
 
@@ -188,11 +195,74 @@ func _fit() -> void:
 		avail = get_viewport_rect().size
 	if avail.x <= 0.0 or avail.y <= 0.0:
 		avail = DESIGN
-	var s := minf(avail.x / DESIGN.x, avail.y / DESIGN.y)
+	# 宽度撑满：手机屏越窄，界面等比越小；屏够高时纵向多出来的分给战场和手牌
+	var s := avail.x / DESIGN.x
 	if s <= 0.0 or not is_finite(s):
 		s = 1.0
+	var h := avail.y / s
+	if h < MIN_H:
+		# 平板这种「矮宽」屏：按最小高度缩，横向居中
+		s = avail.y / MIN_H
+		h = MIN_H
 	_frame.scale = Vector2(s, s)
-	_frame.position = (avail - DESIGN * s) * 0.5
+	_frame.position = Vector2((avail.x - DESIGN.x * s) * 0.5, 0.0)
+	_layout(h)
+
+
+## 纵向弹性布局：上下固定件从两端往中间排，剩下的高度给战场和手牌
+func _layout(h: float) -> void:
+	_vh = maxf(h, MIN_H)
+	_r_top = Rect2(0, 0, DESIGN.x, 118)
+	_r_banner = Rect2(0, _r_top.size.y + 4.0, DESIGN.x, 44.0)
+	var board_y := _r_banner.position.y + _r_banner.size.y + 8.0
+	var action_h := 96.0
+	_r_action = Rect2(0, _vh - action_h - 8.0, DESIGN.x, action_h)
+	var preview_h := clampf(_vh * 0.118, 118.0, 172.0)
+	_r_preview = Rect2(8, _r_action.position.y - 10.0 - preview_h, DESIGN.x - 16.0, preview_h)
+	var hand_h := clampf(_vh * 0.235, 236.0, 336.0)
+	_r_hand = Rect2(0, _r_preview.position.y - 8.0 - hand_h, DESIGN.x, hand_h)
+	_r_hint = Rect2(8, _r_hand.position.y - 8.0 - 30.0, DESIGN.x - 16.0, 30.0)
+	var board_h := maxf(320.0, _r_hint.position.y - 8.0 - board_y)
+	_r_board = Rect2(8, board_y, DESIGN.x - 16.0, board_h)
+	# 四排单位 + 中间一条陷阱带；多出来的高度让每排变高，并整体居中
+	var rows_h := board_h - BOARD_HEADER - 3.0 * CELL_GAP - _trap_band
+	_cell_h = clampf(rows_h / 4.0, 84.0, 152.0)
+	_rows_y0 = BOARD_HEADER + maxf(0.0, (rows_h - 4.0 * _cell_h) * 0.5)
+	if _frame != null:
+		_frame.size = Vector2(DESIGN.x, _vh)
+	if _fx_layer != null:
+		_fx_layer.size = Vector2(DESIGN.x, _vh)
+	if _overlay != null:
+		_overlay.size = Vector2(DESIGN.x, _vh)
+	_apply_layout()
+
+
+## 把算好的矩形套到已经建出来的节点上：屏幕旋转 / 改变窗口大小时也要跟着变
+func _apply_layout() -> void:
+	if _top != null:
+		_top.position = _r_top.position
+		_top.size = _r_top.size
+	if _banner != null:
+		_banner.position = _r_banner.position
+		_banner.size = _r_banner.size
+	if _board != null:
+		_board.position = _r_board.position
+		_board.size = _r_board.size
+	if _hint != null:
+		_hint.position = _r_hint.position
+		_hint.size = _r_hint.size
+	if _hand_scroll != null:
+		_hand_scroll.position = _r_hand.position
+		_hand_scroll.size = _r_hand.size
+	if _preview != null:
+		_preview.position = _r_preview.position
+		_preview.size = _r_preview.size
+	if _action != null:
+		_action.position = _r_action.position
+		_action.size = _r_action.size
+	# 格子是按 _cell_h 摆的：高度变了就重排一遍（内容没变会复用节点）
+	if _board != null and not _cell_nodes.is_empty() and session != null and session.game != null:
+		_refresh()
 
 
 # ══════════════════════════════════════════════════════════
@@ -431,8 +501,22 @@ func _who_won_text(st: Dictionary) -> String:
 
 func _cell_rect(lane_i: int, half_i: int) -> Rect2:
 	var inner_w := 4.0 * CELL_W + 3.0 * CELL_GAP
-	var x0 := (BOARD_RECT.size.x - inner_w) * 0.5
-	return Rect2(x0 + lane_i * (CELL_W + CELL_GAP), BOARD_HEADER + half_i * (CELL_H + CELL_GAP), CELL_W, CELL_H)
+	var x0 := (_r_board.size.x - inner_w) * 0.5
+	# 前半场两排在上，后半场两排在下，中间留一条陷阱带（作者第 7 条）
+	var y := _rows_y0 + half_i * (_cell_h + CELL_GAP)
+	if half_i >= 2:
+		y += _trap_band
+	return Rect2(x0 + lane_i * (CELL_W + CELL_GAP), y, CELL_W, _cell_h)
+
+
+## 陷阱带里某个槽位的矩形：左半是对手的，右半是自己的
+func _trap_rect(lane_i: int, side: int) -> Rect2:
+	var inner_w := 4.0 * CELL_W + 3.0 * CELL_GAP
+	var x0 := (_r_board.size.x - inner_w) * 0.5
+	var slot_w := (CELL_W - 6.0) * 0.5
+	var left := side != int(session.human_side)
+	var y := _rows_y0 + 2.0 * (_cell_h + CELL_GAP)
+	return Rect2(x0 + lane_i * (CELL_W + CELL_GAP) + (0.0 if left else slot_w + 6.0), y, slot_w, _trap_band)
 
 
 func _build_board(st: Dictionary) -> void:
@@ -475,6 +559,31 @@ func _build_board(st: Dictionary) -> void:
 			node.pivot_offset = rect.size * 0.5
 			# 选中手牌时，对方半场整片压暗 —— 不给人「这里也能放」的错觉
 			node.modulate = Color(1, 1, 1, 0.55) if picking and side != me_side else Color(1, 1, 1, 1)
+
+	# 陷阱带：4 线 × 2 方 = 8 个槽（作者 m01990 第 7 条「中间有陷阱格子」）
+	for i in KPC.LANES.size():
+		var lane_t: String = KPC.LANES[i]
+		for side in 2:
+			var tkey := "trap:%s:%d" % [lane_t, side]
+			var trap = st.board[lane_t].traps[side]
+			var tsig := "none" if trap == null else "%s|%s" % [str(trap.get("cardId", "")), "1" if trap.get("revealed", false) else "0"]
+			seen[tkey] = true
+			var tnode = _cell_nodes.get(tkey, null)
+			if tnode == null or not is_instance_valid(tnode) or str(_cell_sig.get(tkey, "")) != tsig:
+				if tnode != null and is_instance_valid(tnode):
+					_board.remove_child(tnode)
+					tnode.queue_free()
+				tnode = _make_trap_slot(side, trap)
+				_board.add_child(tnode)
+				_cell_nodes[tkey] = tnode
+				_cell_sig[tkey] = tsig
+			var trect := _trap_rect(i, side)
+			tnode.position = trect.position
+			tnode.size = trect.size
+			for tc in tnode.get_children():
+				if tc is Label:
+					tc.size = Vector2(trect.size.x, 14.0)
+					tc.position = Vector2(0.0, maxf(1.0, (trect.size.y - 14.0) * 0.5))
 
 	for key in _cell_nodes.keys():
 		if not seen.has(key):
@@ -533,6 +642,27 @@ func _make_cell(lane: String, half: String, row: String, side: int, u, is_legal:
 
 # ── 手牌 ────────────────────────────────────────────────────────────────────
 
+## 陷阱槽：空槽是一圈虚边，有陷阱时画成盖牌（自己的看得见金边，对手的是「?」）
+func _make_trap_slot(side: int, trap) -> Control:
+	var p := Panel.new()
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mine := side == int(session.human_side)
+	var has := trap != null
+	var fill := (U.PANEL_HI if mine else U.PANEL) if has else Color(0, 0, 0, 0.16)
+	var line := (U.GOLD if mine else U.BAD) if has else Color(U.LINE, 0.38)
+	p.add_theme_stylebox_override("panel", U.box(fill, 5, line, 1))
+	var txt := "陷阱" if not has else ("陷阱" if mine else "?")
+	var col := Color(U.DIM, 0.42) if not has else (U.GOLD if mine else U.BAD)
+	var l := U.label(txt, 10, col, HORIZONTAL_ALIGNMENT_CENTER)
+	p.add_child(l)
+	l.update_minimum_size()
+	l.position = Vector2(0, 2)
+	l.size = Vector2(80, 16)
+	l.clip_text = true
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return p
+
+
 func _build_hand(me: Dictionary) -> void:
 	var hand: Array = me.hand
 	# 作者第 9 条：正排最多 6 张，多出来的折成右侧「+N」堆，点一下展开。
@@ -544,7 +674,7 @@ func _build_hand(me: Dictionary) -> void:
 		shown = hand.slice(0, FOLD_AT)
 	# 一手牌尽量铺满宽度不出现横向滚动；展开后（或牌很少）交给 ScrollContainer
 	var n := maxf(1.0, float(shown.size()))
-	var cw := clampf((HAND_RECT.size.x - 36.0 - 8.0 * (n - 1.0)) / n, 96.0, 152.0)
+	var cw := clampf((_r_hand.size.x - 36.0 - 8.0 * (n - 1.0)) / n, 96.0, 152.0)
 
 	# 按 iid 复用旧节点：只是「可不可出 / 有没有选中」变了就重画那一张，
 	# 其余牌原样留着 —— 抽牌、出牌时其它牌不会整体闪一下。
@@ -697,7 +827,7 @@ func _build_preview(me: Dictionary) -> void:
 		return
 	var box := Panel.new()
 	box.position = Vector2(0, 0)
-	box.size = PREVIEW_RECT.size
+	box.size = _r_preview.size
 	box.add_theme_stylebox_override("panel", U.box(U.BG_SOFT, 12, U.GOLD))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_preview.add_child(box)
@@ -1070,7 +1200,7 @@ func _dim_full() -> ColorRect:
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.5)
 	dim.position = Vector2.ZERO
-	dim.size = DESIGN
+	dim.size = Vector2(DESIGN.x, _vh)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	if _anim_on():
 		dim.modulate.a = 0.0
@@ -1089,7 +1219,7 @@ func _build_choice(req: Dictionary) -> void:
 	var h := clampf(78.0 + float(shown) * 66.0 + 16.0, 210.0, 760.0)
 	var panel := Panel.new()
 	panel.size = Vector2(640, h)
-	panel.position = Vector2(40, DESIGN.y - h - 30)
+	panel.position = Vector2(40, _vh - h - 30)
 	panel.add_theme_stylebox_override("panel", U.box(Color("161c27"), 18, U.GOLD, 2))
 	_overlay.add_child(panel)
 
@@ -1262,7 +1392,7 @@ func _build_detail() -> void:
 
 	var ph := clampf(y + 76.0, 300.0, 900.0)
 	panel.size = Vector2(600, ph)
-	panel.position = Vector2(60, maxf(40.0, (DESIGN.y - ph) * 0.5))
+	panel.position = Vector2(60, maxf(40.0, (_vh - ph) * 0.5))
 	var close := _big_button("关闭", Rect2(190, ph - 72, 220, 56), true, func(): _close_detail())
 	panel.add_child(close)
 
@@ -1316,7 +1446,7 @@ func _half_key(side: int, row: String) -> String:
 func _cell_center(lane: String, half: String) -> Vector2:
 	var node = _cell_nodes.get("%s:%s" % [lane, half], null)
 	if node == null:
-		return DESIGN * 0.5
+		return Vector2(DESIGN.x, _vh) * 0.5
 	var global_center: Vector2 = node.get_global_rect().get_center()
 	return _frame.get_global_transform().affine_inverse() * global_center
 
@@ -1342,7 +1472,7 @@ func _banner_fx(text: String) -> void:
 		return
 	var l := U.label(text, 40, U.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	l.size = Vector2(DESIGN.x, 58)
-	l.position = Vector2(0, DESIGN.y * 0.42)
+	l.position = Vector2(0, _vh * 0.42)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.pivot_offset = l.size * 0.5
 	_fx_layer.add_child(l)
@@ -1366,7 +1496,7 @@ func _toast(text: String) -> void:
 		return
 	var l := U.label(text, 16, U.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	l.size = Vector2(DESIGN.x - 80, 40)
-	l.position = Vector2(40, DESIGN.y - 220)
+	l.position = Vector2(40, _vh - 220)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bg := U.box(Color(0, 0, 0, 0.75), 12, U.LINE)
 	var holder := Panel.new()
@@ -1574,7 +1704,7 @@ func _play_fx(ev: Dictionary) -> void:
 			_float_fx(str(ev.get("text", "")), Vector2(x, 96), U.BAD if is_dmg else U.GOOD, 30)
 		"cast":
 			if int(ev.get("side", -1)) == session.human_side:
-				_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22)
+				_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, _r_hand.position.y - 12.0), U.FACTION, 22)
 			else:
 				_foe_cast_fx(ev)
 		_:
@@ -1694,7 +1824,7 @@ func _target_rect(opts: Dictionary) -> Rect2:
 			var r := _cell_rect(li, hi)
 			r.position += _board.position
 			return r
-	return Rect2(Vector2(276, 360), Vector2(CELL_W, CELL_H))
+	return Rect2(Vector2(276, 360), Vector2(CELL_W, _cell_h))
 
 
 ## 出牌入口：先让一张牌从手牌飞到落点，落地那一刻才真的把牌打进引擎。
@@ -1784,7 +1914,7 @@ func _cell_rect_abs(lane: String, half: String) -> Rect2:
 	var li := KPC.LANES.find(lane)
 	var hi := HALVES.find(half)
 	if li < 0 or hi < 0:
-		return Rect2(_board.position, Vector2(CELL_W, CELL_H))
+		return Rect2(_board.position, Vector2(CELL_W, _cell_h))
 	var r := _cell_rect(li, hi)
 	r.position += _board.position
 	return r
@@ -1836,7 +1966,7 @@ func _screen_flash(col: Color, alpha: float) -> void:
 	var cr := ColorRect.new()
 	cr.color = Color(col.r, col.g, col.b, alpha)
 	cr.position = Vector2.ZERO
-	cr.size = DESIGN
+	cr.size = Vector2(DESIGN.x, _vh)
 	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fx_layer.add_child(cr)
 	var tw := cr.create_tween()
@@ -1898,14 +2028,14 @@ func _foe_cast_fx(ev: Dictionary) -> void:
 	if not _anim_on():
 		return
 	var lane := str(ev.get("lane", ""))
-	var rect := Rect2(Vector2(276, 360), Vector2(CELL_W, CELL_H))
+	var rect := Rect2(Vector2(276, 360), Vector2(CELL_W, _cell_h))
 	if lane != "":
 		var li := KPC.LANES.find(lane)
 		if li >= 0:
 			rect = _cell_rect_abs(lane, "my_front")
 	_foe_fly("锦囊", U.FACTION, Rect2(Vector2(600, 22), Vector2(104, 118)), rect, func():
 		_land_burst(rect)
-		_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, 690), U.FACTION, 22))
+		_float_fx("「%s」" % str(ev.get("text", "")), Vector2(DESIGN.x * 0.5, _r_hand.position.y - 12.0), U.FACTION, 22))
 
 
 ## 对手方的「牌」：只画一张带名字的牌背，飞得比玩家自己出牌快一点
